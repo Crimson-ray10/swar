@@ -1,0 +1,76 @@
+# iTantra Model Manifest
+# Defines officially supported and pinned models, licenses, gate requirements, and provider bindings.
+
+version: "1.0.0"
+
+models:
+  indic_conformer:
+    id: "ai4bharat/indic-conformer-600m-multilingual"
+    provider_class: "itantra.stt.indic_conformer.IndicConformerProvider"
+    task: "stt"
+    license: "MIT"
+    gated: true
+    sample_rate_hz: 16000
+    channels: 1
+    languages: ["hi", "ta", "bn", "te", "mr", "gu", "kn", "ml", "pa"]
+    supported_modes: ["ctc", "rnnt"]
+    default_mode: "ctc"
+    cache_subdir: "indic-conformer"
+
+  faster_whisper:
+    id: "Systran/faster-whisper-small"
+    provider_class: "itantra.stt.whisper.FasterWhisperProvider"
+    task: "stt_and_lid"
+    license: "Apache-2.0"
+    gated: false
+    sample_rate_hz: 16000
+    channels: 1
+    languages: ["en", "auto"]
+    compute_type_cpu: "int8"
+    compute_type_gpu: "float16"
+    cache_subdir: "faster-whisper-small"
+
+  indicf5:
+    id: "ai4bharat/IndicF5"
+    provider_class: "itantra.tts.indicf5.IndicF5Provider"
+    task: "tts"
+    license: "MIT"
+    gated: true
+    sample_rate_hz: 24000
+    channels: 1
+    languages: ["hi", "ta", "bn", "te", "mr", "gu", "kn", "ml", "pa"]
+    requires_prompt_audio: true
+    cache_subdir: "indicf5"
+
+  piper_en:
+    id: "rhasspy/piper-voices/en_US-amy-medium"
+    provider_class: "itantra.tts.piper.PiperProvider"
+    task: "tts"
+    license: "MIT"
+    gated: false
+    sample_rate_hz: 22050
+    channels: 1
+    languages: ["en"]
+    onnx_model: "en_US-amy-medium.onnx"
+    onnx_config: "en_US-amy-medium.onnx.json"
+    cache_subdir: "piper-en"
+
+  mock_stt:
+    id: "itantra/mock-stt"
+    provider_class: "itantra.stt.mock.MockSTTProvider"
+    task: "stt"
+    license: "MIT"
+    gated: false
+    sample_rate_hz: 16000
+    channels: 1
+    languages: ["hi", "ta", "en", "bn", "te", "mr", "gu", "kn", "ml", "pa"]
+
+  mock_tts:
+    id: "itantra/mock-tts"
+    provider_class: "itantra.tts.mock.MockTTSProvider"
+    task: "tts"
+    license: "MIT"
+    gated: false
+    sample_rate_hz: 24000
+    channels: 1
+    languages: ["hi", "ta", "en", "bn", "te", "mr", "gu", "kn", "ml", "pa"]

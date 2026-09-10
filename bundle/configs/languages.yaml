@@ -1,0 +1,144 @@
+# iTantra Language Registry
+# Target: 10 Indian languages + English
+# MVP: Hindi (hi), Tamil (ta), English (en)
+
+languages:
+  hi:
+    id: "hi"
+    name: "Hindi"
+    native_name: "हिन्दी"
+    script: "Devanagari"
+    unicode_range: [0x0900, 0x097F]
+    mvp: true
+    asr_provider: "indic_conformer"
+    asr_lang_code: "hi"
+    tts_provider: "indicf5"
+    tts_lang_code: "hi"
+    normalizer: "indic_nfc"
+    sample_text: "मैं घर पहुँच गया हूँ और सब ठीक है।"
+
+  ta:
+    id: "ta"
+    name: "Tamil"
+    native_name: "தமிழ்"
+    script: "Tamil"
+    unicode_range: [0x0B80, 0x0BFF]
+    mvp: true
+    asr_provider: "indic_conformer"
+    asr_lang_code: "ta"
+    tts_provider: "indicf5"
+    tts_lang_code: "ta"
+    normalizer: "indic_nfc"
+    sample_text: "நான் நலமாக இருக்கிறேன், நன்றி."
+
+  en:
+    id: "en"
+    name: "English"
+    native_name: "English"
+    script: "Latin"
+    unicode_range: [0x0020, 0x007E]
+    mvp: true
+    asr_provider: "faster_whisper"
+    asr_lang_code: "en"
+    tts_provider: "piper"
+    tts_lang_code: "en_US"
+    normalizer: "standard_en"
+    sample_text: "I have arrived at the station safely."
+
+  bn:
+    id: "bn"
+    name: "Bengali"
+    native_name: "বাংলা"
+    script: "Bengali"
+    unicode_range: [0x0980, 0x09FF]
+    mvp: false
+    asr_provider: "indic_conformer"
+    asr_lang_code: "bn"
+    tts_provider: "indicf5"
+    tts_lang_code: "bn"
+    normalizer: "indic_nfc"
+    sample_text: "আমি ভালো আছি।"
+
+  te:
+    id: "te"
+    name: "Telugu"
+    native_name: "తెలుగు"
+    script: "Telugu"
+    unicode_range: [0x0C00, 0x0C7F]
+    mvp: false
+    asr_provider: "indic_conformer"
+    asr_lang_code: "te"
+    tts_provider: "indicf5"
+    tts_lang_code: "te"
+    normalizer: "indic_nfc"
+    sample_text: "నేను క్షేమంగా ఉన్నాను."
+
+  mr:
+    id: "mr"
+    name: "Marathi"
+    native_name: "मराठी"
+    script: "Devanagari"
+    unicode_range: [0x0900, 0x097F]
+    mvp: false
+    asr_provider: "indic_conformer"
+    asr_lang_code: "mr"
+    tts_provider: "indicf5"
+    tts_lang_code: "mr"
+    normalizer: "indic_nfc"
+    sample_text: "मी सुरक्षित पोहोचलो आहे."
+
+  gu:
+    id: "gu"
+    name: "Gujarati"
+    native_name: "ગુજરાતી"
+    script: "Gujarati"
+    unicode_range: [0x0A80, 0x0AFF]
+    mvp: false
+    asr_provider: "indic_conformer"
+    asr_lang_code: "gu"
+    tts_provider: "indicf5"
+    tts_lang_code: "gu"
+    normalizer: "indic_nfc"
+    sample_text: "હું ઘરે પહોંચી ગયો છું."
+
+  kn:
+    id: "kn"
+    name: "Kannada"
+    native_name: "ಕನ್ನಡ"
+    script: "Kannada"
+    unicode_range: [0x0C80, 0x0CFF]
+    mvp: false
+    asr_provider: "indic_conformer"
+    asr_lang_code: "kn"
+    tts_provider: "indicf5"
+    tts_lang_code: "kn"
+    normalizer: "indic_nfc"
+    sample_text: "ನಾನು ಸುರಕ್ಷಿತವಾಗಿದ್ದೇನೆ."
+
+  ml:
+    id: "ml"
+    name: "Malayalam"
+    native_name: "മലയാളം"
+    script: "Malayalam"
+    unicode_range: [0x0D00, 0x0D7F]
+    mvp: false
+    asr_provider: "indic_conformer"
+    asr_lang_code: "ml"
+    tts_provider: "indicf5"
+    tts_lang_code: "ml"
+    normalizer: "indic_nfc"
+    sample_text: "ഞാൻ സുഖമായിരിക്കുന്നു."
+
+  pa:
+    id: "pa"
+    name: "Punjabi"
+    native_name: "ਪੰਜਾਬੀ"
+    script: "Gurmukhi"
+    unicode_range: [0x0A00, 0x0A7F]
+    mvp: false
+    asr_provider: "indic_conformer"
+    asr_lang_code: "pa"
+    tts_provider: "indicf5"
+    tts_lang_code: "pa"
+    normalizer: "indic_nfc"
+    sample_text: "ਮੈਂ ਘਰ ਪਹੁੰਚ ਗਿਆ ਹਾਂ।"
