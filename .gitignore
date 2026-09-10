@@ -53,6 +53,7 @@ dist/
 dist-ssr/
 *.local
 .vite/
+.vercel/
 
 # Environment variables & secrets
 .env
@@ -69,3 +70,5 @@ dist-ssr/
 *~
 .DS_Store
 Thumbs.db
+
+.vercel

@@ -4,6 +4,7 @@
   "private": true,
   "description": "Indian Multilingual TTS & STT Aided Neural Transceiver Radio Access for Low-Bitrate Links",
   "scripts": {
+    "build": "npm --prefix apps/web run build",
     "dev:web": "npm --prefix apps/web run dev",
     "build:web": "npm --prefix apps/web run build",
     "test:web": "npm --prefix apps/web run test"
