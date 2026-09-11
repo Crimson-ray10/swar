@@ -1,5 +1,5 @@
-import React from 'react';
-import { Download, Zap } from 'lucide-react';
+import React, { useState } from 'react';
+import { Download, Zap, Gauge, Check } from 'lucide-react';
 import { RunReport } from '../types';
 
 interface ComparisonGaugeProps {
@@ -13,6 +13,7 @@ export const ComparisonGauge: React.FC<ComparisonGaugeProps> = ({
   compressionRatio,
   lastReport,
 }) => {
+  const [downloaded, setDownloaded] = useState(false);
   const pcmBps = 256000;
   // Percentage of 256 kbps consumed by iTantra (e.g. 1000 / 256000 = ~0.39%)
   const percentageOfPcm = actualWireBps > 0 ? (actualWireBps / pcmBps) * 100 : 0;
@@ -26,20 +27,25 @@ export const ComparisonGauge: React.FC<ComparisonGaugeProps> = ({
     a.download = `itantra_run_${lastReport.run_id.slice(0, 8)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    setDownloaded(true);
+    setTimeout(() => setDownloaded(false), 2000);
   };
 
   return (
-    <footer className="bottom-bar">
-      <div className="comparison-gauge">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Zap size={18} color="var(--accent-emerald)" />
-          <span style={{ fontWeight: 600, fontSize: '13px' }}>Bandwidth Comparison</span>
+    <div className="comparison-footer-bar">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, minWidth: '280px' }}>
+        <div style={{ padding: '10px', borderRadius: '16px', background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)' }}>
+          <Zap size={22} />
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '4px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)' }}>
-            <span>iTantra On-Air Wire: <strong style={{ color: 'var(--accent-cyan)' }}>{actualWireBps ? `${actualWireBps} bps` : '--'}</strong></span>
-            <span>Uncompressed PCM: <strong style={{ color: 'var(--text-muted)' }}>256,000 bps (16 kHz 16-bit)</strong></span>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#f8fafc', letterSpacing: '0.04em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Gauge size={14} color="#34d399" /> Bandwidth Efficiency vs Raw PCM
+            </span>
+            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#94a3b8' }}>
+              On-Air Wire: <strong style={{ color: '#ffffff' }}>{actualWireBps > 0 ? `${actualWireBps} bps` : '--'}</strong> / PCM: <span style={{ color: '#64748b' }}>256k bps</span>
+            </span>
           </div>
 
           <div className="gauge-bar-wrapper">
@@ -49,28 +55,53 @@ export const ComparisonGauge: React.FC<ComparisonGaugeProps> = ({
               title={`Consumes only ${percentageOfPcm.toFixed(2)}% of raw speech bandwidth`}
             />
           </div>
-        </div>
 
-        <div style={{ textAlign: 'right', minWidth: '130px' }}>
-          <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--accent-emerald)', fontFamily: 'var(--font-mono)' }}>
-            {compressionRatio > 0 ? `${compressionRatio.toFixed(0)}×` : '--'}
-          </div>
-          <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-            Compression vs PCM
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
+            <span>
+              {actualWireBps > 0
+                ? `Consuming only ${percentageOfPcm.toFixed(2)}% of uncompressed speech channel capacity`
+                : 'Transmit audio to measure real-time spectral efficiency'}
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)', color: '#818cf8' }}>Target: 0.5 – 2.0 kbps</span>
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '8px' }}>
+      {/* Compression Multiplier Card */}
+      <div className="compression-multiplier-pill">
+        <div className="mult-num">
+          {compressionRatio > 0 ? `${compressionRatio.toFixed(0)}×` : '256×'}
+        </div>
+        <div className="mult-label">Compression</div>
+      </div>
+
+      {/* Export Action Button */}
+      <div>
         <button
-          className="btn-secondary"
           onClick={handleExportJson}
           disabled={!lastReport}
-          title="Download reproducible run telemetry report"
+          className="secondary-pill-btn"
+          style={{
+            padding: '10px 20px',
+            background: downloaded ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.08)',
+            borderColor: downloaded ? '#10b981' : 'rgba(255,255,255,0.15)',
+            color: downloaded ? '#6ee7b7' : '#ffffff'
+          }}
+          title="Download reproducible run telemetry report JSON"
         >
-          <Download size={14} /> Export Report
+          {downloaded ? (
+            <>
+              <Check size={14} color="#10b981" />
+              <span>Report Exported!</span>
+            </>
+          ) : (
+            <>
+              <Download size={14} />
+              <span>Export Report JSON</span>
+            </>
+          )}
         </button>
       </div>
-    </footer>
+    </div>
   );
 };

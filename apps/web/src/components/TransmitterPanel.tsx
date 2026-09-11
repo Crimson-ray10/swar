@@ -1,6 +1,7 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { Mic, MicOff, Upload, Play, FileText } from 'lucide-react';
+import React, { useState } from 'react';
+import { Upload, Play, Languages, FileText, Sparkles } from 'lucide-react';
 import { LanguageSpec, CriticalSpan } from '../types';
+import { MicButton, MicState } from './MicButton';
 
 interface TransmitterPanelProps {
   languages: LanguageSpec[];
@@ -25,93 +26,34 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
   tokenCount,
   isProcessing,
 }) => {
-  const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [micState, setMicState] = useState<MicState>('Idle');
 
-  // Canvas dummy waveform animation when recording
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let animId: number;
-    let phase = 0;
-
-    const draw = () => {
-      ctx.fillStyle = '#0d121c';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = isRecording ? '#06b6d4' : '#26334a';
-      ctx.beginPath();
-
-      const sliceWidth = canvas.width / 100;
-      let x = 0;
-
-      for (let i = 0; i < 100; i++) {
-        const amplitude = isRecording ? 20 * Math.sin(i * 0.2 + phase) * Math.cos(i * 0.1) : 2 * Math.sin(i * 0.1);
-        const y = canvas.height / 2 + amplitude;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-        x += sliceWidth;
-      }
-
-      ctx.stroke();
-      phase += 0.1;
-      animId = requestAnimationFrame(draw);
-    };
-
-    draw();
-    return () => cancelAnimationFrame(animId);
-  }, [isRecording]);
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        onAudioReady(audioBlob);
-        stream.getTracks().forEach((track) => track.stop());
-      };
-
-      mediaRecorder.start(250);
-      setIsRecording(true);
-    } catch (err) {
-      console.error('Microphone access denied:', err);
-      alert('Could not access microphone. You can still use WAV upload or Sample Utterance.');
+  // Sync processing state with mic state
+  React.useEffect(() => {
+    if (isProcessing) {
+      setMicState('Processing');
+    } else if (rawTranscript || normalizedTranscript) {
+      setMicState('Complete');
+    } else {
+      setMicState('Idle');
     }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
+  }, [isProcessing, rawTranscript, normalizedTranscript]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setUploadedFileName(file.name);
       onAudioReady(file);
     }
   };
 
   const handleSampleUtterance = () => {
     const lang = languages.find((l) => l.id === selectedLanguage);
-    const text = lang ? lang.sample_text : 'मैं घर पहुँच गया हूँ';
+    const text = lang ? lang.sample_text : 'मैं घर पहुँच गया हूँ और सब ठीक है।';
+    setUploadedFileName(`Sample: ${lang ? lang.name : 'Hindi'}`);
 
-    // Generate a simple client-side WAV carrier blob
+    // Generate standard 16 kHz WAV carrier tone
     const sampleRate = 16000;
     const durationS = 1.5;
     const numSamples = sampleRate * durationS;
@@ -145,19 +87,27 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
     onAudioReady(blob, text);
   };
 
-  // Highlight critical spans in normalized text
+  // Render critical spans with citation highlight styling
   const renderHighlightedText = () => {
-    if (!normalizedTranscript) return <span style={{ color: 'var(--text-muted)' }}>Awaiting speech input...</span>;
-    if (criticalSpans.length === 0) return <span>{normalizedTranscript}</span>;
+    if (!normalizedTranscript) {
+      return <span style={{ color: '#64748b', fontStyle: 'italic' }}>Awaiting speech capture or sample transmission...</span>;
+    }
+    if (criticalSpans.length === 0) {
+      return <span>{normalizedTranscript}</span>;
+    }
 
-    const parts = [];
+    const parts: React.ReactNode[] = [];
     let lastIdx = 0;
     criticalSpans.forEach((span, i) => {
       if (span.start_char > lastIdx) {
         parts.push(normalizedTranscript.slice(lastIdx, span.start_char));
       }
       parts.push(
-        <span key={i} className="critical-span" title={`Critical literal: ${span.span_type}`}>
+        <span
+          key={i}
+          className="critical-span"
+          title={`Protected literal (${span.span_type}): "${span.literal}"`}
+        >
           {span.literal}
         </span>
       );
@@ -169,56 +119,74 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
     return parts;
   };
 
+  const currentLang = languages.find((l) => l.id === selectedLanguage);
+
   return (
-    <div className="panel-card">
-      <div className="panel-title">
-        <span>Transmitter (Source)</span>
-        <span className="panel-title-badge">16 kHz PCM</span>
+    <section id="studio" className="content-section">
+      {/* Section Badge */}
+      <div className="section-badge">
+        <Sparkles size={13} />
+        <span>Indian Multilingual Radio Studio</span>
       </div>
 
-      <div className="control-group">
-        <label className="control-label">Spoken Language</label>
-        <select
-          value={selectedLanguage}
-          onChange={(e) => onSelectLanguage(e.target.value)}
-          disabled={isProcessing}
-        >
-          {languages.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name} ({l.native_name}) {l.mvp ? '• MVP' : ''}
-            </option>
-          ))}
-        </select>
-      </div>
+      <h2 className="section-title">
+        Transmit via Voice
+      </h2>
+      <p className="section-desc">
+        Real-time multilingual speech recognition, semantic normalization, 14-bit tokenization, and wire packet framing.
+      </p>
 
-      {/* Waveform Canvas */}
-      <div className="waveform-container">
-        <canvas ref={canvasRef} className="waveform-canvas" width={400} height={80} />
-      </div>
-
-      {/* Capture Controls */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        {!isRecording ? (
-          <button
-            className="btn-primary"
-            onClick={startRecording}
+      {/* Language Selector Pill */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '999px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <Languages size={14} color="#818cf8" />
+          <span style={{ fontSize: '13px', fontWeight: 500, color: '#e2e8f0' }}>Language:</span>
+          <select
+            value={selectedLanguage}
+            onChange={(e) => onSelectLanguage(e.target.value)}
             disabled={isProcessing}
-            style={{ flex: 1 }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#ffffff',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              outline: 'none',
+              fontFamily: 'var(--font-sans)'
+            }}
           >
-            <Mic size={16} /> Record Mic
-          </button>
-        ) : (
-          <button
-            className="btn-primary"
-            onClick={stopRecording}
-            style={{ flex: 1, background: 'var(--accent-rose)' }}
-          >
-            <MicOff size={16} /> Stop Recording
-          </button>
-        )}
+            {languages.map((l) => (
+              <option key={l.id} value={l.id} style={{ background: '#0f172a', color: '#ffffff' }}>
+                {l.name} ({l.native_name}) {l.mvp ? '★ MVP' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <label className="btn-secondary" style={{ cursor: 'pointer' }}>
-          <Upload size={14} /> Upload WAV
+        {currentLang && (
+          <span style={{ fontSize: '12px', color: '#818cf8', fontFamily: 'var(--font-sans)', fontWeight: 600 }}>
+            {currentLang.native_name}
+          </span>
+        )}
+      </div>
+
+      {/* Central Interactive Mic Button (Exact July Experience) */}
+      <MicButton
+        state={micState}
+        selectedLanguage={selectedLanguage}
+        onAudioRecorded={(blob, liveTranscript) => {
+          setUploadedFileName('Microphone Utterance');
+          onAudioReady(blob, liveTranscript);
+        }}
+        onStateChange={setMicState}
+      />
+
+      {/* Secondary Action Buttons (Upload WAV, Sample Utterance) */}
+      <div className="mic-actions-row">
+        <label className="secondary-pill-btn" title="Upload an uncompressed 16 kHz WAV or FLAC speech file">
+          <Upload size={14} />
+          <span>Upload Audio</span>
           <input
             type="file"
             accept="audio/wav,audio/flac"
@@ -229,47 +197,94 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
         </label>
 
         <button
-          className="btn-secondary"
+          className="secondary-pill-btn"
           onClick={handleSampleUtterance}
           disabled={isProcessing}
-          title="Transmit verified fixture sentence"
+          title={`Transmit verified sample: "${currentLang?.sample_text || ''}"`}
         >
-          <Play size={14} /> Sample
+          <Play size={13} />
+          <span>Sample Audio</span>
         </button>
+
+        {uploadedFileName && (
+          <span style={{ fontSize: '12px', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
+            📎 {uploadedFileName}
+          </span>
+        )}
       </div>
 
-      {/* ASR & Normalization Cards */}
-      <div className="control-group">
-        <div className="control-label">
-          <span>ASR Raw Transcript</span>
-          <FileText size={14} color="var(--text-muted)" />
+      {/* Transcripts & Telemetry Cards */}
+      <div style={{ width: '100%', maxWidth: '820px', marginTop: '36px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* ASR Raw Acoustic Transcript */}
+        <div className="glass-panel" style={{ borderRadius: '20px', padding: '18px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <FileText size={13} color="#818cf8" />
+              <span>ASR Raw Acoustic Transcript</span>
+            </span>
+            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#64748b' }}>
+              IndicConformer / Whisper
+            </span>
+          </div>
+          <p style={{ fontSize: '15px', color: rawTranscript ? '#f8fafc' : '#64748b', fontStyle: rawTranscript ? 'normal' : 'italic', lineHeight: 1.5 }}>
+            {rawTranscript ? `"${rawTranscript}"` : 'Awaiting speech capture or sample transmission...'}
+          </p>
         </div>
-        <div className="text-display-card" style={{ fontSize: '13px' }}>
-          {rawTranscript || <span style={{ color: 'var(--text-muted)' }}>No speech captured yet.</span>}
-        </div>
-      </div>
 
-      <div className="control-group">
-        <div className="control-label">
-          <span>Normalized Semantic Text</span>
-          <span style={{ fontSize: '11px', color: 'var(--accent-amber)' }}>● Protected Literals</span>
+        {/* Normalized Semantic Message Card with Critical Literals */}
+        <div className="glass-panel" style={{ borderRadius: '20px', padding: '18px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <Sparkles size={13} color="#6366f1" />
+              <span>Normalized Semantic Message</span>
+            </span>
+            <span
+              style={{
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                color: '#c7d2fe',
+                background: 'rgba(99,102,241,0.2)',
+                border: '1px solid rgba(99,102,241,0.4)',
+                borderRadius: '999px',
+                padding: '2px 8px'
+              }}
+              title="Protected literals (digits, negations, dates) preserved with high priority"
+            >
+              ● Protected Literals
+            </span>
+          </div>
+          <p style={{ fontSize: '15px', color: '#f8fafc', lineHeight: 1.6 }}>
+            {renderHighlightedText()}
+          </p>
         </div>
-        <div className="text-display-card">
-          {renderHighlightedText()}
-        </div>
-      </div>
 
-      {/* Token Telemetry */}
-      <div className="telemetry-grid">
-        <div className="metric-box">
-          <span className="metric-label">Token Count</span>
-          <span className="metric-value">{tokenCount || 0}</span>
-        </div>
-        <div className="metric-box">
-          <span className="metric-label">Source Bits (14-bit SP)</span>
-          <span className="metric-value">{tokenCount ? tokenCount * 14 : 0} bits</span>
+        {/* Source Coding & Token Telemetry Grid */}
+        <div className="telemetry-grid">
+          <div className="metric-box">
+            <span className="metric-label">Token Count</span>
+            <span className="metric-value">{tokenCount || 0}</span>
+            <span className="metric-foot">V=16,384 Unigram</span>
+          </div>
+
+          <div className="metric-box">
+            <span className="metric-label">Source Bits</span>
+            <span className="metric-value">{tokenCount ? tokenCount * 14 : 0}</span>
+            <span className="metric-foot">14-bit packed IDs</span>
+          </div>
+
+          <div className="metric-box">
+            <span className="metric-label">Normalizer</span>
+            <span className="metric-value" style={{ fontSize: '15px' }}>indic_nfc</span>
+            <span className="metric-foot">Canonical normalization</span>
+          </div>
+
+          <div className="metric-box">
+            <span className="metric-label">Source Format</span>
+            <span className="metric-value" style={{ fontSize: '15px' }}>16 kHz PCM</span>
+            <span className="metric-foot">Mono 16-bit</span>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 };
