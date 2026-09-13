@@ -24,7 +24,7 @@ export const ComparisonGauge: React.FC<ComparisonGaugeProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `itantra_run_${lastReport.run_id.slice(0, 8)}.json`;
+    a.download = `voicebridge_run_${lastReport.run_id.slice(0, 8)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     setDownloaded(true);

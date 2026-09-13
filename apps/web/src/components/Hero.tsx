@@ -66,18 +66,18 @@ export const Hero: React.FC<HeroProps> = ({ onGetStarted }) => {
             </div>
           </div>
           <div className="trust-pill">
-            <span>6 Indian Languages • 0.5–2.0 kbps • Zero Hallucination</span>
+            <span>11 Languages • Wi-Fi Direct • Wi-Fi LAN • Bluetooth</span>
           </div>
         </div>
 
         {/* Headline (Exact July Dot-Matrix Typography & Entrance Animation) */}
         <h1 className="headline">
-          <span className="headline-line line-1">Meet iTantra</span>
+          <span className="headline-line line-1">Meet Voice Bridge</span>
         </h1>
 
         {/* Subhead */}
         <p className="subhead anim" style={{ '--d': '0.28s' } as React.CSSProperties}>
-          iTantra is an Indian multilingual neural transceiver radio access platform engineered for real-time speech transcription, 14-bit semantic tokenization, channel impairment simulation, and 24 kHz synthetic voice resynthesis at sub-2 kbps wire budgets.
+          Voice Bridge is an offline multilingual voice-communication system transmitting text over local Wi-Fi Direct, Wi-Fi LAN, and Bluetooth Classic RFCOMM, converting incoming speech to text and synthesized voice with zero internet.
         </p>
 
         {/* Glowing CTA Button -> Smooth Scroll to #studio */}

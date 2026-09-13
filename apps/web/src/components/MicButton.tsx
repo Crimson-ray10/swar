@@ -25,6 +25,7 @@ export const MicButton: React.FC<MicButtonProps> = ({
   const [vadEnabled, setVadEnabled] = useState<boolean>(true);
   const [isVoiceActive, setIsVoiceActive] = useState<boolean>(false);
   const [silenceCountdown, setSilenceCountdown] = useState<number | null>(null);
+  const [sttError, setSttError] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -88,18 +89,9 @@ export const MicButton: React.FC<MicButtonProps> = ({
     };
   }, [cleanupAudio]);
 
-  const stopRecording = useCallback(() => {
-    stopVadMonitoring();
-    onStateChange('Processing');
+  const isStoppingRef = useRef<boolean>(false);
 
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        console.warn(e);
-      }
-    }
-
+  const finalizeAndStop = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       try {
         mediaRecorderRef.current.stop();
@@ -107,7 +99,46 @@ export const MicButton: React.FC<MicButtonProps> = ({
         console.warn('Error stopping media recorder:', e);
       }
     }
-  }, [stopVadMonitoring, onStateChange]);
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    if (isStoppingRef.current) return;
+    isStoppingRef.current = true;
+    stopVadMonitoring();
+    onStateChange('Processing');
+
+    if (recognitionRef.current) {
+      let resolved = false;
+      const finishTimer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          finalizeAndStop();
+        }
+      }, 550);
+
+      const origOnEnd = recognitionRef.current.onend;
+      recognitionRef.current.onend = (ev: any) => {
+        if (origOnEnd) origOnEnd(ev);
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(finishTimer);
+          finalizeAndStop();
+        }
+      };
+
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(finishTimer);
+          finalizeAndStop();
+        }
+      }
+    } else {
+      finalizeAndStop();
+    }
+  }, [stopVadMonitoring, onStateChange, finalizeAndStop]);
 
   const startVadMonitoring = useCallback((stream: MediaStream) => {
     try {
@@ -117,53 +148,58 @@ export const MicButton: React.FC<MicButtonProps> = ({
       const audioCtx = new AudioCtx();
       audioContextRef.current = audioCtx;
 
+      // Crucial: AudioContext must be explicitly resumed on modern browsers
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.4;
+      analyser.smoothingTimeConstant = 0.3;
       analyserRef.current = analyser;
 
       const source = audioCtx.createMediaStreamSource(stream);
       source.connect(analyser);
 
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
+      const timeData = new Uint8Array(analyser.fftSize);
 
       hasSpokenRef.current = false;
       lastSpeechTimeRef.current = Date.now();
       recordingStartTimeRef.current = Date.now();
-      noiseFloorRef.current = 16;
+      noiseFloorRef.current = 1.0;
 
-      const SILENCE_TIMEOUT_MS = 1400; // 1.4s of silence after speech -> auto transmit
-      const INITIAL_MAX_SILENCE_MS = 8000; // 8s initial timeout
-
-      // Human speech frequency bandpass: 300Hz to 3400Hz
-      const sampleRate = audioCtx.sampleRate || 48000;
-      const binHz = (sampleRate / 2) / bufferLength;
-      const startBin = Math.max(1, Math.floor(300 / binHz));
-      const endBin = Math.min(bufferLength - 1, Math.ceil(3400 / binHz));
-      const numVocalBins = endBin - startBin + 1;
+      const SILENCE_TIMEOUT_MS = 1500; // 1.5s of silence after speech -> auto transmit
+      const INITIAL_MAX_SILENCE_MS = 15000; // 15s initial timeout
 
       vadIntervalRef.current = window.setInterval(() => {
         if (!analyserRef.current) return;
 
-        analyserRef.current.getByteFrequencyData(dataArray);
-
-        let vocalSum = 0;
-        for (let i = startBin; i <= endBin; i++) {
-          vocalSum += dataArray[i];
+        // In case audio context was suspended, keep it running
+        if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+          audioContextRef.current.resume().catch(() => {});
         }
-        const avgVocalEnergy = vocalSum / numVocalBins;
+
+        // Time-Domain analysis: measures instant vocal waveform displacement
+        analyserRef.current.getByteTimeDomainData(timeData);
+
+        let sumSq = 0;
+        for (let i = 0; i < timeData.length; i++) {
+          const dev = timeData[i] - 128;
+          sumSq += dev * dev;
+        }
+        const rms = Math.sqrt(sumSq / timeData.length);
         const now = Date.now();
 
-        // Dynamically adjust noise floor baseline
-        if (avgVocalEnergy < noiseFloorRef.current + 8) {
-          noiseFloorRef.current = 0.92 * noiseFloorRef.current + 0.08 * avgVocalEnergy;
+        // Dynamically track background noise floor
+        if (rms < noiseFloorRef.current + 2) {
+          noiseFloorRef.current = 0.95 * noiseFloorRef.current + 0.05 * rms;
         }
 
-        const dynamicSpeechThreshold = Math.max(24, noiseFloorRef.current + 12);
-        const isCurrentlySpeaking = avgVocalEnergy > dynamicSpeechThreshold;
+        // Speaking threshold: any vocal amplitude above ambient baseline
+        const speechThreshold = Math.max(2.5, noiseFloorRef.current + 1.8);
+        const isSpeaking = rms > speechThreshold;
 
-        if (isCurrentlySpeaking) {
+        if (isSpeaking) {
           hasSpokenRef.current = true;
           lastSpeechTimeRef.current = now;
           setIsVoiceActive(true);
@@ -177,20 +213,21 @@ export const MicButton: React.FC<MicButtonProps> = ({
             const silentDuration = now - lastSpeechTimeRef.current;
             const remainingMs = SILENCE_TIMEOUT_MS - silentDuration;
 
-            if (remainingMs > 0 && remainingMs <= 1100) {
+            if (remainingMs > 0 && remainingMs <= 1300) {
               setSilenceCountdown(parseFloat((remainingMs / 1000).toFixed(1)));
             } else if (silentDuration >= SILENCE_TIMEOUT_MS) {
               stopVadMonitoring();
               stopRecording();
             }
           } else {
+            // Initial silence timeout (give user 15 seconds to start speaking)
             if (now - recordingStartTimeRef.current >= INITIAL_MAX_SILENCE_MS) {
               stopVadMonitoring();
               stopRecording();
             }
           }
         }
-      }, 100);
+      }, 75);
     } catch (err) {
       console.warn('VAD monitoring initialization warning:', err);
     }
@@ -198,6 +235,8 @@ export const MicButton: React.FC<MicButtonProps> = ({
 
   const startRecording = async () => {
     cleanupAudio();
+    isStoppingRef.current = false;
+    setSttError(null);
 
     try {
       setLiveTranscript('');
@@ -219,30 +258,40 @@ export const MicButton: React.FC<MicButtonProps> = ({
             mr: 'mr-IN',
             bn: 'bn-IN',
             kn: 'kn-IN',
+            gu: 'gu-IN',
+            ml: 'ml-IN',
+            pa: 'pa-IN',
+            ur: 'ur-IN',
             en: 'en-IN'
           };
-          recognition.lang = langMap[selectedLanguage] || 'hi-IN';
+          recognition.lang = langMap[selectedLanguage] || (selectedLanguage === 'en' ? 'en-IN' : 'hi-IN');
 
           recognition.onresult = (event: any) => {
-            let rawTranscript = '';
+            let combined = '';
             for (let i = 0; i < event.results.length; i++) {
-              rawTranscript += event.results[i][0].transcript;
+              combined += event.results[i][0].transcript + ' ';
             }
-            setLiveTranscript(rawTranscript);
-            liveTranscriptRef.current = rawTranscript;
+            const trimmed = combined.trim();
+            if (trimmed.length > 0) {
+              setLiveTranscript(trimmed);
+              liveTranscriptRef.current = trimmed;
 
-            if (rawTranscript.trim().length > 0) {
               hasSpokenRef.current = true;
               lastSpeechTimeRef.current = Date.now();
-            }
 
-            if (onLiveTranscriptChange) {
-              onLiveTranscriptChange(rawTranscript);
+              if (onLiveTranscriptChange) {
+                onLiveTranscriptChange(trimmed);
+              }
             }
           };
 
           recognition.onerror = (err: any) => {
             console.warn('Speech recognition notice:', err.error || err);
+            if (err.error === 'network') {
+              setSttError('Web Speech network offline. You can also type your sentence directly in the box below.');
+            } else if (err.error === 'not-allowed') {
+              setSttError('Microphone permission blocked for speech recognition.');
+            }
           };
 
           recognition.start();
@@ -282,7 +331,7 @@ export const MicButton: React.FC<MicButtonProps> = ({
         const rawBlob = new Blob(audioChunks.current, { type: recorder.mimeType || 'audio/webm' });
         const finalTranscript = liveTranscriptRef.current.trim();
 
-        // Convert audio into standard 16 kHz Mono 16-bit PCM WAV for iTantra backend
+        // Convert audio into standard 16 kHz Mono 16-bit PCM WAV for Voice Bridge backend
         const wavBlob = await convertTo16kHzMonoWav(rawBlob);
         onAudioRecorded(wavBlob, finalTranscript);
         cleanupAudio();
@@ -387,7 +436,7 @@ export const MicButton: React.FC<MicButtonProps> = ({
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginTop: '16px' }}>
           <div className="waveform-pill-card">
             <Volume2 size={16} color={isVoiceActive ? '#34d399' : '#f43f5e'} className={isVoiceActive ? 'animate-pulse' : ''} />
-            <WaveformVisualizer stream={activeStream} isRecording={state === 'Listening'} />
+            <WaveformVisualizer stream={activeStream} analyser={analyserRef.current} isRecording={state === 'Listening'} />
             <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', minWidth: '96px' }}>
               {isVoiceActive ? (
                 <span style={{ color: '#6ee7b7', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -414,6 +463,13 @@ export const MicButton: React.FC<MicButtonProps> = ({
             <Zap size={11} color={vadEnabled ? '#10b981' : '#94a3b8'} />
             <span>Noise Filter & Auto-Stop: {vadEnabled ? 'ACTIVE' : 'OFF'}</span>
           </button>
+        </div>
+      )}
+
+      {/* STT Status / Network Notice */}
+      {sttError && (
+        <div style={{ padding: '6px 14px', borderRadius: '10px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5', fontSize: '12px', marginTop: '10px', maxWidth: '420px', textAlign: 'center' }}>
+          {sttError}
         </div>
       )}
 

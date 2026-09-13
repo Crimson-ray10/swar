@@ -1,120 +1,117 @@
-# iTantra — Indian Multilingual Semantic Radio Transceiver
+# Voice Bridge — Offline Multi-Transport Voice Communication
 
-**Indian Multilingual TTS & STT Aided Neural Transceiver Radio Access for Low-Bitrate Links (0.5 – 2.0 kbps)**
+**Offline voice-communication system transmitting text over local Wi-Fi Direct, Wi-Fi LAN, and Bluetooth Classic RFCOMM.**
 
 ---
 
 ## 1. Overview & Architecture
 
-iTantra changes the objective of extreme low-bitrate voice communication from **waveform preservation** to **linguistic/semantic recovery**. Under link budgets of $0.5$ to $2.0\text{ kbps}$ gross rate where conventional audio codecs fail or produce severely degraded speech, iTantra preserves the message:
+Voice Bridge converts speech to text locally, transmits compact framed text messages over the available local transport, and converts that text back to speech locally on the receiving device.
 
-```
-[Speaker Audio (16 kHz Mono)]
-        │
-        ▼
-[AudioWorklet / VAD]
-        │
-        ▼
-[ASR Router] ────────► IndicConformer 600M (Indic) / faster-whisper (English)
-        │
-        ▼
-[Normalizer & Spans] ─► NFC Unicode, Critical Literals (Digits, Negations, Dates)
-        │
-        ▼
-[Source Codec] ──────► 14-bit packed SentencePiece Unigram Token IDs (V=16,384)
-        │
-        ▼
-[ITP/1 Protocol] ────► 14-byte Header + CRC-16 + Conv(K=7, R=2/3) + XOR(4,3) Parity
-        │
-        ▼
-[Channel Sim] ───────► BPSK AWGN / Rayleigh Fading / Gilbert-Elliott / Loss / Jitter
-        │
-        ▼
-[Rx Demod & FEC] ────► CRC-16 check (Corruption -> Erasure) + Playout Buffer + XOR Recovery
-        │
-        ▼
-[Rx Frame & TTS] ────► IndicF5 (Indic, 24 kHz) / Piper (English)
-        │
-        ▼
-[Synthetic Speech Output]
-```
+> **Critical rule:** The transport can change; the voice pipeline never depends on the transport.
 
-### Truth Boundaries
-1. **Semantic, Not Acoustic Waveform**: The receiver synthesizes a fresh synthetic voice from the recovered transcript. It is explicitly labeled **Synthetic Receiver Voice**.
-2. **Deterministic Wire Format (`text_v1`)**: Packed 14-bit SentencePiece Unigram tokens protected by CRC-16 and XOR parity.
-3. **Truth in Telemetry**: On-air bitrate $R_{\text{wire}}$ strictly accounts for preambles, headers, payload, CRC, and FEC parity.
-4. **No Hallucinated Words**: Any packet loss exceeding FEC capacity triggers an explicit erasure/partial warning. Corrupted frames are never fed to a language model to guess missing words.
+```text
+                         VOICE BRIDGE SYSTEM
+ ┌─────────────────────────────────────────────────────────┐
+ │                      Voice Engine                       │
+ │                                                         │
+ │  Mic → Audio Buffer → VAD → STT → Sentence → Text       │
+ │                                              │          │
+ │                                              ▼          │
+ │                                       Transport Layer   │
+ │                                              │          │
+ │                                 ┌────────────┴────────┐ │
+ │                              Wi-Fi Direct  Wi-Fi LAN  Bluetooth
+ │                                (TCP P2P)     (TCP)    (RFCOMM)  │
+ │                                 └────────────┬────────┘ │
+ │                                              ▼          │
+ │                                       Reliability Layer │
+ │                                     (ACK / Retry / Dedupe)
+ │                                              │          │
+ │                                              ▼          │
+ │                                        Priority Queue   │
+ │                                    ┌─────────┴────────┐ │
+ │                               NORMAL_QUEUE       ALERT_QUEUE
+ │                                    └─────────┬────────┘ │
+ │                                              ▼          │
+ │                                          TTS Engine     │
+ │                                              │          │
+ │                                          AudioPlayer    │
+ │                                              │          │
+ │                                           Speaker       │
+ └─────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 2. Monorepo Structure
+## 2. Core Subsystems
 
-* `packages/protocol`: ITP/1 binary packet definition, bitwise CRC-8 and CRC-16/CCITT checksums. Zero ML dependencies.
-* `packages/engine`: Core DSP audio preprocessing, VAD, language registry, text normalizer, SentencePiece 14-bit packing, XOR(4,3) parity, Viterbi decoder, channel simulator, STT/TTS adapters.
-* `services/api`: FastAPI application serving REST endpoints and streaming WebSocket `/api/v1/stream/{session_id}`.
-* `apps/web`: 3-column engineering dashboard built with React 19, TypeScript, and Vite.
-* `evaluation/`: Automated factorial benchmark matrix runner and reports.
-* `scripts/`: Diagnostic doctor script, bootstrap script, fixture generator, demo runner, and offline packager.
-* `tests/`: Protocol, unit, and integration test suites.
+### A. Voice Engine (`backend/src/voice/`)
+- **AudioCapture**: Ring buffer chunking 16 kHz 16-bit mono PCM into 20ms frames.
+- **VAD**: Energy & zero-crossing voice activity detection with adaptive noise floor.
+- **STTEngine**: Multilingual offline speech recognition supporting 11 languages (Hindi, Tamil, Telugu, Marathi, Bengali, Kannada, Gujarati, Malayalam, Punjabi, Urdu, English).
+- **SentenceAssembler**: Assembles words into sentences with pause detection (continuous mode) and PTT finalization (push-to-talk mode).
+- **TTSEngine**: Offline acoustic speech synthesis generating 16 kHz PCM and standard WAV audio.
+- **PriorityQueue**: Strict priority queue where `ALERT` messages preempt normal playback.
 
----
+### B. Message Protocol & Reliability (`backend/src/protocol/` & `backend/src/reliability/`)
+- **VoiceMessage Protocol**: Version, messageId, senderId, language, type (`NORMAL` | `ALERT`), sequence, timestamp, and text.
+- **FrameCodec**: 4-byte big-endian framing (`[Length: 4 bytes] + [Payload: N bytes]`) preventing stream boundary corruption.
+- **Handshake Protocol**: `HELLO` ➔ `HELLO_ACK` ➔ `DEVICE_INFO` ➔ `READY`.
+- **MessageStore**: Local persistence of finalized messages before transmission.
+- **ReliabilityLayer**: Sequence tracking, ACK acknowledgement, exponential retry backoff, deduplication filter.
 
-## 3. Quickstart & Operating Commands (Windows PowerShell)
-
-### Step 1: System Diagnostic Check
-Run the doctor script to verify Python, Node.js, GPU, configs, and libraries:
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\doctor.ps1
-```
-
-### Step 2: Run Automated Tests
-Run the comprehensive test suite (protocol, unit, and API integration):
-```powershell
-.\.venv\Scripts\python.exe -m pytest -v
-```
-
-### Step 3: Run Scripted Live Demo
-Run an end-to-end transmission of a Hindi speech fixture through a simulated low-bitrate BPSK AWGN channel:
-```powershell
-.\.venv\Scripts\python.exe .\scripts\run_demo.py --fixture .\tests\fixtures\hi_short.wav --language hi --profile interactive_2
-```
-
-### Step 4: Run Factorial Evaluation Matrix
-Benchmark all rates (0.5k, 1k, 2k, 4k bps) across languages and channel impairments:
-```powershell
-.\.venv\Scripts\python.exe .\evaluation\scripts\run_matrix.py
-```
-
-### Step 5: Launch Backend and Frontend
-
-**Terminal 1 (Backend API):**
-```powershell
-.\.venv\Scripts\python.exe -m uvicorn itantra_api.main:app --host 127.0.0.1 --port 8000 --reload
-```
-
-**Terminal 2 (Frontend Instrument UI):**
-```powershell
-npm --prefix .\apps\web run dev
-```
-Open your browser at `http://127.0.0.1:5173`.
+### C. Connectivity Supervisor & Transports (`backend/src/transports/` & `backend/src/supervisor/`)
+- **Transport Priority**: **Wi-Fi Direct** ➔ **Wi-Fi LAN** ➔ **Bluetooth Classic RFCOMM**.
+- **Heartbeat & Failover**: 1-second ping/pong monitoring; automatic failure detection and transparent transport switching with pending message flush.
+- **NSD / mDNS**: Discovery advertising `_voicebridge._tcp` on port 8988.
 
 ---
 
-## 4. Evaluation Matrix Highlights
+## 3. Project Structure
 
-| Language | Gross Rate | Channel Condition | Wire Rate | Compression vs 256k PCM | Recovery Status |
-|---|---|---|---|---|---|
-| **Hindi** | 2000 bps | Clean AWGN | 1504 bps | **170.2×** | Complete (Exact) |
-| **Hindi** | 2000 bps | BPSK AWGN (5 dB) | 1504 bps | **170.2×** | Partial / Erasure |
-| **Tamil** | 2000 bps | Clean AWGN | 1204 bps | **212.6×** | Complete (Exact) |
-| **English** | 2000 bps | Clean AWGN | 656 bps | **390.2×** | Complete (Exact) |
+```text
+├── backend/                   # Voice Bridge standalone Node.js/TypeScript backend
+│   ├── src/
+│   │   ├── discovery/         # Network Service Discovery (_voicebridge._tcp)
+│   │   ├── protocol/          # 4-byte FrameCodec & Handshake protocol
+│   │   ├── reliability/       # MessageStore, ACK tracking & retry logic
+│   │   ├── supervisor/        # ConnectivitySupervisor & automatic fallback
+│   │   ├── transports/        # VoiceTransport (Wi-Fi LAN, Wi-Fi Direct, Bluetooth)
+│   │   ├── voice/             # AudioCapture, VAD, STT, TTSEngine, PriorityQueue
+│   │   ├── server.ts          # Express REST & WebSocket streaming server
+│   │   ├── index.ts           # Service entrypoint
+│   │   └── types.ts           # Core protocol types
+│   └── tests/                 # Unit & integration test suite
+├── apps/
+│   └── web/                   # Web presentation dashboard (React 19 + Vite)
+├── package.json               # Root workspace scripts
+└── voice-bridge-implementation-plan.md  # Specification document
+```
 
 ---
 
-## 5. Offline Demo Readiness
+## 4. Operating Commands
 
-Package an offline bundle containing all configurations, audio fixtures, and the compiled frontend build:
+### Run Unit Tests
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\create_demo_bundle.ps1
+npm test
 ```
-The resulting `bundle/` directory can run standalone without active internet connectivity.
+
+### Start Development Server
+```powershell
+# Terminal 1 (Voice Bridge Backend):
+npm run dev:backend
+
+# Terminal 2 (Web Dashboard):
+npm run dev:web
+```
+Or start backend directly:
+```powershell
+npm run dev
+```
+
+### Build for Production
+```powershell
+npm run build
+```

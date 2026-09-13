@@ -7,7 +7,7 @@ interface TransmitterPanelProps {
   languages: LanguageSpec[];
   selectedLanguage: string;
   onSelectLanguage: (lang: string) => void;
-  onAudioReady: (blob: Blob, sampleText?: string) => void;
+  onAudioReady: (blob: Blob, sampleText?: string, isSample?: boolean) => void;
   rawTranscript: string;
   normalizedTranscript: string;
   criticalSpans: CriticalSpan[];
@@ -28,6 +28,9 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
 }) => {
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [micState, setMicState] = useState<MicState>('Idle');
+  const [customPrompt, setCustomPrompt] = useState<string>('');
+
+  const currentLang = languages.find((l) => l.id === selectedLanguage);
 
   // Sync processing state with mic state
   React.useEffect(() => {
@@ -44,15 +47,11 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       setUploadedFileName(file.name);
-      onAudioReady(file);
+      onAudioReady(file, customPrompt.trim() || undefined, false);
     }
   };
 
-  const handleSampleUtterance = () => {
-    const lang = languages.find((l) => l.id === selectedLanguage);
-    const text = lang ? lang.sample_text : 'मैं घर पहुँच गया हूँ और सब ठीक है।';
-    setUploadedFileName(`Sample: ${lang ? lang.name : 'Hindi'}`);
-
+  const transmitWithText = (text: string, isSample: boolean = false) => {
     // Generate standard 16 kHz WAV carrier tone
     const sampleRate = 16000;
     const durationS = 1.5;
@@ -84,7 +83,14 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
     }
 
     const blob = new Blob([buffer], { type: 'audio/wav' });
-    onAudioReady(blob, text);
+    onAudioReady(blob, text, isSample);
+  };
+
+  const handleSampleUtterance = () => {
+    const text = currentLang ? currentLang.sample_text : 'I need immediate assistance, there is an emergency here.';
+    setUploadedFileName(`Sample: ${currentLang ? currentLang.name : 'English'}`);
+    setCustomPrompt(text);
+    transmitWithText(text, true);
   };
 
   // Render critical spans with citation highlight styling
@@ -118,8 +124,6 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
     }
     return parts;
   };
-
-  const currentLang = languages.find((l) => l.id === selectedLanguage);
 
   return (
     <section id="studio" className="content-section">
@@ -171,13 +175,52 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
         )}
       </div>
 
+      {/* Language Quick-Switch Buttons */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
+        {[
+          { id: 'en', label: '🇬🇧 English (India)' },
+          { id: 'hi', label: '🇮🇳 हिन्दी Hindi' },
+          { id: 'ta', label: '🇮🇳 தமிழ் Tamil' },
+          { id: 'te', label: '🇮🇳 తెలుగు Telugu' },
+        ].map((lang) => (
+          <button
+            key={lang.id}
+            type="button"
+            onClick={() => onSelectLanguage(lang.id)}
+            disabled={isProcessing}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '999px',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              border: selectedLanguage === lang.id ? '1px solid #818cf8' : '1px solid rgba(255,255,255,0.12)',
+              background: selectedLanguage === lang.id ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.04)',
+              color: selectedLanguage === lang.id ? '#ffffff' : '#94a3b8',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            {lang.label}
+          </button>
+        ))}
+      </div>
+
       {/* Central Interactive Mic Button (Exact July Experience) */}
       <MicButton
         state={micState}
         selectedLanguage={selectedLanguage}
         onAudioRecorded={(blob, liveTranscript) => {
           setUploadedFileName('Microphone Utterance');
-          onAudioReady(blob, liveTranscript);
+          const phrase = liveTranscript?.trim() || customPrompt.trim();
+          if (!phrase) {
+            alert('No speech was detected or recognized by the STT engine. Please speak clearly into the microphone or type your sentence in the box below.');
+            setMicState('Idle');
+            return;
+          }
+          onAudioReady(blob, phrase, false);
+        }}
+        onLiveTranscriptChange={(text) => {
+          if (text) setCustomPrompt(text);
         }}
         onStateChange={setMicState}
       />
@@ -200,10 +243,10 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
           className="secondary-pill-btn"
           onClick={handleSampleUtterance}
           disabled={isProcessing}
-          title={`Transmit verified sample: "${currentLang?.sample_text || ''}"`}
+          title={`Transmit pre-recorded verified sample: "${currentLang?.sample_text || ''}"`}
         >
           <Play size={13} />
-          <span>Sample Audio</span>
+          <span>Transmit Pre-recorded Sample</span>
         </button>
 
         {uploadedFileName && (
@@ -211,6 +254,82 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
             📎 {uploadedFileName}
           </span>
         )}
+      </div>
+
+      {/* Interactive Custom Text / Spoken Phrase Box */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const text = customPrompt.trim();
+          if (!text) {
+            alert('Please speak into the microphone or type your sentence in the box before transmitting.');
+            return;
+          }
+          setUploadedFileName(`Text: "${text.slice(0, 18)}..."`);
+          transmitWithText(text, false);
+        }}
+        style={{ width: '100%', maxWidth: '640px', marginTop: '16px', display: 'flex', gap: '8px' }}
+      >
+        <input
+          type="text"
+          value={customPrompt}
+          onChange={(e) => setCustomPrompt(e.target.value)}
+          placeholder={`Speak into mic or type sentence in ${currentLang?.name || 'language'}...`}
+          disabled={isProcessing}
+          style={{
+            flex: 1,
+            padding: '10px 18px',
+            borderRadius: '999px',
+            background: 'rgba(255, 255, 255, 0.06)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            color: '#ffffff',
+            fontSize: '13px',
+            outline: 'none',
+            fontFamily: 'var(--font-sans)',
+          }}
+        />
+        <button
+          type="submit"
+          disabled={isProcessing || !customPrompt.trim()}
+          className="secondary-pill-btn"
+          style={{ padding: '0 20px', background: customPrompt.trim() ? '#6366f1' : undefined, color: customPrompt.trim() ? '#ffffff' : undefined }}
+        >
+          <span>Transmit</span>
+        </button>
+      </form>
+
+      {/* Quick Test Sentence Suggestions */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Quick Presets:</span>
+        {[
+          'The patient is stable and arriving now.',
+          'Doctor requested assistance in Ward B.',
+          'नमस्ते, रोगी की हालत स्थिर है।',
+          'எனக்கு உடனடி உதவி தேவை.'
+        ].map((phrase, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => {
+              setCustomPrompt(phrase);
+              setUploadedFileName(`Preset: "${phrase.slice(0, 15)}..."`);
+              transmitWithText(phrase, false);
+            }}
+            disabled={isProcessing}
+            style={{
+              padding: '4px 10px',
+              borderRadius: '999px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              color: '#cbd5e1',
+              fontSize: '11px',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            "{phrase.length > 25 ? phrase.slice(0, 25) + '...' : phrase}"
+          </button>
+        ))}
       </div>
 
       {/* Transcripts & Telemetry Cards */}

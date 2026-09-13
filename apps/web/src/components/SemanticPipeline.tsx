@@ -195,7 +195,7 @@ export const SemanticPipeline: React.FC<SemanticPipelineProps> = (props) => {
       getStatus: (rep, proc, activeIdx, idx) => {
         if (proc) return activeIdx === idx ? 'active' : activeIdx > idx ? 'completed' : 'idle';
         if (rep) {
-          if (rep.receiver.tts_status === 'complete') return 'completed';
+          if (rep.receiver.tts_status === 'complete' || rep.receiver.tts_status === 'synthesized_offline' || !!rep.audio_output_base64) return 'completed';
           if (rep.receiver.tts_status === 'erasure') return 'error';
           return 'warning';
         }

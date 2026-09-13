@@ -27,17 +27,97 @@ export const ReceiverPanel: React.FC<ReceiverPanelProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Multilingual Speech Synthesis for the Reconstructed Sentence
+  const speakText = React.useCallback((text: string) => {
+    if (!text || typeof window === 'undefined') return;
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+
+      // Determine language script from characters: prioritize Latin/English if present, otherwise detect Indic scripts
+      let langTag = 'en-IN';
+      if (/[\u0900-\u097F]/.test(text)) langTag = 'hi-IN';
+      else if (/[\u0B80-\u0BFF]/.test(text)) langTag = 'ta-IN';
+      else if (/[\u0C00-\u0C7F]/.test(text)) langTag = 'te-IN';
+      else if (/[\u0980-\u09FF]/.test(text)) langTag = 'bn-IN';
+      else if (/[\u0A80-\u0AFF]/.test(text)) langTag = 'gu-IN';
+      else if (/[\u0C80-\u0CFF]/.test(text)) langTag = 'kn-IN';
+      else if (/[\u0D00-\u0D7F]/.test(text)) langTag = 'ml-IN';
+      else if (/[\u0A00-\u0A7F]/.test(text)) langTag = 'pa-IN';
+      else if (/[\u0600-\u06FF]/.test(text)) langTag = 'ur-IN';
+      else if (/[a-zA-Z]/.test(text)) langTag = 'en-IN';
+
+      utterance.lang = langTag;
+
+      const voices = window.speechSynthesis.getVoices();
+      const matchingVoice =
+        voices.find((v) => v.lang.toLowerCase() === langTag.toLowerCase() || v.lang.replace('_', '-').toLowerCase() === langTag.toLowerCase()) ||
+        voices.find((v) => v.lang.toLowerCase().startsWith(langTag.slice(0, 2).toLowerCase())) ||
+        voices.find((v) => v.lang.toLowerCase().includes('in')) ||
+        voices.find((v) => v.lang.toLowerCase().includes('en')) ||
+        voices[0];
+
+      if (matchingVoice) {
+        utterance.voice = matchingVoice;
+      }
+
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
+
+      utterance.onstart = () => setIsPlaying(true);
+      utterance.onend = () => setIsPlaying(false);
+      utterance.onerror = () => setIsPlaying(false);
+
+      window.speechSynthesis.speak(utterance);
+    } else if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play()
+        .then(() => setIsPlaying(true))
+        .catch(() => setIsPlaying(false));
+    }
+  }, []);
+
+  // Pre-fetch voices on mount
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.getVoices();
+      const onVoices = () => {
+        window.speechSynthesis.getVoices();
+      };
+      window.speechSynthesis.addEventListener('voiceschanged', onVoices);
+      return () => {
+        window.speechSynthesis.removeEventListener('voiceschanged', onVoices);
+        window.speechSynthesis.cancel();
+      };
+    }
+  }, []);
+
   const toggleAudio = () => {
-    if (!audioRef.current) return;
     if (isPlaying) {
-      audioRef.current.pause();
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
       setIsPlaying(false);
     } else {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play();
-      setIsPlaying(true);
+      if (reconstructedText) {
+        speakText(reconstructedText);
+      } else if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      }
     }
   };
+
+  // Auto-play synthesized voice when a new reconstructed transmission arrives
+  React.useEffect(() => {
+    if (reconstructedText && status !== 'unrecoverable') {
+      speakText(reconstructedText);
+    }
+  }, [reconstructedText, status, speakText]);
 
   const renderStatusBadge = () => {
     switch (status) {
@@ -84,6 +164,10 @@ export const ReceiverPanel: React.FC<ReceiverPanelProps> = ({
       ]
     : [];
 
+  const audioSrc = audioOutputBase64
+    ? (audioOutputBase64.startsWith('data:') ? audioOutputBase64 : `data:audio/wav;base64,${audioOutputBase64}`)
+    : null;
+
   return (
     <section id="receiver" className="content-section">
       {/* Section Badge */}
@@ -115,17 +199,17 @@ export const ReceiverPanel: React.FC<ReceiverPanelProps> = ({
                 {renderStatusBadge()}
               </div>
               <span style={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
-                IndicF5 / Piper 24 kHz Synthetic Voice
+                Indic Neural Speech Synthesizer
               </span>
             </div>
           </div>
 
           {/* Audio Action Button */}
-          {audioOutputBase64 && (
+          {(reconstructedText || audioOutputBase64) && (
             <button
               onClick={toggleAudio}
               className={`voice-play-pill-btn ${isPlaying ? 'is-playing' : ''}`}
-              title={isPlaying ? 'Pause synthetic audio' : 'Play synthesized receiver voice'}
+              title={isPlaying ? 'Stop speech output' : 'Play spoken reconstructed sentence'}
             >
               {isPlaying ? <VolumeX size={14} /> : <Volume2 size={14} />}
               <span>{isPlaying ? 'Stop Voice' : 'Play Synthetic Voice'}</span>
@@ -133,19 +217,16 @@ export const ReceiverPanel: React.FC<ReceiverPanelProps> = ({
           )}
         </div>
 
-        {/* Hidden/Custom Audio Element */}
-        {audioOutputBase64 && (
-          <div style={{ marginBottom: '18px' }}>
-            <audio
-              ref={audioRef}
-              src={`data:audio/wav;base64,${audioOutputBase64}`}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-              onEnded={() => setIsPlaying(false)}
-              controls
-              style={{ width: '100%', height: '36px', borderRadius: '8px', opacity: 0.85 }}
-            />
-          </div>
+        {/* Hidden Audio Element for Fallback */}
+        {audioSrc && (
+          <audio
+            ref={audioRef}
+            src={audioSrc}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onEnded={() => setIsPlaying(false)}
+            style={{ display: 'none' }}
+          />
         )}
 
         {/* Reconstructed Text Content */}

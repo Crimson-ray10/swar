@@ -11,7 +11,7 @@ import { LanguageSpec, RunReport } from './types';
 export const App: React.FC = () => {
   const [sessionId] = useState<string>(() => Math.random().toString(36).substring(2, 10));
   const [languages, setLanguages] = useState<LanguageSpec[]>([]);
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('hi');
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
   const [hardwareStatus, setHardwareStatus] = useState<string>('Detecting...');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [activeStageIndex, setActiveStageIndex] = useState<number>(-1);
@@ -37,12 +37,19 @@ export const App: React.FC = () => {
 
   // Fetch backend health & capabilities
   useEffect(() => {
-    fetch('/api/v1/health')
-      .then((r) => r.json())
-      .then(() => {
-        setHardwareStatus('CPU / GPU Ready');
-      })
-      .catch(() => setHardwareStatus('Backend API Offline'));
+    const fetchStatus = () => {
+      fetch('/api/v1/health')
+        .then((r) => r.json())
+        .then((data) => {
+          const transport = data.active_transport && data.active_transport !== 'auto_selecting'
+            ? data.active_transport.replace('_', ' ').toUpperCase()
+            : 'WI-FI DIRECT';
+          setHardwareStatus(`VoiceBridge • ${transport}`);
+        })
+        .catch(() => setHardwareStatus('VoiceBridge Offline'));
+    };
+
+    fetchStatus();
 
     fetch('/api/v1/languages')
       .then((r) => r.json())
@@ -50,6 +57,30 @@ export const App: React.FC = () => {
         setLanguages(data);
       })
       .catch((err) => console.error('Failed to load languages:', err));
+
+    // Connect to Voice Bridge WebSocket
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/api/v1/voicebridge/ws`;
+    let ws: WebSocket | null = null;
+    try {
+      ws = new WebSocket(wsUrl);
+      ws.onmessage = (evt) => {
+        try {
+          const payload = JSON.parse(evt.data);
+          if (payload.event === 'supervisor_state' || payload.event === 'transport_recovered') {
+            fetchStatus();
+          }
+        } catch {
+          // ignore
+        }
+      };
+    } catch {
+      // ignore
+    }
+
+    return () => {
+      if (ws) ws.close();
+    };
   }, []);
 
   // Dynamic scroll listener to update activeSection on scroll (July behavior)
@@ -107,7 +138,7 @@ export const App: React.FC = () => {
     if (stageTimerRef.current !== null) window.clearInterval(stageTimerRef.current);
   };
 
-  const handleAudioReady = async (audioBlob: Blob, _sampleText?: string) => {
+  const handleAudioReady = async (audioBlob: Blob, sampleText?: string, isSample: boolean = false) => {
     setIsProcessing(true);
     setActiveStageIndex(0);
 
@@ -128,6 +159,13 @@ export const App: React.FC = () => {
       const formData = new FormData();
       formData.append('audio', audioBlob, 'utterance.wav');
       formData.append('language', selectedLanguage);
+      if (sampleText && sampleText.trim().length > 0) {
+        formData.append('clientHint', sampleText.trim());
+        formData.append('sample_text', sampleText.trim());
+      }
+      if (isSample) {
+        formData.append('is_sample', 'true');
+      }
       formData.append('gross_rate_bps', grossRateBps.toString());
       formData.append('eb_n0_db', ebN0Db.toString());
       formData.append('packet_loss_rate', packetLossRate.toString());
@@ -140,12 +178,14 @@ export const App: React.FC = () => {
       });
 
       if (!res.ok) {
-        throw new Error(`API error: ${res.statusText}`);
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `API error: ${res.statusText}`);
       }
 
       const runReport: RunReport = await res.json();
       setReport(runReport);
       setActiveStageIndex(7); // Complete all stages
+      scrollToSection('receiver'); // Smoothly bring user to the playback & reconstructed sentence card
 
       // Append to session transmission history
       const now = new Date();
@@ -158,9 +198,9 @@ export const App: React.FC = () => {
         },
         ...prev.slice(0, 19),
       ]);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error executing semantic radio run:', err);
-      alert('Failed to transmit over simulated channel. Ensure backend is running.');
+      alert(err.message || 'Failed to transmit over simulated channel. Ensure backend is running.');
     } finally {
       if (stageTimerRef.current !== null) window.clearInterval(stageTimerRef.current);
       setIsProcessing(false);
