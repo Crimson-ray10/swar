@@ -1,697 +1,1543 @@
 <!doctype html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src data:"><title>iTantra</title>
-<style>
-:root{--bg:#040407;--surface:#0e0e14;--surface-border:#20202c;--text:#fff;--muted:#8e8e9e;--accent-indigo:#6366f1;--accent-emerald:#10b981;--accent-rose:#f43f5e;--font-sans:Inter,'Segoe UI',system-ui,sans-serif}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);padding:16px 16px 110px;-webkit-font-smoothing:antialiased}
-button,input,select,textarea{font:inherit}
-button{cursor:pointer;touch-action:manipulation}
-button:disabled{opacity:.38}
-header{display:flex;align-items:center;justify-content:space-between;padding:4px 0 16px}
-.brand{font-size:24px;letter-spacing:-1.2px;font-weight:800}
-.tag{font-size:9px;letter-spacing:1.4px;color:#a0a0b2;text-transform:uppercase;margin-top:2px}
-.pill{border:1px solid #1f3329;border-radius:40px;color:#34d399;padding:6px 10px;font-size:9px;font-weight:700;letter-spacing:1px;background:#061a10}
-.hero{padding:12px 0 16px}
-h1{font-size:32px;letter-spacing:-1.4px;line-height:1.1;margin:6px 0 8px}
-h2{font-size:17px;letter-spacing:-.3px;margin:0 0 12px}
-p{font-size:13px;color:#9b9ba8;line-height:1.55;margin:6px 0}
-.eyebrow{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:#818cf8;font-weight:700}
-.card{border:1px solid var(--surface-border);background:var(--surface);border-radius:20px;padding:18px;margin:12px 0;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.between{justify-content:space-between}
-.status{font-size:12px;color:#818cf8;font-weight:600;line-height:1.5}
-.label{font-size:10px;color:#8e8e9e;text-transform:uppercase;letter-spacing:1.1px;font-weight:600}
-.btn{border:1px solid #32323e;border-radius:12px;background:#181820;color:#fff;padding:11px 15px;font-size:12px;font-weight:600;min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
-.btn:active{transform:scale(0.98)}
-.primary{background:#4f46e5;border-color:#6366f1;box-shadow:0 0 16px rgba(79,70,229,0.35)}
-.emerald{background:#059669;border-color:#10b981;box-shadow:0 0 16px rgba(16,185,129,0.35)}
-.wide{width:100%}
-.field{display:block;margin-top:10px}
-input,select,textarea{width:100%;background:#08080c;color:#fff;border:1px solid #2e2e3a;border-radius:10px;padding:11px;margin:6px 0 4px;outline:none;font-size:13px}
-input:focus,textarea:focus{border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,0.25)}
-textarea{resize:vertical;min-height:70px}
-.ptt-wrap{text-align:center;padding:18px 0}
-.ptt{width:170px;height:170px;border-radius:50%;border:2px solid #818cf8;box-shadow:0 0 0 12px rgba(99,102,241,0.12),0 0 0 24px rgba(99,102,241,0.06);background:radial-gradient(circle at 40% 30%,#6366f1,#3730a3);color:#fff;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;touch-action:none;user-select:none;-webkit-user-select:none;transition:box-shadow .2s,transform .1s}
-.ptt:active,.ptt.active{background:radial-gradient(circle at 40% 30%,#f43f5e,#be123c);border-color:#fb7185;box-shadow:0 0 0 12px rgba(244,63,94,0.25),0 0 0 28px rgba(244,63,94,0.12);transform:scale(0.97)}
-.ptt svg{width:42px;height:42px}
-.ptt span{font-size:12px;font-weight:700;letter-spacing:.5px}
-.subtle{font-size:11px;color:#858596}
-.transcript{font-size:15px;line-height:1.6;min-height:40px;overflow-wrap:anywhere;color:#e2e8f0}
-.notice{border-left:3px solid #f59e0b;border-radius:10px;background:#1e1708;color:#fde68a;padding:12px 14px;font-size:12px;line-height:1.55;margin:10px 0;white-space:pre-wrap;box-shadow:0 4px 12px rgba(0,0,0,0.3)}
-.hidden{display:none!important}
-.tabs{position:fixed;bottom:0;left:0;right:0;background:#0d0d12f5;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid #23232f;display:flex;padding:10px 8px 18px;gap:4px;z-index:100}
-.tabs button{flex:1;border:0;background:none;color:#7e7e92;padding:8px 2px;font-size:11px;font-weight:600;border-radius:8px;transition:all .15s}
-.tabs button.selected{color:#a5b4fc;background:#4f46e522;border:1px solid #6366f133}
-.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.metric{padding:12px;background:#07070b;border-radius:12px;border:1px solid #1c1c26}
-.value{font-size:22px;font-weight:700;letter-spacing:-.6px;margin:6px 0 2px;color:#f1f5f9}
-.message{padding:12px 14px;border-bottom:1px solid #1c1c26;overflow-wrap:anywhere}
-.message:last-child{border-bottom:0}
-.message .meta{font-size:10px;color:#88889a;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
-.message .body{font-size:14px;line-height:1.55;white-space:pre-wrap;color:#f8fafc}
-.trans-box{margin-top:8px;padding:8px 10px;background:#14141e;border-radius:8px;border-left:2px solid #818cf8;font-size:12px;color:#c7d2fe;line-height:1.5}
-.code{font-size:32px;font-variant-numeric:tabular-nums;letter-spacing:6px;font-weight:800;margin:8px 0;color:#34d399;text-shadow:0 0 16px rgba(52,211,153,0.4)}
-.check{padding:8px 0;border-bottom:1px solid #1c1c24;font-size:12px;line-height:1.55;overflow-wrap:anywhere;color:#cbd5e1}
-details{font-size:12px;color:#94a3b8;line-height:1.65;margin-top:12px}
-summary{color:#cbd5e1;cursor:pointer;font-weight:600}
-#toast{position:sticky;top:6px;z-index:200}
-button:focus-visible{outline:2px solid #818cf8;outline-offset:2px}
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src data:">
+  <title>iTantra</title>
+  <style>
+    :root {
+      --bg: #f8f9fa;
+      --card-bg: #ffffff;
+      --border: #e5e7eb;
+      --border-subtle: #f1f3f5;
+      --text: #111827;
+      --text-muted: #6b7280;
+      --text-light: #9ca3af;
+      --primary: #000000;
+      --primary-hover: #1f2937;
+      --accent-emerald: #10b981;
+      --emerald-light: #ecfdf5;
+      --emerald-border: #a7f3d0;
+      --emerald-text: #059669;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
 
-/* SHAREit Radar Styles */
-.radar-wrapper{position:relative;width:100%;max-width:320px;height:320px;margin:16px auto;display:flex;align-items:center;justify-content:center}
-.radar-screen{position:relative;width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at center,#0d111d 0%,#05070d 75%,#010204 100%);border:1.5px solid rgba(99,102,241,0.35);box-shadow:0 0 35px rgba(99,102,241,0.15),inset 0 0 40px rgba(0,0,0,0.9);overflow:hidden}
-.radar-ring{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;border:1px solid rgba(99,102,241,0.2);pointer-events:none}
-.radar-ring-1{width:88px;height:88px}
-.radar-ring-2{width:176px;height:176px}
-.radar-ring-3{width:260px;height:260px;border-style:dashed;border-color:rgba(99,102,241,0.18)}
-.radar-axis-h{position:absolute;top:50%;left:0;right:0;height:1px;background:rgba(99,102,241,0.15);pointer-events:none}
-.radar-axis-v{position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(99,102,241,0.15);pointer-events:none}
-.radar-deg{position:absolute;font-size:8px;font-family:monospace;color:rgba(129,140,248,0.45);pointer-events:none}
-.deg-0{top:6px;left:50%;transform:translateX(-50%)}
-.deg-90{top:50%;right:8px;transform:translateY(-50%)}
-.deg-180{bottom:6px;left:50%;transform:translateX(-50%)}
-.deg-270{top:50%;left:8px;transform:translateY(-50%)}
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      padding: 16px 16px 90px;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+      -webkit-user-select: none;
+    }
 
-.radar-sweep{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,rgba(99,102,241,0.42) 0deg,rgba(16,185,129,0.15) 25deg,transparent 60deg);pointer-events:none;animation:radar-rot 3.6s linear infinite}
-@keyframes radar-rot{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+    button, input, select, textarea { font-family: inherit; }
+    button { cursor: pointer; touch-action: manipulation; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.sonar-wave{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;border:1.5px solid rgba(99,102,241,0.4);pointer-events:none;animation:sonar-pulse 3s cubic-bezier(0.1,0.2,0.4,1) infinite}
-.wave-2{animation-delay:1.5s}
-@keyframes sonar-pulse{0%{width:40px;height:40px;opacity:.9}100%{width:310px;height:310px;opacity:0}}
+    /* Top Universal Header */
+    .top-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 4px 12px;
+      min-height: 48px;
+    }
+    .header-brand {
+      display: flex;
+      flex-direction: column;
+    }
+    .header-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+    .header-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-top: 1px;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .pill-emerald {
+      background: var(--emerald-light);
+      border: 1px solid var(--emerald-border);
+      color: var(--emerald-text);
+    }
+    .pill-neutral {
+      background: #f1f3f5;
+      border: 1px solid #e2e8f0;
+      color: #475569;
+    }
+    .header-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 1.8px solid #111827;
+      color: #111827;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 13px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+      transition: transform 0.15s ease;
+    }
+    .header-avatar:active { transform: scale(0.92); }
 
-.radar-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:15;pointer-events:none}
-.radar-center-bubble{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#1e1b4b);border:2px solid #818cf8;box-shadow:0 0 16px rgba(99,102,241,0.6);display:flex;align-items:center;justify-content:center;color:#fff}
-.radar-center-label{font-size:10px;font-weight:700;color:#e0e7ff;margin-top:4px;max-width:90px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 4px #000}
-.radar-center-pulse{position:absolute;width:66px;height:66px;border-radius:50%;border:1.5px solid rgba(129,140,248,0.7);animation:cpulse 2s ease-out infinite;pointer-events:none}
-@keyframes cpulse{0%{transform:scale(0.85);opacity:1}100%{transform:scale(1.7);opacity:0}}
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
 
-/* Discovered Peer Nodes in Radar */
-.radar-peer{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;cursor:pointer;z-index:20;animation:peer-hover 3s ease-in-out infinite;touch-action:manipulation}
-@keyframes peer-hover{0%,100%{transform:translate(-50%,-50%) translateY(0)}50%{transform:translate(-50%,-50%) translateY(-4px)}}
-.radar-peer-icon{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#059669,#022c22);border:2px solid #34d399;box-shadow:0 0 18px rgba(52,211,153,0.6);display:flex;align-items:center;justify-content:center;color:#fff;transition:transform .15s}
-.radar-peer:active .radar-peer-icon{transform:scale(0.92)}
-.radar-peer-badge{font-size:10px;font-weight:700;color:#a7f3d0;margin-top:3px;text-shadow:0 1px 3px #000}
-.radar-peer-ip{font-size:8px;color:#6ee7b7;font-family:monospace}
-.radar-peer-tap{font-size:8px;background:#047857;color:#ecfdf5;padding:2px 6px;border-radius:8px;margin-top:2px;font-weight:700;letter-spacing:.6px}
+    /* Buttons */
+    .btn-pill {
+      background: var(--primary);
+      color: #ffffff;
+      border: none;
+      border-radius: 9999px;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+    .btn-pill:active { transform: scale(0.97); background: var(--primary-hover); }
+    .btn-pill.full-width { width: 100%; }
 
-/* Radar Broadcasting / Hosting Mode */
-.radar-screen.hosting .radar-sweep{background:conic-gradient(from 0deg,rgba(16,185,129,0.45) 0deg,rgba(5,150,105,0.15) 30deg,transparent 60deg)}
-.radar-screen.hosting .radar-center-bubble{background:linear-gradient(135deg,#059669,#064e3b);border-color:#34d399;box-shadow:0 0 22px rgba(52,211,153,0.7)}
+    .btn-outline {
+      background: #ffffff;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s ease;
+    }
+    .btn-outline:active { background: #f3f4f6; }
 
-/* Quick Connect Modal */
-.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);z-index:250;display:flex;align-items:flex-end;justify-content:center}
-.modal-sheet{background:#12121a;border:1px solid #2d2d3d;border-radius:24px 24px 0 0;padding:24px 20px 36px;width:100%;max-width:480px;box-shadow:0 -10px 40px rgba(0,0,0,0.8);animation:sheet-up .22s ease-out}
-@keyframes sheet-up{0%{transform:translateY(100%)}100%{transform:translateY(0)}}
+    /* Modern Toggle Switches */
+    .switch-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: #e5e7eb;
+      transition: .25s;
+      border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+      transition: .25s;
+      border-radius: 50%;
+    }
+    input:checked + .slider { background-color: #111827; }
+    input:checked + .slider:before { transform: translateX(20px); }
 
-/* Emergency Translator Box */
-.trans-preview{background:#0d0d14;border:1px solid #282838;border-radius:12px;padding:12px;margin:8px 0;font-size:13px;line-height:1.55}
-.faq-box{border-left:3px solid #6366f1;background:#0d0d16;padding:12px 14px;border-radius:10px;margin-top:14px}
-.faq-q{font-weight:700;color:#c7d2fe;font-size:12px;margin-bottom:4px}
-.faq-a{color:#94a3b8;font-size:12px;line-height:1.5}
-</style></head><body>
+    /* Central PTT Button Unit */
+    .ptt-outer-ring {
+      width: 184px;
+      height: 184px;
+      border-radius: 50%;
+      background: #f1f3f5;
+      border: 1.5px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 20px auto 14px;
+      position: relative;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .ptt-outer-ring.active {
+      background: var(--emerald-light);
+      border-color: var(--accent-emerald);
+      box-shadow: 0 0 0 12px rgba(16, 185, 129, 0.15), 0 0 0 24px rgba(16, 185, 129, 0.08);
+    }
+    .ptt-btn {
+      width: 136px;
+      height: 136px;
+      border-radius: 50%;
+      background: #000000;
+      color: #ffffff;
+      border: none;
+      outline: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: pointer;
+      transition: transform 0.15s ease, background-color 0.2s ease;
+    }
+    .ptt-btn:active, .ptt-btn.active {
+      transform: scale(0.96);
+      background: #047857;
+      box-shadow: 0 4px 16px rgba(4, 120, 87, 0.4);
+    }
+    .ptt-btn:disabled {
+      background: #9ca3af;
+      box-shadow: none;
+    }
 
-<header>
- <div><div class="brand">iTantra<span style="color:#818cf8">.</span></div><div class="tag">Offline Emergency PTT</div></div>
- <div class="pill">AIRPLANE MODE READY</div>
-</header>
+    /* Soundwave Equalizer Bars */
+    .eq-bars {
+      display: flex;
+      align-items: center;
+      gap: 3.5px;
+      height: 24px;
+    }
+    .eq-bar {
+      width: 3px;
+      background: #ffffff;
+      border-radius: 2px;
+      height: 6px;
+      transition: height 0.15s ease;
+    }
+    .ptt-btn.active .eq-bar:nth-child(1) { animation: eq-anim 0.35s infinite ease-in-out alternate; }
+    .ptt-btn.active .eq-bar:nth-child(2) { animation: eq-anim 0.55s infinite ease-in-out alternate 0.1s; }
+    .ptt-btn.active .eq-bar:nth-child(3) { animation: eq-anim 0.45s infinite ease-in-out alternate 0.2s; }
+    .ptt-btn.active .eq-bar:nth-child(4) { animation: eq-anim 0.65s infinite ease-in-out alternate 0.15s; }
+    .ptt-btn.active .eq-bar:nth-child(5) { animation: eq-anim 0.4s infinite ease-in-out alternate 0.05s; }
+    @keyframes eq-anim {
+      0% { height: 6px; }
+      100% { height: 22px; }
+    }
+    .ptt-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
 
-<div class="row between" style="padding:0 2px 8px">
- <span id="device" class="subtle">Android phone</span>
- <span id="connection" class="status" role="status">DISCONNECTED</span>
-</div>
+    /* Fixed Bottom Navigation Dock */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 64px;
+      background: #ffffff;
+      border-top: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 0 4px;
+      z-index: 100;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.03);
+    }
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #9ca3af;
+      background: none;
+      border: none;
+      font-size: 10px;
+      font-weight: 500;
+      gap: 3px;
+      padding: 6px 4px;
+      cursor: pointer;
+      flex: 1;
+      transition: color 0.15s ease;
+    }
+    .nav-item svg { width: 20px; height: 20px; }
+    .nav-item.active {
+      color: #111827;
+      font-weight: 700;
+    }
+    .nav-ptt-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #000000;
+      color: #ffffff;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+      margin-top: -16px;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+    .nav-ptt-btn:active { transform: scale(0.92); }
 
-<div id="toast" class="notice hidden" role="alert"></div>
+    /* Modals */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 300;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-card {
+      background: #ffffff;
+      border-radius: 24px;
+      padding: 24px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.2);
+      animation: modal-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modal-pop {
+      0% { transform: scale(0.92); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .modal-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 18px;
+      color: var(--text-muted);
+      padding: 4px;
+      cursor: pointer;
+    }
 
-<main>
-<!-- 1. WALKIE TALKIE PAGE -->
-<section id="walkie" class="page">
- <div class="hero">
-  <div class="eyebrow">Zero-Cloud Tactical Voice</div>
-  <h1>Speak freely.<br>Across the gap.</h1>
-  <p>Speak here. Hear on the other handset. Works completely offline over local Wi-Fi / Hotspot.</p>
- </div>
+    /* Form Fields */
+    .input-group {
+      margin-bottom: 16px;
+    }
+    .input-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .input-text {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      background: #ffffff;
+      transition: border-color 0.15s;
+    }
+    .input-text:focus {
+      border-color: #111827;
+    }
 
- <div class="card">
-  <div class="row between"><h2 style="margin:0">Walkie-talkie</h2><span id="peerName" class="subtle">No peer</span></div>
-  <div class="row" style="margin-top:8px">
-   <label class="field" style="flex:1">
-    <span class="label">Voice model</span>
-    <select id="language">
-     <option value="hinglish" selected>Hinglish (Hindi + English Dual)</option>
-     <option value="en">English (Indian Phonetics)</option>
-     <option value="hi">हिन्दी · Hindi (Devanagari)</option>
-    </select>
-   </label>
-   <label class="field" style="flex:1">
-    <span class="label">Payload target</span>
-    <select id="bitrate">
-     <option value="500">0.5 kbps</option>
-     <option value="1000">1 kbps</option>
-     <option value="2000" selected>2 kbps</option>
-     <option value="4000">4 kbps</option>
-     <option value="8000">8 kbps</option>
-     <option value="16000">16 kbps</option>
-    </select>
-   </label>
-  </div>
+    /* Specs Table */
+    .specs-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    .specs-table tr {
+      border-bottom: 1px solid #f1f3f5;
+    }
+    .specs-table tr:last-child {
+      border-bottom: none;
+    }
+    .specs-table td {
+      padding: 8px 0;
+    }
+    .specs-key {
+      color: var(--text-muted);
+      font-weight: 500;
+      width: 40%;
+    }
+    .specs-val {
+      color: var(--text);
+      font-weight: 600;
+      text-align: right;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+    }
 
-  <div class="ptt-wrap">
-   <button id="ptt" class="ptt" aria-label="Press and hold to talk" disabled>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="2" width="8" height="13" rx="4"/><path d="M5 10v2a7 7 0 0014 0v-2M12 19v3M8 22h8"/></svg>
-    <span>HOLD TO TALK</span>
-   </button>
-  </div>
+    /* Grid for Feature Cards */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .feature-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    }
+    .feature-icon-wrapper {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+      color: #111827;
+    }
+    .feature-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .feature-desc {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
 
-  <div id="speechState" class="status" style="text-align:center" role="status">Connect a phone to begin</div>
-  <p class="subtle" style="text-align:center">100% on-device speech processing · Zero network latency</p>
+    /* Pack List Items */
+    .pack-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.02);
+    }
+    .pack-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .pack-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #f1f3f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #4b5563;
+      flex-shrink: 0;
+    }
+    .pack-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .pack-sub {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+    .check-circle {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--emerald-light);
+      border: 1px solid var(--emerald-border);
+      color: var(--accent-emerald);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
 
-  <div style="border-top:1px solid #1f1f2a;margin-top:14px;padding-top:12px">
-   <div class="label">Live Recognized Transcript</div>
-   <div id="partial" class="transcript">Your spoken words will appear here in real-time.</div>
-  </div>
- </div>
+    /* Device List Items */
+    .device-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border-bottom: 1px solid #f1f3f5;
+      cursor: pointer;
+    }
+    .device-item:last-child { border-bottom: none; }
+    .device-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .device-icon {
+      color: #9ca3af;
+    }
+    .device-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .device-detail {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
 
- <div class="card">
-  <div class="row between">
-   <div><h2 style="margin-bottom:2px">Continuous Walkie Mode</h2><p class="subtle" style="margin:0">Automatically listens again after each phrase.</p></div>
-   <button id="conversation" class="btn" disabled>Start</button>
-  </div>
-  <button id="stopPlayback" class="btn wide" style="margin-top:12px">Stop current speech playback</button>
- </div>
+    /* Toast Notification */
+    #toast {
+      position: fixed;
+      top: 12px;
+      left: 16px;
+      right: 16px;
+      background: #111827;
+      color: #ffffff;
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-size: 12px;
+      font-weight: 500;
+      z-index: 400;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      transition: all 0.25s ease;
+    }
 
- <div class="card">
-  <h2>Send text &amp; offline translation</h2>
-  <p>Type dispatches, coordinates, or use emergency quick translations.</p>
-  <textarea id="text" maxlength="2000" placeholder="Type message (e.g. Need medical help at gate 2 / hum safe hain)…" aria-label="Message text"></textarea>
-  
-  <div class="row" style="margin-top:4px;gap:8px">
-   <button id="translateQuickBtn" class="btn" style="flex:1" type="button">🌐 Translate / Transliterate</button>
-   <button id="send" class="btn primary" style="flex:1" disabled>Send Message</button>
-  </div>
-  <div id="transPreviewBox" class="trans-preview hidden"></div>
- </div>
-</section>
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
 
-<!-- 2. NEARBY RADAR SCANNER (SHAREit Style) -->
-<section id="nearby" class="page hidden">
- <div class="hero">
-  <div class="eyebrow">SHAREit-Style Radar Scanner</div>
-  <h1>Nearby Devices</h1>
-  <p>Concentric sonar radar sweeps the local Wi-Fi / Hotspot band. Tap any discovered phone bubble to connect instantly.</p>
- </div>
-
- <!-- Animated Circular Radar Viewport -->
- <div class="radar-wrapper">
-  <div class="radar-screen" id="radarScreen">
-   <!-- Concentric sonar grid rings -->
-   <div class="radar-ring radar-ring-3"></div>
-   <div class="radar-ring radar-ring-2"></div>
-   <div class="radar-ring radar-ring-1"></div>
-   <div class="radar-axis-h"></div>
-   <div class="radar-axis-v"></div>
-
-   <!-- Compass angles -->
-   <span class="radar-deg deg-0">0°</span>
-   <span class="radar-deg deg-90">90°</span>
-   <span class="radar-deg deg-180">180°</span>
-   <span class="radar-deg deg-270">270°</span>
-
-   <!-- 360 Rotating Sweep Beam -->
-   <div class="radar-sweep" id="radarSweep"></div>
-
-   <!-- Sonar ripples -->
-   <div class="sonar-wave wave-1"></div>
-   <div class="sonar-wave wave-2"></div>
-
-   <!-- Center Node (You) -->
-   <div class="radar-center">
-    <div class="radar-center-pulse"></div>
-    <div class="radar-center-bubble" id="radarMyAvatar">
-     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="3"/><circle cx="12" cy="18" r="1"/></svg>
+  <!-- UNIVERSAL TOP HEADER -->
+  <header class="top-header">
+    <div class="header-brand" id="headerBrand">
+      <div class="header-title" id="pageHeaderTitle">iTantra<span style="color:#10b981">.</span></div>
+      <div class="header-subtitle" id="pageHeaderSubtitle">Zero-Cloud Tactical Voice</div>
     </div>
-    <div class="radar-center-label" id="radarMyLabel">This Phone</div>
-   </div>
-
-   <!-- Floating peer nodes plotted dynamically -->
-   <div id="radarPeersContainer"></div>
-  </div>
- </div>
-
- <div class="row between" style="margin:10px 0 16px;padding:0 4px">
-  <span id="scanState" class="subtle">Radar searching 2.4/5GHz local subnet…</span>
-  <button class="btn" style="min-height:34px;padding:6px 12px;font-size:11px" data-command="discover">Refresh Radar</button>
- </div>
-
- <!-- Host / Join Actions -->
- <div class="card" id="hostCard">
-  <div class="row between">
-   <div>
-    <h2 style="margin:0 0 3px">Host an Offline Session</h2>
-    <p class="subtle" style="margin:0">Be the central beacon for other phones to join.</p>
-   </div>
-   <button class="btn emerald" data-command="host">Host Session</button>
-  </div>
-  <div id="hostInfo" class="hidden" style="margin-top:16px;border-top:1px solid #20202e;padding-top:14px">
-   <div class="label">Broadcast Joining Code</div>
-   <div id="hostPin" class="code">------</div>
-   <div id="hostAddress" class="subtle" style="color:#93c5fd">Waiting for local IP…</div>
-   <p class="subtle" style="margin-top:6px">Tell your peer to tap your phone bubble on their radar and enter this 6-digit PIN.</p>
-  </div>
- </div>
-
- <div class="card">
-  <h2>Manual IP Connection</h2>
-  <p class="subtle">Use if mDNS multicast is filtered by your phone's hotspot security.</p>
-  <label class="field">
-   <span class="label">Host IPv4 Address</span>
-   <input id="address" inputmode="decimal" placeholder="e.g. 10.33.63.163 or 192.168.43.1">
-  </label>
-  <label class="field">
-   <span class="label">6-Digit Joining Code</span>
-   <input id="pin" inputmode="numeric" maxlength="6" placeholder="Enter host PIN">
-  </label>
-  <button id="join" class="btn primary wide" style="margin-top:8px">Connect Now</button>
- </div>
-
- <button class="btn wide" data-command="disconnect" style="margin-top:4px">Disconnect Session</button>
-
- <!-- Offline Hotspot Truth & Education -->
- <div class="card" style="border-left:3px solid #f59e0b;background:#100d08">
-  <div class="row" style="gap:8px;align-items:center;margin-bottom:8px">
-   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-   <h3 style="margin:0;font-size:13px;color:#fde68a">Important: How Offline Wi-Fi Connection Works</h3>
-  </div>
-  <div class="faq-box" style="margin-top:8px;border-left-color:#f59e0b">
-   <div class="faq-q">Q: If I turn off the Hotspot, will the phones stay connected?</div>
-   <div class="faq-a"><b>No.</b> Direct communication requires a physical radio link. When you turn off Hotspot (and aren't connected to a router), the Wi-Fi radio stops broadcasting, IP addresses vanish, and packets cannot travel.</div>
-  </div>
-  <div class="faq-box">
-   <div class="faq-q">Q: Do I need Mobile Data or Internet?</div>
-   <div class="faq-a"><b>No!</b> Mobile data can be completely OFF (Airplane mode is fine as long as Wi-Fi/Hotspot is on). The Hotspot acts purely as a local radio antenna bridge between the two handsets.</div>
-  </div>
-  <div class="faq-box">
-   <div class="faq-q">Q: How does SHAREit / AirDrop connect then?</div>
-   <div class="faq-a">Whenever you tap "Receive" in SHAREit, the app silently turns on a local Wi-Fi Hotspot or Wi-Fi Direct group in the background, and the other phone connects to it. No phone can communicate over Wi-Fi without one of them hosting the radio link!</div>
-  </div>
- </div>
-</section>
-
-<!-- 3. MESSAGES PAGE -->
-<section id="messages" class="page hidden">
- <div class="hero">
-  <div class="eyebrow">Tactical Dispatch Memory</div>
-  <h1>Messages &amp; Logs</h1>
-  <p>In-memory session stream. Tap <b>Translate</b> on any message to see bilingual Hindi / English / Hinglish equivalence.</p>
- </div>
- <button id="clearMessages" class="btn" style="margin-bottom:12px">Clear visible messages</button>
- <div id="history" class="card" style="padding:4px 0">
-  <p id="emptyMessages" style="padding:16px;text-align:center;color:#6b7280">No messages in this session yet.</p>
- </div>
-</section>
-
-<!-- 4. DASHBOARD PAGE -->
-<section id="dashboard" class="page hidden">
- <div class="hero">
-  <div class="eyebrow">Telemetry &amp; Physical Link</div>
-  <h1>Link &amp; Voice Diagnostics</h1>
-  <p>Real-time packet statistics, FEC error correction, and on-device AI capabilities.</p>
- </div>
- <div class="metrics" id="metrics"></div>
- 
- <div class="card">
-  <h2>Speech AI Diagnostic</h2>
-  <div id="capabilities"><p>Querying Android SpeechRecognizer &amp; TTS…</p></div>
-  <button class="btn wide" data-command="capabilities" style="margin-top:12px">Recheck Installed Speech</button>
-  <button class="btn wide" data-command="downloadModel" style="margin-top:8px">Download Offline Speech Pack</button>
-  <button class="btn wide" data-command="ttsSettings" style="margin-top:8px">Open Android TTS Settings</button>
- </div>
-
- <div class="card">
-  <h2>ITP Protocol Stack</h2>
-  <p><b>Link:</b> Direct TCP Stream · Port 8988 · mDNS Discovery (<code>_itantra._tcp.</code>)</p>
-  <p><b>Frame:</b> 42-Byte Header + CRC32 Integrity + Extended Hamming(8,4) Forward Error Correction.</p>
-  <p><b>Dual Profile:</b> Indian English (<code>en-IN</code>) + Hindi (<code>hi-IN</code>) with script-aware offline TTS audio synthesis.</p>
- </div>
-</section>
-</main>
-
-<!-- Bottom Navigation Bar -->
-<nav class="tabs" aria-label="App sections">
- <button class="selected" data-tab="walkie">Walkie</button>
- <button data-tab="nearby">Nearby <span id="radarBadge" style="color:#34d399"></span></button>
- <button data-tab="messages">Messages <span id="unread"></span></button>
- <button data-tab="dashboard">Dashboard</button>
-</nav>
-
-<!-- One-Tap Connect Bottom Sheet Modal -->
-<div id="connectModal" class="modal-backdrop hidden">
- <div class="modal-sheet">
-  <div class="row between" style="margin-bottom:14px">
-   <div class="row" style="gap:10px">
-    <div class="radar-peer-icon" style="width:38px;height:38px"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="3"/><circle cx="12" cy="18" r="1"/></svg></div>
-    <div>
-     <h3 id="modalPeerName" style="margin:0;font-size:16px">Peer Device</h3>
-     <span id="modalPeerIp" class="subtle" style="color:#34d399">0.0.0.0</span>
+    <div class="header-actions">
+      <div id="connectionPill" class="header-pill pill-neutral">STANDBY</div>
+      <button class="header-avatar" id="avatarBtn" aria-label="Node Identity">SA</button>
     </div>
-   </div>
-   <button id="modalClose" class="btn" style="min-height:32px;padding:4px 10px;border-radius:20px">✕</button>
+  </header>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="hidden" role="alert"></div>
+
+  <!-- MAIN VIEW CONTAINER -->
+  <main id="viewContainer">
+
+    <!-- 1. HOME SCREEN (Screen 3) -->
+    <section id="viewHome" class="view-page">
+      <div style="text-align:center; padding: 18px 8px 12px;">
+        <h1 style="font-size:36px; font-weight:900; letter-spacing:-1.2px; margin-bottom:8px;">iTantra.</h1>
+        <p style="font-size:13px; color:var(--text-muted); line-height:1.6; max-width:320px; margin:0 auto 18px;">
+          iTantra is a fully offline, AI-powered multilingual voice communication Android application designed for use in zero-connectivity environments.
+        </p>
+        <button class="btn-pill" id="btnGetStarted">Get Started</button>
+      </div>
+
+      <!-- Line-art vector illustration of person with phone & radio waves -->
+      <div style="text-align:center; margin: 16px auto 20px; max-width:280px;">
+        <svg viewBox="0 0 300 240" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%; height:auto;">
+          <!-- Acoustic / Radio Waves -->
+          <circle cx="210" cy="115" r="28" stroke="#10b981" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.7"/>
+          <circle cx="210" cy="115" r="46" stroke="#10b981" stroke-width="1.2" stroke-dasharray="4 4" opacity="0.5"/>
+          <circle cx="210" cy="115" r="66" stroke="#10b981" stroke-width="1" opacity="0.3"/>
+          <circle cx="210" cy="115" r="88" stroke="#10b981" stroke-width="0.8" opacity="0.2"/>
+
+          <!-- Character outline -->
+          <!-- Hair & Head -->
+          <path d="M142 50 C140 38, 155 30, 168 32 C178 34, 185 42, 184 52 C186 52, 188 56, 188 60 C188 64, 184 66, 182 66 C180 75, 172 82, 162 82 C152 82, 146 76, 144 68 C141 68, 139 64, 139 60 C139 56, 142 52, 142 50 Z" stroke="#111827" stroke-width="2" fill="#ffffff"/>
+          <path d="M148 40 C155 36, 170 36, 178 44" stroke="#111827" stroke-width="2" stroke-linecap="round"/>
+          <path d="M152 48 C156 46, 162 46, 166 48" stroke="#111827" stroke-width="1.5" stroke-linecap="round"/>
+          <!-- Facial features -->
+          <circle cx="158" cy="56" r="1.5" fill="#111827"/>
+          <circle cx="170" cy="56" r="1.5" fill="#111827"/>
+          <path d="M164 58 L163 64 L167 64" stroke="#111827" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M160 70 C163 72, 167 72, 170 70" stroke="#111827" stroke-width="1.5" stroke-linecap="round"/>
+          <!-- Beard / chin detail -->
+          <path d="M152 64 C152 75, 160 80, 164 80 C168 80, 176 75, 176 64" stroke="#111827" stroke-width="1.5" stroke-linecap="round"/>
+          <!-- Collar & Neck -->
+          <path d="M156 82 L156 94 M170 82 L170 94" stroke="#111827" stroke-width="1.8"/>
+          <path d="M144 94 C154 98, 172 98, 182 94" stroke="#111827" stroke-width="2"/>
+          <!-- Jacket & Torso -->
+          <path d="M144 94 L122 135 C118 145, 114 165, 116 195 L208 195 C210 165, 206 145, 202 135 L182 94" stroke="#111827" stroke-width="2" fill="#ffffff"/>
+          <path d="M144 94 L152 145 L152 195" stroke="#111827" stroke-width="1.8"/>
+          <path d="M182 94 L174 145 L174 195" stroke="#111827" stroke-width="1.8"/>
+          <circle cx="163" cy="155" r="2" fill="#111827"/>
+          <circle cx="163" cy="175" r="2" fill="#111827"/>
+          <!-- Arm holding phone -->
+          <path d="M122 135 L145 155 L185 142 L205 118" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Hand & Smartphone -->
+          <rect x="200" y="98" width="22" height="38" rx="4" transform="rotate(-15 200 98)" stroke="#111827" stroke-width="2" fill="#ffffff"/>
+          <line x1="204" y1="104" x2="216" y2="100" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+          <!-- Microphone sound indicator from phone -->
+          <path d="M218 102 C226 98, 230 106, 232 110" stroke="#111827" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <!-- System Architecture Preview Section -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin: 18px 4px 10px;">
+        <span style="font-size:14px; font-weight:800; color:var(--text)">System Architecture</span>
+        <button id="linkSpecs" style="font-size:11px; color:var(--text-muted); background:none; border:none; font-weight:600;">PS-2073 Specifications →</button>
+      </div>
+
+      <div class="feature-grid">
+        <div class="feature-card" style="cursor:pointer;" onclick="switchTab('viewSpecs')">
+          <div class="feature-icon-wrapper">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="15" x2="23" y2="15"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="15" x2="4" y2="15"/></svg>
+          </div>
+          <div class="feature-title">&lt;4GB+ RAM Target</div>
+          <div class="feature-desc">Optimized for low &amp; mid-range budget devices without thermal throttling.</div>
+        </div>
+
+        <div class="feature-card" style="cursor:pointer;" onclick="switchTab('viewSpecs')">
+          <div class="feature-icon-wrapper">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </div>
+          <div class="feature-title">10 Indic Languages</div>
+          <div class="feature-desc">AI4Bharat multilingual offline speech processing &amp; synthesis.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. RADIO TRANSCEIVER SCREEN (Screen 2) -->
+    <section id="viewTransceiver" class="view-page hidden">
+      <!-- Transceiver Header Details -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding:0 2px;">
+        <div>
+          <div style="font-size:11px; font-weight:700; color:var(--accent-emerald); display:flex; align-items:center; gap:5px;">
+            <span style="width:7px; height:7px; border-radius:50%; background:var(--accent-emerald); display:inline-block;"></span>
+            <span id="scanStatusText">Mesh Beacon: Scanning Active</span>
+          </div>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <span class="header-pill pill-emerald" id="rssiBadge">Rssi: -71</span>
+        </div>
+      </div>
+
+      <!-- Host Beacon & Search Peers Toggle Switches -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:14px;">
+        <div class="card" style="padding:14px; margin-bottom:0;">
+          <div class="switch-container">
+            <div>
+              <div style="font-size:13px; font-weight:800;">Host Beacon</div>
+              <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Discoverable to peers</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggleHost">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <!-- Hosting PIN & Address Box -->
+          <div id="hostInfoBox" class="hidden" style="margin-top:12px; padding-top:10px; border-top:1px solid #f1f3f5;">
+            <div style="font-size:9px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Joining PIN</div>
+            <div id="displayPin" style="font-size:24px; font-weight:900; letter-spacing:4px; color:#111827; margin:2px 0;">------</div>
+            <div id="displayAddress" style="font-size:9px; color:var(--text-muted); font-family:monospace;">Waiting for local IP...</div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:14px; margin-bottom:0;">
+          <div class="switch-container">
+            <div>
+              <div style="font-size:13px; font-weight:800;">Search Peers</div>
+              <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Scan for nodes</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggleDiscover" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div style="margin-top:12px; padding-top:10px; border-top:1px solid #f1f3f5; font-size:10px; color:var(--text-muted);">
+            <span id="activePeerCounter">Scanning 2.4/5GHz...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Circular PTT Button Unit -->
+      <div class="ptt-outer-ring" id="pttOuterRing">
+        <button class="ptt-btn" id="pttBtn" aria-label="Hold PTT to talk">
+          <div class="eq-bars">
+            <div class="eq-bar"></div>
+            <div class="eq-bar"></div>
+            <div class="eq-bar"></div>
+            <div class="eq-bar"></div>
+            <div class="eq-bar"></div>
+          </div>
+          <div class="ptt-label">HOLD PTT</div>
+        </button>
+      </div>
+
+      <div id="pttStatusLabel" style="text-align:center; font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:14px;">
+        Press and hold to broadcast voice across the mesh
+      </div>
+
+      <!-- Realtime Transcript Box -->
+      <div class="card" style="padding:12px 14px; margin-bottom:14px; background:#ffffff;">
+        <div style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Recognized Speech</div>
+        <div id="transcriptPreview" style="font-size:13px; color:#111827; min-height:22px; line-height:1.4;">
+          Your spoken voice transcript will appear here in real time...
+        </div>
+      </div>
+
+      <!-- Discovered Peers / Paired Bluetooth Devices Section -->
+      <div class="card" style="padding:14px; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+          <span style="font-size:13px; font-weight:800;" id="meshDevicesHeader">Paired Bluetooth &amp; Mesh (4)</span>
+          <span style="font-size:10px; color:var(--text-muted);">tap to connect</span>
+        </div>
+
+        <!-- Discovered Wi-Fi Direct / mDNS Nodes Container -->
+        <div id="discoveredPeersContainer"></div>
+
+        <!-- Bluetooth / Pre-paired Mock Devices (as shown in reference mockup) -->
+        <div class="device-item" onclick="selectDevice('Airdopes 131', 'BLUETOOTH · -76dBm · Build 4.14.0.01')">
+          <div class="device-left">
+            <svg class="device-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/></svg>
+            <div>
+              <div class="device-name">Airdopes 131</div>
+              <div class="device-detail">BLUETOOTH · -76dBm · Build 4.14.0.01</div>
+            </div>
+          </div>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#9ca3af" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </div>
+
+        <div class="device-item" onclick="selectDevice('Airdopes 219', 'BLUETOOTH · -74dBm · Build 4.10.0.02')">
+          <div class="device-left">
+            <svg class="device-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/></svg>
+            <div>
+              <div class="device-name">Airdopes 219</div>
+              <div class="device-detail">BLUETOOTH · -74dBm · Build 4.10.0.02</div>
+            </div>
+          </div>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#9ca3af" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </div>
+
+        <div class="device-item" onclick="selectDevice('realme 13+ 5G', 'BLUETOOTH · -68dBm · Build 14.1.0.11')">
+          <div class="device-left">
+            <svg class="device-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            <div>
+              <div class="device-name">realme 13+ 5G</div>
+              <div class="device-detail">BLUETOOTH · -68dBm · Build 14.1.0.11</div>
+            </div>
+          </div>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#9ca3af" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </div>
+
+        <div class="device-item" onclick="selectDevice('JBL LIVE500BT', 'BLUETOOTH · -82dBm · Build 12.0.0.01')">
+          <div class="device-left">
+            <svg class="device-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+            <div>
+              <div class="device-name">JBL LIVE500BT</div>
+              <div class="device-detail">BLUETOOTH · -82dBm · Build 12.0.0.01</div>
+            </div>
+          </div>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#9ca3af" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </div>
+      </div>
+
+      <!-- Manual Connection Drawer Toggle -->
+      <details class="card" style="padding:14px; margin-bottom:14px;">
+        <summary style="font-size:12px; font-weight:700; color:var(--text); cursor:pointer;">Manual Direct IP / Port Connection</summary>
+        <div style="margin-top:12px;">
+          <label class="input-label">Host IPv4 Address</label>
+          <input class="input-text" id="inputManualIp" placeholder="e.g. 192.168.43.1" inputmode="decimal">
+          
+          <label class="input-label" style="margin-top:8px;">6-Digit PIN</label>
+          <input class="input-text" id="inputManualPin" placeholder="6-digit PIN" maxlength="6" inputmode="numeric">
+
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button class="btn-pill" style="flex:1; padding:10px 14px; font-size:12px;" id="btnManualConnect">Connect Direct</button>
+            <button class="btn-outline" style="flex:1;" id="btnDisconnect">Disconnect</button>
+          </div>
+        </div>
+      </details>
+
+      <!-- Quick Dispatch & Offline Translation Box -->
+      <div class="card" style="padding:14px; margin-bottom:14px;">
+        <div style="font-size:13px; font-weight:800; margin-bottom:4px;">Tactical Text Dispatch</div>
+        <div style="font-size:10.5px; color:var(--text-muted); margin-bottom:10px;">Type dispatches or use offline phonetic transliteration.</div>
+        <textarea id="dispatchInput" rows="2" class="input-text" placeholder="Type tactical message (e.g. Need medical help at gate 2 / hum safe hain)..." style="resize:none;"></textarea>
+        
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn-outline" id="btnTranslateDispatch" style="flex:1;">🌐 Translate</button>
+          <button class="btn-pill" id="btnSendDispatch" style="flex:1; padding:10px 14px; font-size:12px;">Send</button>
+        </div>
+        <div id="dispatchTranslationResult" class="hidden" style="margin-top:8px; padding:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; font-size:11px; line-height:1.5;"></div>
+      </div>
+    </section>
+
+    <!-- 3. NEURAL MODELS / DOWNLOADS SCREEN (Screen 1) -->
+    <section id="viewDownloads" class="view-page hidden">
+      <!-- Top Section Header -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; padding:0 2px;">
+        <div>
+          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">16-bit AI Pipeline · 20Hz VAD Cycle on-disk</div>
+        </div>
+        <span class="header-pill pill-neutral">Offline Storage</span>
+      </div>
+
+      <!-- Main Bundle Card -->
+      <div class="card" style="padding:16px; margin-bottom:16px;">
+        <div style="display:flex; align-items:flex-start; gap:12px;">
+          <div class="check-circle" style="width:28px; height:28px; margin-top:2px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div style="flex:1;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span style="font-size:14px; font-weight:800; color:var(--text);">Download the Pack</span>
+              <span style="font-size:9px; font-weight:800; background:#111827; color:#ffffff; padding:2px 7px; border-radius:4px;">INSTALLED</span>
+            </div>
+            <p style="font-size:11px; color:var(--text-muted); line-height:1.5; margin-top:6px;">
+              Includes complete bundle: Silero VAD (7.5 MB), AI4Bharat IndoConformer STT (58 MB), FastText Language Auto-detector (1.2 MB), and all 10 Indic Voice Packs (Hindi, Gujarati, Marathi, Kannada, Malayalam, Tamil, Telugu, Odia, Bengali, English). Required for auto-detection and speech synthesis.
+            </p>
+          </div>
+        </div>
+
+        <div style="margin-top:12px; padding:8px 10px; background:var(--emerald-light); border:1px solid var(--emerald-border); border-radius:10px; font-size:11px; color:var(--emerald-text); font-weight:600; display:flex; align-items:center; gap:6px;">
+          <span style="width:6px; height:6px; border-radius:50%; background:var(--accent-emerald);"></span>
+          All Language Models and neural transceiver are fully active.
+        </div>
+      </div>
+
+      <!-- Compulsory Language & Transceiver Packs (11) -->
+      <div style="font-size:13px; font-weight:800; margin: 16px 2px 10px; color:var(--text);">
+        Compulsory Language &amp; Transceiver Packs (11)
+      </div>
+
+      <!-- Pack 1 -->
+      <div class="pack-item">
+        <div class="pack-left">
+          <div class="pack-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          </div>
+          <div>
+            <div class="pack-title">Voice Activity Detector</div>
+            <div class="pack-sub">2 MB · silero_vad_v4.onnx</div>
+          </div>
+        </div>
+        <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+      </div>
+
+      <!-- Pack 2 -->
+      <div class="pack-item">
+        <div class="pack-left">
+          <div class="pack-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          </div>
+          <div>
+            <div class="pack-title">Speech-To-Text Engine</div>
+            <div class="pack-sub">58 MB · indoconformer_multilingual_int8.bin</div>
+          </div>
+        </div>
+        <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+      </div>
+
+      <!-- Pack 3 -->
+      <div class="pack-item">
+        <div class="pack-left">
+          <div class="pack-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+          </div>
+          <div>
+            <div class="pack-title">Language Auto-Detector</div>
+            <div class="pack-sub">1.5 MB · lid.176.ftz</div>
+          </div>
+        </div>
+        <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+      </div>
+
+      <!-- Pack 4 -->
+      <div class="pack-item">
+        <div class="pack-left">
+          <div class="pack-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div>
+            <div class="pack-title">Hindi Neural Voice (hi-IN)</div>
+            <div class="pack-sub">14 MB · Devanagari offline phonetic synthesis</div>
+          </div>
+        </div>
+        <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+      </div>
+
+      <!-- Pack 5 -->
+      <div class="pack-item">
+        <div class="pack-left">
+          <div class="pack-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div>
+            <div class="pack-title">English (Indian Phonetics) (en-IN)</div>
+            <div class="pack-sub">12 MB · Indian accent natural voice</div>
+          </div>
+        </div>
+        <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+      </div>
+
+      <!-- Pack 6 -->
+      <div class="pack-item">
+        <div class="pack-left">
+          <div class="pack-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div>
+            <div class="pack-title">Marathi Neural Voice (mr-IN)</div>
+            <div class="pack-sub">14 MB · High clarity Indic acoustic model</div>
+          </div>
+        </div>
+        <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+      </div>
+
+      <!-- Pack 7 -->
+      <div class="pack-item">
+        <div class="pack-left">
+          <div class="pack-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div>
+            <div class="pack-title">Gujarati Neural Voice (gu-IN)</div>
+            <div class="pack-sub">13 MB · On-device lightweight acoustic pack</div>
+          </div>
+        </div>
+        <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+      </div>
+
+      <!-- Pack 8 -->
+      <div class="pack-item">
+        <div class="pack-left">
+          <div class="pack-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div>
+            <div class="pack-title">Tamil Neural Voice (ta-IN)</div>
+            <div class="pack-sub">15 MB · Real-time Dravidian synthesis</div>
+          </div>
+        </div>
+        <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+      </div>
+
+      <!-- Pack 9 -->
+      <div class="pack-item">
+        <div class="pack-left">
+          <div class="pack-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div>
+            <div class="pack-title">Telugu Neural Voice (te-IN)</div>
+            <div class="pack-sub">15 MB · Low-latency neural synthesis</div>
+          </div>
+        </div>
+        <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+      </div>
+
+      <!-- Pack 10 -->
+      <div class="pack-item">
+        <div class="pack-left">
+          <div class="pack-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div>
+            <div class="pack-title">Kannada Neural Voice (kn-IN)</div>
+            <div class="pack-sub">14 MB · Offline phonetic prosody engine</div>
+          </div>
+        </div>
+        <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+      </div>
+
+      <!-- Pack 11 -->
+      <div class="pack-item">
+        <div class="pack-left">
+          <div class="pack-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div>
+            <div class="pack-title">Bengali Neural Voice (bn-IN)</div>
+            <div class="pack-sub">14 MB · Eastern Indic acoustic voice model</div>
+          </div>
+        </div>
+        <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+      </div>
+
+      <!-- Diagnostics & System Integration Buttons -->
+      <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
+        <button class="btn-outline full-width" onclick="command('capabilities')">Recheck Installed Speech Engine</button>
+        <button class="btn-outline full-width" onclick="command('downloadModel')">Download Additional Voice Pack</button>
+        <button class="btn-outline full-width" onclick="command('ttsSettings')">Open Android TTS Settings</button>
+      </div>
+    </section>
+
+    <!-- 4. SYSTEM ARCHITECTURE / SPECS SCREEN (Screen 5) -->
+    <section id="viewSpecs" class="view-page hidden">
+      <!-- Top Section Header -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; padding:0 2px;">
+        <div>
+          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">PS-2073 Specifications</div>
+        </div>
+        <span class="header-pill pill-neutral">SIH2024</span>
+      </div>
+
+      <!-- 4 Core Feature Cards (2x2 Grid) -->
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="15" x2="23" y2="15"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="15" x2="4" y2="15"/></svg>
+          </div>
+          <div class="feature-title">&lt;4GB+ RAM Target</div>
+          <div class="feature-desc">Optimized for low &amp; mid-range phones. Runs smoothly without thermal throttling on budget devices.</div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </div>
+          <div class="feature-title">10 Indic Languages</div>
+          <div class="feature-desc">AI4Bharat Multilingual. Hindi, Gujarati, Marathi, Kannada, Malayalam, Tamil, Telugu, Odia, Bengali, English.</div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+          </div>
+          <div class="feature-title">Dual Mesh Transport</div>
+          <div class="feature-desc">Wi-Fi Direct + Bluetooth. High throughput (TCP 10 channel) plus BLE/BT5 auto-fallback for Ad-Hoc MESH.</div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <div class="feature-title">Neural Transceiver</div>
+          <div class="feature-desc">~200 bytes / Packet. Silero VAD detects speech, ITP compresses packets into compact Protobuf frames.</div>
+        </div>
+      </div>
+
+      <!-- Node Identification Banner -->
+      <div class="card" style="padding:14px; margin-bottom:12px; background:#ffffff;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div>
+            <div style="font-size:13px; font-weight:800;" id="specsNodeTitle">Node: iTantra - SA1</div>
+            <div style="font-size:10.5px; color:var(--text-muted); margin-top:2px;" id="specsNodeSub">Callsign: Sarthak Patil · Mesh: Wi-Fi Direct / 8785</div>
+          </div>
+          <span class="header-pill pill-emerald">ACTIVE NODE</span>
+        </div>
+      </div>
+
+      <!-- PS-2073 Mandate Compliance Card -->
+      <div class="card" style="padding:14px; margin-bottom:14px; border-left: 3px solid var(--accent-emerald);">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--accent-emerald)" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+          <div style="font-size:13px; font-weight:800; color:var(--text);">PS-2073 Mandate Compliance</div>
+        </div>
+        <div style="font-size:11px; color:var(--text-muted); line-height:1.5;">
+          100% Offline · Zero Cloud Dependencies · Open Source TorchScript [BitStream] + AI4Bharat IndicTTS Audio synthesis · Direct IP/ZeroConf P2P Mesh (Meets all SIH2024 specifications).
+        </div>
+      </div>
+
+      <!-- Telemetry Diagnostics Metrics -->
+      <div class="card" style="padding:14px; margin-bottom:14px;">
+        <div style="font-size:13px; font-weight:800; margin-bottom:10px;">ITP Protocol Telemetry</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;" id="metricsGrid"></div>
+      </div>
+    </section>
+
+    <!-- 5. TACTICAL DISPATCH MESSAGES MODAL / DRAWER -->
+    <section id="viewMessages" class="view-page hidden">
+      <div class="card" style="padding:14px; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <div style="font-size:14px; font-weight:800;">Dispatch Logs</div>
+          <button class="btn-outline" style="font-size:10px; padding:4px 8px;" id="btnClearHistory">Clear Logs</button>
+        </div>
+        <div id="messagesHistory" style="min-height:120px; max-height:400px; overflow-y:auto;">
+          <div id="emptyMsgPlaceholder" style="text-align:center; padding:30px 10px; color:var(--text-muted); font-size:12px;">
+            No messages sent or received in this session.
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FIXED BOTTOM NAVIGATION DOCK (5 Items matching mockup) -->
+  <nav class="bottom-nav" aria-label="Main Navigation">
+    <button class="nav-item active" data-view="viewHome">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="nav-item" data-view="viewTransceiver">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
+      <span>Radar</span>
+    </button>
+    <!-- Center PTT Floating Quick Trigger -->
+    <button class="nav-ptt-btn" id="navCenterPtt" aria-label="Center PTT Quick Access">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="7" x2="8" y2="17"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="16" y1="9" x2="16" y2="15"/></svg>
+    </button>
+    <button class="nav-item" data-view="viewDownloads">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span>Downloads</span>
+    </button>
+    <button class="nav-item" data-view="viewSpecs">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/></svg>
+      <span>Specs</span>
+    </button>
+  </nav>
+
+  <!-- NODE IDENTITY & HARDWARE MODAL (Screen 4) -->
+  <div id="nodeIdentityModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">Node Identity &amp; Hardware</div>
+        <button class="modal-close" id="modalCloseBtn">✕</button>
+      </div>
+
+      <!-- Avatar Circle in Center -->
+      <div style="display:flex; justify-content:center; margin:10px 0 16px;">
+        <div class="header-avatar" style="width:64px; height:64px; font-size:20px; border-width:2px;" id="modalAvatar">SA</div>
+      </div>
+
+      <!-- Callsign / User Name Input -->
+      <div class="input-group">
+        <label class="input-label" for="inputCallsign">Callsign / User Name</label>
+        <input class="input-text" id="inputCallsign" value="Sarthak Patil">
+      </div>
+
+      <!-- Device Specifications Table -->
+      <div style="font-size:12px; font-weight:800; color:var(--text); margin-bottom:6px;">Device Specifications</div>
+      <table class="specs-table">
+        <tr>
+          <td class="specs-key">Device Model</td>
+          <td class="specs-val" id="specModel">vivo 2409</td>
+        </tr>
+        <tr>
+          <td class="specs-key">Build ID</td>
+          <td class="specs-val" id="specBuild">UP1A.231005.007.V2413_24_V1001</td>
+        </tr>
+        <tr>
+          <td class="specs-key">Node ID</td>
+          <td class="specs-val" id="specNodeId">iTantra - SA1</td>
+        </tr>
+        <tr>
+          <td class="specs-key">Android OS</td>
+          <td class="specs-val" id="specOs">Android 15 (API 35)</td>
+        </tr>
+        <tr>
+          <td class="specs-key">Radio Mesh</td>
+          <td class="specs-val">Wi-Fi Direct P2P + Bluetooth 5.4</td>
+        </tr>
+        <tr>
+          <td class="specs-key">Port</td>
+          <td class="specs-val">8785 (TCP Protocol Stream)</td>
+        </tr>
+      </table>
+
+      <button class="btn-pill full-width" id="btnSaveIdentity" style="margin-top:20px;">Save Changes</button>
+    </div>
   </div>
 
-  <p class="subtle">Enter the 6-digit joining code displayed on the other phone:</p>
-  <label class="field">
-   <span class="label">Joining PIN</span>
-   <input id="modalPin" inputmode="numeric" maxlength="6" placeholder="6-digit PIN" style="font-size:22px;letter-spacing:6px;font-weight:700;text-align:center">
-  </label>
+  <!-- JAVASCRIPT CORE LOGIC & NATIVE BRIDGE -->
+  <script>
+    const $ = id => document.getElementById(id);
+    function safeGet(k, d) { try { return localStorage.getItem(k) || d; } catch(e) { return d; } }
+    function safeSet(k, v) { try { localStorage.setItem(k, v); } catch(e) {} }
+    let connected = false;
+    let callsign = safeGet('itantra_callsign', 'Sarthak Patil');
+    let selectedPort = 8988;
+    const peers = new Map();
 
-  <button id="modalConnectBtn" class="btn primary wide" style="margin-top:14px;font-size:14px">Connect Instantly</button>
- </div>
-</div>
+    // Initialize stored callsign
+    $('inputCallsign').value = callsign;
+    updateCallsignDisplays();
 
-<script>
-const $=id=>document.getElementById(id);
-let conversation=false,connected=false,selectedPort=8988,unread=0;
-const peers=new Map();
+    function updateCallsignDisplays() {
+      const initials = callsign.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'SA';
+      $('avatarBtn').textContent = initials;
+      $('modalAvatar').textContent = initials;
+      $('specNodeId').textContent = 'iTantra - ' + initials + '1';
+      $('specsNodeTitle').textContent = 'Node: iTantra - ' + initials + '1';
+      $('specsNodeSub').textContent = 'Callsign: ' + callsign + ' · Mesh: Wi-Fi Direct / 8785';
+    }
 
-function command(action,data={}){
- if(window.iTantra)window.iTantra.command(action,JSON.stringify(data));
- else notice('Open the installed Android app to use local networking and speech.');
-}
+    // Native Bridge Wrapper
+    function command(action, data = {}) {
+      if (window.iTantra) {
+        window.iTantra.command(action, JSON.stringify(data));
+      } else {
+        showToast('Open the installed Android app to use mesh networking and speech.');
+      }
+    }
 
-let noticeTimer;
-function notice(text){
- $('toast').textContent=text;
- $('toast').classList.remove('hidden');
- clearTimeout(noticeTimer);
- noticeTimer=setTimeout(()=>$('toast').classList.add('hidden'),12000);
-}
+    let toastTimer;
+    function showToast(text) {
+      $('toast').textContent = text;
+      $('toast').classList.remove('hidden');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => $('toast').classList.add('hidden'), 5000);
+    }
 
-function tab(name){
- document.querySelectorAll('.page').forEach(el=>el.classList.toggle('hidden',el.id!==name));
- document.querySelectorAll('[data-tab]').forEach(el=>el.classList.toggle('selected',el.dataset.tab===name));
- if(name==='messages'){unread=0;$('unread').textContent='';}
- if(name==='nearby'){command('discover');}
- window.scrollTo(0,0);
-}
-document.querySelectorAll('[data-tab]').forEach(el=>el.onclick=()=>tab(el.dataset.tab));
-document.querySelectorAll('[data-command]').forEach(el=>el.onclick=()=>command(el.dataset.command));
+    // Screen Navigation
+    function switchTab(viewId) {
+      document.querySelectorAll('.view-page').forEach(page => page.classList.add('hidden'));
+      document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
 
-$('language').onchange=()=>command('language',{language:$('language').value});
-$('bitrate').onchange=()=>command('bitrate',{bps:Number($('bitrate').value)});
-$('join').onclick=()=>command('connect',{address:$('address').value.trim(),pin:$('pin').value.trim(),port:selectedPort});
-$('send').onclick=()=>{
- const text=$('text').value.trim();
- if(text)command('send',{text,language:$('language').value});
-};
+      const targetPage = $(viewId);
+      if (targetPage) targetPage.classList.remove('hidden');
 
-/* Walkie PTT Logic */
-const ptt=$('ptt');
-let holding=false;
-function startTalk(){if(holding||!connected)return;holding=true;ptt.classList.add('active');command('start');}
-function releaseTalk(){if(!holding)return;holding=false;ptt.classList.remove('active');command('release');}
-ptt.onpointerdown=e=>{e.preventDefault();ptt.setPointerCapture(e.pointerId);startTalk();};
-ptt.onpointerup=releaseTalk;
-ptt.onpointercancel=()=>{holding=false;ptt.classList.remove('active');command('cancel');};
-ptt.onlostpointercapture=releaseTalk;
-ptt.oncontextmenu=e=>e.preventDefault();
-ptt.onkeydown=e=>{if(e.code==='Space'||e.code==='Enter'){e.preventDefault();startTalk();}};
-ptt.onkeyup=e=>{if(e.code==='Space'||e.code==='Enter')releaseTalk();};
-window.onblur=releaseTalk;
+      const targetNav = document.querySelector(`.nav-item[data-view="${viewId}"]`);
+      if (targetNav) targetNav.classList.add('active');
 
-$('conversation').onclick=()=>command('conversation',{enabled:!conversation});
-$('stopPlayback').onclick=()=>command('stopPlayback');
-$('clearMessages').onclick=()=>{$('history').replaceChildren();};
+      // Update Universal Header text according to screen
+      const titles = {
+        'viewHome': ['iTantra.', 'Zero-Cloud Tactical Voice'],
+        'viewTransceiver': ['Radio Transceiver', 'Mesh Beacon: Scanning Active'],
+        'viewDownloads': ['Neural Models', '16-bit AI Pipeline · 20Hz VAD'],
+        'viewSpecs': ['System Architecture', 'PS-2073 Specifications'],
+        'viewMessages': ['Tactical Messages', 'Dispatch Stream']
+      };
+      if (titles[viewId]) {
+        $('pageHeaderTitle').textContent = titles[viewId][0];
+        $('pageHeaderSubtitle').textContent = titles[viewId][1];
+      }
 
-/* Offline Emergency Translation & Phonetic Transliteration Engine */
-const VOCAB_EN_TO_HI = [
- [/\b(help|need help|assist|sos|bachao)\b/gi, "मदद चाहिए (madad chahiye)"],
- [/\b(medical|doctor|ambulance|hospital|first aid|injured|fracture|stretcher)\b/gi, "चिकित्सा सहायता / डॉक्टर (medical aid)"],
- [/\b(danger|hazard|threat|khatra)\b/gi, "खतरा है (danger ahead)"],
- [/\b(fire|burning|smoke|aag)\b/gi, "आग / धुआं (fire emergency)"],
- [/\b(water|drinking water|paani)\b/gi, "पीने का पानी (drinking water)"],
- [/\b(food|rations|supplies|khana)\b/gi, "भोजन / राहत सामग्री (food rations)"],
- [/\b(safe|we are safe|all clear|surakshit)\b/gi, "सब सुरक्षित हैं (we are safe)"],
- [/\b(trapped|stuck|debris|collapse|fanse)\b/gi, "मलबे में फंसे हैं (trapped)"],
- [/\b(evacuate|leave now|khali karo)\b/gi, "तुरंत खाली करें (evacuate now)"],
- [/\b(gate|entrance|exit)\b/gi, "गेट (gate)"],
- [/\b(sector|building|floor)\b/gi, "सेक्टर / ब्लॉक"],
- [/\b(location|where are you|kahan ho)\b/gi, "स्थान / लोकेशन बताइए"],
- [/\b(hurry|come fast|quickly|jaldi)\b/gi, "जल्दी पहुंचें (come quickly)"]
-];
+      if (viewId === 'viewTransceiver') {
+        command('discover');
+      }
+      window.scrollTo(0, 0);
+    }
 
-function devanagariToRoman(dev){
- const vowels={'अ':'a','आ':'aa','इ':'i','ई':'ee','उ':'u','ऊ':'oo','ए':'e','ऐ':'ai','ओ':'o','औ':'au','ं':'n','ा':'aa','ि':'i','ी':'ee','ु':'u','ू':'oo','े':'e','ै':'ai','ो':'o','ौ':'au','्':''};
- const consonants={'क':'k','ख':'kh','ग':'g','घ':'gh','च':'ch','छ':'chh','ज':'j','झ':'jh','ट':'t','ठ':'th','ड':'d','ढ':'dh','ण':'n','त':'t','थ':'th','द':'d','ध':'dh','न':'n','प':'p','फ':'f','ब':'b','भ':'bh','म':'m','य':'y','र':'r','ल':'l','व':'v','श':'sh','ष':'sh','स':'s','ह':'h'};
- let out='';
- for(let i=0;i<dev.length;i++){
-  const c=dev[i];
-  if(consonants[c]){
-   const next=dev[i+1];
-   if(next&&vowels[next]!==undefined){out+=consonants[c]+vowels[next];i++;}
-   else if(next==='्'){out+=consonants[c];i++;}
-   else{out+=consonants[c]+'a';}
-  }else if(vowels[c]!==undefined){
-   out+=vowels[c];
-  }else{
-   out+=c;
-  }
- }
- return out.replace(/a(?=[aeiou])/g,'').replace(/aa+/g,'aa');
-}
+    document.querySelectorAll('.nav-item').forEach(btn => {
+      btn.onclick = () => switchTab(btn.dataset.view);
+    });
 
-function offlineTranslate(text){
- const isDevanagari=/[\u0900-\u097F]/.test(text);
- if(isDevanagari){
-  const roman=devanagariToRoman(text);
-  let enTrans=text;
-  enTrans=enTrans.replace(/मदद|सहायता/g,"[Help]").replace(/चिकित्सा|डॉक्टर|घायल/g,"[Medical/Doctor]").replace(/खतरा/g,"[Danger]").replace(/आग/g,"[Fire]").replace(/पानी/g,"[Water]").replace(/भोजन|खाना/g,"[Food]").replace(/सुरक्षित/g,"[Safe]").replace(/गेट/g,"[Gate]").replace(/जल्दी/g,"[Quickly]");
-  return {type:'Devanagari → Hinglish & English',roman:roman,translation:enTrans};
- }else{
-  let translated=text;
-  for(const [regex,rep] of VOCAB_EN_TO_HI){
-   translated=translated.replace(regex,rep);
-  }
-  return {type:'English/Hinglish → Hindi Equivalent',translation:translated};
- }
-}
+    $('btnGetStarted').onclick = () => switchTab('viewTransceiver');
+    $('linkSpecs').onclick = () => switchTab('viewSpecs');
 
-$('translateQuickBtn').onclick=()=>{
- const val=$('text').value.trim();
- if(!val){notice('Type a phrase in the box first to translate.');return;}
- const res=offlineTranslate(val);
- const box=$('transPreviewBox');
- box.classList.remove('hidden');
- box.innerHTML='<b>'+res.type+'</b><br>'+(res.roman?'<i>Hinglish:</i> '+res.roman+'<br>':'')+'<i>Translation:</i> '+res.translation+
-  '<br><button class="btn" style="margin-top:6px;padding:4px 10px;font-size:11px" onclick="$(\'text\').value=\''+
-  (res.roman?res.roman:res.translation).replace(/'/g,"\\'").replace(/"/g,'&quot;')+'\';$(\'transPreviewBox\').classList.add(\'hidden\');">Use this text</button>';
-};
+    // Nav Center PTT Quick Trigger
+    $('navCenterPtt').onclick = () => {
+      switchTab('viewTransceiver');
+      showToast('Transceiver ready. Hold PTT button to speak.');
+    };
 
-/* Message Rendering with Translation Toggle */
-function message(direction,text,sequence){
- $('emptyMessages')?.remove();
- const item=document.createElement('div');
- item.className='message';
- if(direction==='Sent')item.dataset.sequence=sequence;
+    // Node Identity Modal
+    $('avatarBtn').onclick = () => $('nodeIdentityModal').classList.remove('hidden');
+    $('modalCloseBtn').onclick = () => $('nodeIdentityModal').classList.add('hidden');
+    $('btnSaveIdentity').onclick = () => {
+      const val = $('inputCallsign').value.trim();
+      if (val) {
+        callsign = val;
+        safeSet('itantra_callsign', callsign);
+        updateCallsignDisplays();
+        showToast('Callsign updated: ' + callsign);
+      }
+      $('nodeIdentityModal').classList.add('hidden');
+    };
 
- const meta=document.createElement('div');
- meta.className='meta';
- meta.innerHTML='<span>'+direction+' · '+new Date().toLocaleTimeString()+'</span>';
+    // Host Beacon & Search Peers Toggles
+    $('toggleHost').onchange = (e) => {
+      if (e.target.checked) {
+        command('host');
+        $('hostInfoBox').classList.remove('hidden');
+      } else {
+        $('hostInfoBox').classList.add('hidden');
+      }
+    };
 
- const transBtn=document.createElement('button');
- transBtn.className='btn';
- transBtn.style.cssText='min-height:22px;padding:2px 8px;font-size:10px;border-radius:6px;background:#1e1e2c';
- transBtn.textContent='🌐 Translate';
+    $('toggleDiscover').onchange = (e) => {
+      if (e.target.checked) {
+        command('discover');
+        $('activePeerCounter').textContent = 'Scanning 2.4/5GHz...';
+      } else {
+        $('activePeerCounter').textContent = 'Discovery paused';
+      }
+    };
 
- const body=document.createElement('div');
- body.className='body';
- body.textContent=text;
+    // Central PTT Interaction
+    const pttBtn = $('pttBtn');
+    const pttRing = $('pttOuterRing');
+    let isHoldingTalk = false;
 
- const transBox=document.createElement('div');
- transBox.className='trans-box hidden';
+    function startPtt() {
+      if (isHoldingTalk) return;
+      isHoldingTalk = true;
+      pttBtn.classList.add('active');
+      pttRing.classList.add('active');
+      $('pttStatusLabel').textContent = 'Transmitting speech live over tactical mesh...';
+      $('pttStatusLabel').style.color = 'var(--accent-emerald)';
+      command('start');
+    }
 
- transBtn.onclick=()=>{
-  if(transBox.classList.contains('hidden')){
-   const res=offlineTranslate(text);
-   transBox.innerHTML='<b>'+res.type+':</b><br>'+(res.roman?'• Hinglish: '+res.roman+'<br>':'')+'• '+res.translation;
-   transBox.classList.remove('hidden');
-  }else{
-   transBox.classList.add('hidden');
-  }
- };
+    function stopPtt() {
+      if (!isHoldingTalk) return;
+      isHoldingTalk = false;
+      pttBtn.classList.remove('active');
+      pttRing.classList.remove('active');
+      $('pttStatusLabel').textContent = 'Press and hold to broadcast voice across the mesh';
+      $('pttStatusLabel').style.color = 'var(--text-muted)';
+      command('release');
+    }
 
- meta.append(transBtn);
- item.append(meta,body,transBox);
- $('history').prepend(item);
- while($('history').children.length>50)$('history').lastChild.remove();
-}
+    pttBtn.onpointerdown = (e) => {
+      e.preventDefault();
+      pttBtn.setPointerCapture(e.pointerId);
+      startPtt();
+    };
+    pttBtn.onpointerup = stopPtt;
+    pttBtn.onpointercancel = () => {
+      stopPtt();
+      command('cancel');
+    };
+    pttBtn.onlostpointercapture = stopPtt;
+    pttBtn.oncontextmenu = e => e.preventDefault();
+    window.onblur = stopPtt;
 
-/* Radar & Nearby Devices */
-function renderRadarPeers(){
- const container=$('radarPeersContainer');
- container.replaceChildren();
- const list=Array.from(peers.values());
- $('radarBadge').textContent=list.length?'('+list.length+')':'';
+    // Manual Direct Connection
+    $('btnManualConnect').onclick = () => {
+      const address = $('inputManualIp').value.trim();
+      const pin = $('inputManualPin').value.trim();
+      if (!address) {
+        showToast('Please enter the host IP address.');
+        return;
+      }
+      command('connect', { address, pin, port: selectedPort });
+    };
 
- if(!list.length){
-  $('scanState').textContent='Radar sweeping 2.4/5GHz local band…';
-  return;
- }
- $('scanState').textContent='Discovered '+list.length+' nearby iTantra handset'+(list.length>1?'s':'');
+    $('btnDisconnect').onclick = () => command('disconnect');
 
- const centerX=160,centerY=160,radius=105;
- list.forEach((peer,i)=>{
-  const angleDeg=(i*360/list.length)-45;
-  const rad=angleDeg*Math.PI/180;
-  const x=centerX+radius*Math.cos(rad);
-  const y=centerY+radius*Math.sin(rad);
+    function selectDevice(name, detail) {
+      showToast('Selected ' + name + '. Initiating peer handshake...');
+      command('connect', { address: '192.168.43.1', pin: '123456', port: selectedPort });
+    }
 
-  const node=document.createElement('div');
-  node.className='radar-peer';
-  node.style.left=x+'px';
-  node.style.top=y+'px';
-  node.style.animationDelay=(i*0.4)+'s';
+    // Offline Translation Engine (English <-> Hindi & Hinglish)
+    const VOCAB_EN_TO_HI = [
+      [/\b(help|need help|assist|sos|bachao)\b/gi, "मदद चाहिए (madad chahiye)"],
+      [/\b(medical|doctor|ambulance|hospital|first aid|injured|fracture|stretcher)\b/gi, "चिकित्सा सहायता / डॉक्टर (medical aid)"],
+      [/\b(danger|hazard|threat|khatra)\b/gi, "खतरा है (danger ahead)"],
+      [/\b(fire|burning|smoke|aag)\b/gi, "आग / धुआं (fire emergency)"],
+      [/\b(water|drinking water|paani)\b/gi, "पीने का पानी (drinking water)"],
+      [/\b(food|rations|supplies|khana)\b/gi, "भोजन / राहत सामग्री (food rations)"],
+      [/\b(safe|we are safe|all clear|surakshit)\b/gi, "सब सुरक्षित हैं (we are safe)"],
+      [/\b(trapped|stuck|debris|collapse|fanse)\b/gi, "मलबे में फंसे हैं (trapped)"],
+      [/\b(evacuate|leave now|khali karo)\b/gi, "तुरंत खाली करें (evacuate now)"],
+      [/\b(gate|entrance|exit)\b/gi, "गेट (gate)"],
+      [/\b(hurry|come fast|quickly|jaldi)\b/gi, "जल्दी पहुंचें (come quickly)"]
+    ];
 
-  node.innerHTML=`
-   <div class="radar-peer-icon">
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="3"/><circle cx="12" cy="18" r="1"/></svg>
-   </div>
-   <div class="radar-peer-badge">${peer.name}</div>
-   <div class="radar-peer-ip">${peer.address}</div>
-   <div class="radar-peer-tap">TAP TO CONNECT</div>
-  `;
+    function offlineTranslate(text) {
+      let translated = text;
+      for (const [regex, rep] of VOCAB_EN_TO_HI) {
+        translated = translated.replace(regex, rep);
+      }
+      return translated;
+    }
 
-  node.onclick=()=>openConnectModal(peer.name,peer.address,peer.port||8988);
-  container.append(node);
- });
-}
+    $('btnTranslateDispatch').onclick = () => {
+      const text = $('dispatchInput').value.trim();
+      if (!text) {
+        showToast('Type a message first to translate.');
+        return;
+      }
+      const trans = offlineTranslate(text);
+      const resBox = $('dispatchTranslationResult');
+      resBox.classList.remove('hidden');
+      resBox.innerHTML = '<b>Tactical Hindi / Hinglish:</b><br>' + trans;
+    };
 
-let activeModalPeer={name:'',address:'',port:8988};
-function openConnectModal(name,address,port){
- activeModalPeer={name,address,port};
- $('modalPeerName').textContent=name;
- $('modalPeerIp').textContent=address+' · Port '+port;
- $('modalPin').value=$('pin').value||'';
- $('connectModal').classList.remove('hidden');
- setTimeout(()=>$('modalPin').focus(),200);
-}
-$('modalClose').onclick=()=>$('connectModal').classList.add('hidden');
-$('modalConnectBtn').onclick=()=>{
- const pin=$('modalPin').value.trim();
- if(pin.length!==6){notice('Please enter the 6-digit joining PIN shown on the other phone.');return;}
- $('pin').value=pin;
- $('address').value=activeModalPeer.address;
- selectedPort=activeModalPeer.port;
- $('connectModal').classList.add('hidden');
- command('connect',{address:activeModalPeer.address,pin:pin,port:activeModalPeer.port});
-};
+    $('btnSendDispatch').onclick = () => {
+      const text = $('dispatchInput').value.trim();
+      if (text) {
+        command('send', { text, language: 'hi' });
+        $('dispatchInput').value = '';
+        $('dispatchTranslationResult').classList.add('hidden');
+      }
+    };
 
-/* Metrics Table */
-const metricDefs=[['lastPacketBytes','Last ITP frame','B'],['textCompression','Text / payload ratio','×'],['overheadBytes','Framing + control + FEC','B'],['sent','Packets sent',''],['received','Packets received',''],['rttMs','Heartbeat RTT','ms'],['configuredBps','Payload target','bps'],['appTxBps','App bytes sent / elapsed','bps'],['payloadBps','Payload / elapsed','bps'],['txBytes','Sent incl. framing','B'],['rxBytes','Received incl. framing','B'],['crcFailures','CRC failures',''],['fecCorrected','FEC codewords repaired',''],['fecFailures','Rejected FEC / packets',''],['unacknowledged','Missing decode ACKs','']];
-for(const [key,label,unit] of metricDefs){
- const box=document.createElement('div');
- box.className='metric';
- box.innerHTML='<div class="label">'+label+'</div><div class="value" id="metric-'+key+'">—</div><div class="subtle">'+unit+'</div>';
- $('metrics').append(box);
-}
+    $('btnClearHistory').onclick = () => {
+      $('messagesHistory').replaceChildren();
+      const p = document.createElement('div');
+      p.id = 'emptyMsgPlaceholder';
+      p.style.cssText = 'text-align:center; padding:30px 10px; color:var(--text-muted); font-size:12px;';
+      p.textContent = 'No messages sent or received in this session.';
+      $('messagesHistory').append(p);
+    };
 
-function checkLine(label,value){
- const div=document.createElement('div');
- div.className='check';
- div.textContent=label+': '+value;
- return div;
-}
+    // Telemetry Metrics Grid Setup
+    const telemetryDefs = [
+      ['lastPacketBytes', 'Last Frame', 'B'],
+      ['textCompression', 'Compression', '×'],
+      ['overheadBytes', 'Overhead', 'B'],
+      ['sent', 'Packets Sent', 'pkts'],
+      ['received', 'Packets Recv', 'pkts'],
+      ['rttMs', 'Heartbeat RTT', 'ms'],
+      ['txBytes', 'Total Sent', 'B'],
+      ['rxBytes', 'Total Recv', 'B'],
+      ['crcFailures', 'CRC Failures', ''],
+      ['fecCorrected', 'FEC Repaired', 'cw']
+    ];
 
-/* Native Android Callback Interface */
-window.onNative=(type,data)=>{
- switch(type){
- case 'device':
-  $('device').textContent=data.name+' · Android '+data.android;
-  $('radarMyLabel').textContent=data.name;
-  break;
- case 'connection':
-  connected=data.state==='CONNECTED';
-  $('connection').textContent=data.state;
-  $('connection').style.color=connected?'#34d399':'#818cf8';
-  $('peerName').textContent=connected?data.peer:'No peer';
-  ptt.disabled=!connected;
-  $('send').disabled=!connected;
-  $('conversation').disabled=!connected;
-  if(!connected){holding=false;ptt.classList.remove('active');}
-  break;
- case 'host':
-  $('hostInfo').classList.remove('hidden');
-  $('hostPin').textContent=data.pin;
-  $('hostAddress').textContent='Address: '+(data.addresses.join(' or ')||'Waiting for Hotspot IP…')+' · port '+data.port;
-  $('radarScreen').classList.add('hosting');
-  $('radarMyLabel').textContent='PIN: '+data.pin;
-  break;
- case 'discovery':
-  $('scanState').textContent=data.state;
-  break;
- case 'peer':
-  peers.set(data.name,data);
-  renderRadarPeers();
-  break;
- case 'peerLost':
-  peers.delete(data.name);
-  renderRadarPeers();
-  break;
- case 'speech':
-  $('speechState').textContent=data.state;
-  break;
- case 'partial':
-  $('partial').textContent=data.text;
-  break;
- case 'recognized':
-  $('partial').textContent=data.text;
-  break;
- case 'conversation':
-  conversation=data.enabled;
-  $('conversation').textContent=conversation?'Stop':'Start';
-  $('conversation').classList.toggle('primary',conversation);
-  break;
- case 'sent':
-  message('Sent',data.text,data.sequence);
-  $('text').value='';
-  $('transPreviewBox').classList.add('hidden');
-  break;
- case 'received':
-  message('Received · '+data.language,data.text,data.sequence);
-  if($('messages').classList.contains('hidden'))$('unread').textContent='('+(++unread)+')';
-  break;
- case 'delivery':{
-  const el=document.querySelector('[data-sequence="'+Number(data.sequence)+'"] .meta span');
-  if(el)el.textContent='Sent · '+data.state+(data.ackMs!==undefined?' · ACK '+data.ackMs+' ms':'');
-  break;
- }
- case 'metrics':
-  for(const [key] of metricDefs)$('metric-'+key).textContent=data[key]===undefined||data[key]<0?'—':Number(data[key]).toLocaleString();
-  break;
- case 'capabilities':{
-  const root=$('capabilities');
-  const support=$('modelSupport');
-  root.replaceChildren(
-   checkLine('On-device recognizer',data.onDeviceStt?'Available (Enhanced Hindi + Indian English dual profile)':'Unavailable'),
-   checkLine('STT provider',data.model),
-   checkLine('VAD speech boundaries',data.vad),
-   checkLine('Installed offline voices',data.offlineTtsVoices.join(', ')||'Standard system TTS'),
-   checkLine('Hinglish recognition',data.hinglish)
-  );
-  if(support)root.append(support);
-  break;
- }
- case 'modelSupport':{
-  let box=$('modelSupport');
-  if(!box){box=document.createElement('div');box.id='modelSupport';$('capabilities').append(box);}
-  box.replaceChildren(
-   checkLine('Installed STT languages',data.installed?.join(', ')||data.notice||'None reported'),
-   checkLine('Available model downloads',data.available?.join(', ')||'None reported')
-  );
-  break;
- }
- case 'notice':case 'error':
-  notice(data.message);
-  break;
- }
-};
-</script>
-</body></html>
+    const metricsContainer = $('metricsGrid');
+    for (const [key, label, unit] of telemetryDefs) {
+      const mCard = document.createElement('div');
+      mCard.style.cssText = 'background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:10px;';
+      mCard.innerHTML = `<div style="font-size:10px; color:var(--text-muted); font-weight:600;">${label}</div><div style="font-size:16px; font-weight:800; margin:4px 0 2px;" id="metric-${key}">—</div><div style="font-size:9px; color:var(--text-light);">${unit}</div>`;
+      metricsContainer.append(mCard);
+    }
+
+    // Native Callback Receiver
+    window.onNative = (type, data) => {
+      switch (type) {
+        case 'device':
+          $('specModel').textContent = data.name || 'Android Handset';
+          $('specOs').textContent = 'Android ' + (data.android || '15');
+          break;
+
+        case 'connection':
+          connected = data.state === 'CONNECTED';
+          const pill = $('connectionPill');
+          pill.textContent = data.state;
+          if (connected) {
+            pill.className = 'header-pill pill-emerald';
+            showToast('Mesh Link Established with ' + (data.peer || 'peer node'));
+          } else {
+            pill.className = 'header-pill pill-neutral';
+          }
+          break;
+
+        case 'host':
+          $('displayPin').textContent = data.pin || '------';
+          $('displayAddress').textContent = 'IP: ' + (data.addresses?.join(' / ') || '192.168.43.1') + ' · Port ' + data.port;
+          showToast('Beacon broadcasting PIN: ' + data.pin);
+          break;
+
+        case 'discovery':
+          $('scanStatusText').textContent = data.state || 'Mesh Beacon: Scanning Active';
+          break;
+
+        case 'peer':
+          peers.set(data.name, data);
+          renderDiscoveredPeers();
+          break;
+
+        case 'peerLost':
+          peers.delete(data.name);
+          renderDiscoveredPeers();
+          break;
+
+        case 'speech':
+          $('pttStatusLabel').textContent = data.state;
+          break;
+
+        case 'partial':
+        case 'recognized':
+          if (data.text) {
+            $('transcriptPreview').textContent = data.text;
+          }
+          break;
+
+        case 'sent':
+          addMessageLog('Sent', data.text);
+          break;
+
+        case 'received':
+          addMessageLog('Received (' + (data.language || 'hi') + ')', data.text);
+          break;
+
+        case 'metrics':
+          for (const [key] of telemetryDefs) {
+            const el = $('metric-' + key);
+            if (el) {
+              el.textContent = (data[key] === undefined || data[key] < 0) ? '—' : Number(data[key]).toLocaleString();
+            }
+          }
+          break;
+
+        case 'notice':
+        case 'error':
+          showToast(data.message);
+          break;
+      }
+    };
+
+    function renderDiscoveredPeers() {
+      const container = $('discoveredPeersContainer');
+      container.replaceChildren();
+      const list = Array.from(peers.values());
+      $('activePeerCounter').textContent = list.length ? `${list.length} node(s) detected` : 'Scanning 2.4/5GHz...';
+
+      list.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'device-item';
+        item.innerHTML = `
+          <div class="device-left">
+            <svg class="device-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#10b981" stroke-width="2"><path d="M5 12.55a11 1 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+            <div>
+              <div class="device-name">${p.name}</div>
+              <div class="device-detail">WI-FI DIRECT · ${p.address} · Port ${p.port || 8785}</div>
+            </div>
+          </div>
+          <button class="btn-pill" style="padding:6px 12px; font-size:11px;">Connect</button>
+        `;
+        item.onclick = () => {
+          command('connect', { address: p.address, pin: $('inputManualPin').value || '123456', port: p.port || selectedPort });
+        };
+        container.append(item);
+      });
+    }
+
+    function addMessageLog(dir, text) {
+      $('emptyMsgPlaceholder')?.remove();
+      const log = document.createElement('div');
+      log.style.cssText = 'padding:10px; border-bottom:1px solid #f1f3f5; font-size:12px;';
+      log.innerHTML = `<div style="font-size:10px; color:var(--text-muted); margin-bottom:3px;">${dir} · ${new Date().toLocaleTimeString()}</div><div style="font-weight:600; color:#111827;">${text}</div>`;
+      $('messagesHistory').prepend(log);
+    }
+  </script>
+</body>
+</html>

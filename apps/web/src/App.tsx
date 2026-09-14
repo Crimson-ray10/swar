@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { HomeView } from './components/HomeView';
-import { TransceiverView } from './components/TransceiverView';
-import { NeuralModelsView } from './components/NeuralModelsView';
-import { ArchitectureView } from './components/ArchitectureView';
-import { BottomNav, TabType } from './components/BottomNav';
-import { NodeIdentityModal } from './components/NodeIdentityModal';
+import React, { useEffect, useState, useRef } from 'react';
+import { Header } from './components/Header';
+import { Hero } from './components/Hero';
+import { TransmitterPanel } from './components/TransmitterPanel';
+import { ReceiverPanel } from './components/ReceiverPanel';
+import { QueryHistoryDrawer, HistoryItem } from './components/QueryHistoryDrawer';
+import { DeviceConnectionModal } from './components/DeviceConnectionModal';
 import { LanguageSpec, RunReport, Peer, TransportType, VoiceMessage, WebClientInfo } from './types';
-import { Smartphone, Maximize2, Radio } from 'lucide-react';
 
 const DEFAULT_LANGUAGES: LanguageSpec[] = [
   { id: 'en', name: 'English (India)', native_name: 'English', script: 'Latin', unicode_range: [32, 126], mvp: true, asr_provider: 'faster_whisper', asr_lang_code: 'en', tts_provider: 'piper', tts_lang_code: 'en_US', normalizer: 'standard_en', sample_text: 'I need immediate assistance, there is an emergency here.' },
@@ -23,25 +22,28 @@ const DEFAULT_LANGUAGES: LanguageSpec[] = [
 ];
 
 export const App: React.FC = () => {
-  // Navigation & Screen Tab State
-  const [activeTab, setActiveTab] = useState<TabType>('home');
-  const [callsign, setCallsign] = useState<string>(() => {
-    return localStorage.getItem('itantra_callsign') || 'Sarthak Patil';
-  });
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isPhoneFrame, setIsPhoneFrame] = useState(true);
-
-  // Network & Audio State
+  const [sessionId] = useState<string>(() => Math.random().toString(36).substring(2, 10));
   const [languages, setLanguages] = useState<LanguageSpec[]>(DEFAULT_LANGUAGES);
   const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
+  const [hardwareStatus, setHardwareStatus] = useState<string>('Detecting...');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  // Active section for smooth navigation
+  const [activeSection, setActiveSection] = useState<'hero' | 'studio' | 'receiver'>('hero');
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
+  const [transmissionHistory, setTransmissionHistory] = useState<HistoryItem[]>([]);
+  const isManualScrollingRef = useRef(false);
+
+  // Multi-Device P2P Networking & Intercom State
+  const [devicesModalOpen, setDevicesModalOpen] = useState(false);
   const [peers, setPeers] = useState<Peer[]>([]);
   const [webClients, setWebClients] = useState<WebClientInfo[]>([]);
-  const [, setSelfClient] = useState<WebClientInfo | null>(null);
+  const [selfClient, setSelfClient] = useState<WebClientInfo | null>(null);
   const [wsConnectionStatus, setWsConnectionStatus] = useState<'connected' | 'reconnecting' | 'offline'>('connected');
   const [activeTransport, setActiveTransport] = useState<TransportType | null>(null);
-  const [, setConnectionState] = useState<string>('DISCONNECTED');
+  const [connectionState, setConnectionState] = useState<string>('DISCONNECTED');
   const [incomingAlert, setIncomingAlert] = useState<{ text: string; sender: string } | null>(null);
+
+  // Run report state
   const [report, setReport] = useState<RunReport | null>(null);
 
   const fetchStatus = () => {
@@ -50,13 +52,16 @@ export const App: React.FC = () => {
       .then((data) => {
         if (data.state) setConnectionState(data.state);
         const transport = data.active_transport && data.active_transport !== 'auto_selecting'
-          ? (data.active_transport as TransportType)
+          ? (data.active_transport as string).replace('_', ' ').toUpperCase()
           : null;
         if (transport) {
-          setActiveTransport(transport);
+          setActiveTransport(data.active_transport);
+          setHardwareStatus(`VoiceBridge • ${transport}`);
+        } else {
+          setHardwareStatus('VoiceBridge • P2P Mesh');
         }
       })
-      .catch(() => {});
+      .catch(() => setHardwareStatus('VoiceBridge Offline'));
   };
 
   const fetchPeers = () => {
@@ -66,6 +71,7 @@ export const App: React.FC = () => {
       .catch(() => {});
   };
 
+  // Fetch backend health & capabilities with resilient auto-reconnecting WebSocket
   useEffect(() => {
     fetchStatus();
     fetchPeers();
@@ -73,11 +79,9 @@ export const App: React.FC = () => {
     fetch('/api/v1/languages')
       .then((r) => r.json())
       .then((data: LanguageSpec[]) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setLanguages(data);
-        }
+        setLanguages(data);
       })
-      .catch(() => {});
+      .catch((err) => console.error('Failed to load languages:', err));
 
     let ws: WebSocket | null = null;
     let reconnectTimer: number | null = null;
@@ -175,13 +179,63 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  const handleSaveCallsign = (newName: string) => {
-    setCallsign(newName);
-    localStorage.setItem('itantra_callsign', newName);
+  // Dynamic scroll listener to update activeSection on scroll (July behavior)
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isManualScrollingRef.current) return;
+
+      const studioEl = document.getElementById('studio');
+      const receiverEl = document.getElementById('receiver');
+
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 120) {
+        setActiveSection('receiver');
+        return;
+      }
+
+      const viewportMid = window.scrollY + window.innerHeight * 0.35;
+
+      if (receiverEl && viewportMid >= receiverEl.offsetTop) {
+        setActiveSection('receiver');
+      } else if (studioEl && viewportMid >= studioEl.offsetTop) {
+        setActiveSection('studio');
+      } else {
+        setActiveSection('hero');
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToSection = (sectionId: 'hero' | 'studio' | 'receiver') => {
+    isManualScrollingRef.current = true;
+    setActiveSection(sectionId);
+    if (sectionId === 'hero') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+    setTimeout(() => {
+      isManualScrollingRef.current = false;
+    }, 850);
+  };
+
+  const handleReset = () => {
+    setReport(null);
+    setIsProcessing(false);
   };
 
   const handleAudioReady = async (audioBlob: Blob, sampleText?: string, isSample: boolean = false) => {
     setIsProcessing(true);
+
+    // Scroll to studio if user started recording
+    if (activeSection === 'hero') {
+      scrollToSection('studio');
+    }
 
     try {
       const formData = new FormData();
@@ -212,8 +266,22 @@ export const App: React.FC = () => {
 
       const runReport: RunReport = await res.json();
       setReport(runReport);
+      scrollToSection('receiver'); // Smoothly bring user to the playback & reconstructed sentence card
+
+      // Append to session transmission history
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      setTransmissionHistory((prev) => [
+        {
+          id: runReport.run_id || `run_${Date.now()}`,
+          timestamp: timeStr,
+          report: runReport,
+        },
+        ...prev.slice(0, 19),
+      ]);
     } catch (err: any) {
       console.error('Error executing voice transmission run:', err);
+      alert(err.message || 'Failed to transmit. Ensure backend is running.');
     } finally {
       setIsProcessing(false);
     }
@@ -239,6 +307,15 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleDisconnect = async () => {
+    try {
+      await fetch('/api/v1/voicebridge/disconnect', { method: 'POST' });
+      setConnectionState('DISCONNECTED');
+      setActiveTransport(null);
+      fetchStatus();
+    } catch {}
+  };
+
   const handleQuickConnectLocal = async (transport: TransportType = 'wifi_direct') => {
     try {
       const res = await fetch('/api/v1/voicebridge/quick-connect-local', {
@@ -259,7 +336,7 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleSendTextMessage = async (text: string) => {
+  const handleSendTestMessage = async (text: string) => {
     try {
       const res = await fetch('/api/v1/voicebridge/send', {
         method: 'POST',
@@ -274,119 +351,114 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="app-viewport-shell">
-      {/* Top Desktop Presentation Bar */}
-      <header className="desktop-preview-bar select-none">
-        <div className="flex items-center gap-2.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span className="text-xs font-mono font-bold tracking-wider text-neutral-300">
-            iTantra Mesh Node
-          </span>
-          <span className="text-[11px] font-mono text-neutral-400 bg-neutral-800 px-2 py-0.5 rounded-md">
-            {callsign}
-          </span>
-        </div>
+    <div className="page-container select-none">
+      {/* 1) Sticky Floating Header (Exact July Treatment) */}
+      <Header
+        sessionId={sessionId}
+        hardwareStatus={hardwareStatus}
+        isStreaming={isProcessing}
+        activeSection={activeSection}
+        onNavigate={(sec) => scrollToSection(sec as any)}
+        onOpenHistory={() => setHistoryDrawerOpen(true)}
+        historyCount={transmissionHistory.length}
+        onOpenDevices={() => setDevicesModalOpen(true)}
+        peerCount={peers.length}
+        isConnected={connectionState === 'CONNECTED'}
+        activeTransport={activeTransport}
+        connectedClientsCount={webClients.length}
+        wsConnectionStatus={wsConnectionStatus}
+        onReset={handleReset}
+      />
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-neutral-400 font-mono">
-            <Radio size={13} className="text-emerald-400" />
-            <span>{wsConnectionStatus === 'connected' ? 'WebSocket Live' : wsConnectionStatus}</span>
-          </div>
+      {/* P2P Multi-Transport Mesh Devices Modal */}
+      <DeviceConnectionModal
+        isOpen={devicesModalOpen}
+        onClose={() => setDevicesModalOpen(false)}
+        peers={peers}
+        webClients={webClients}
+        selfClient={selfClient}
+        activeTransport={activeTransport}
+        connectionState={connectionState}
+        wsStatus={wsConnectionStatus}
+        onRefreshPeers={fetchPeers}
+        onConnectPeer={handleConnectPeer}
+        onQuickConnectLocal={handleQuickConnectLocal}
+        onDisconnect={handleDisconnect}
+        onSendTestMessage={handleSendTestMessage}
+      />
 
-          <div className="h-4 w-px bg-neutral-700"></div>
-
-          <button
-            type="button"
-            onClick={() => setIsPhoneFrame((prev) => !prev)}
-            className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 transition border border-neutral-700"
-            title="Toggle between phone mockup and expanded canvas"
-          >
-            {isPhoneFrame ? (
-              <>
-                <Maximize2 size={13} />
-                <span>Expanded</span>
-              </>
-            ) : (
-              <>
-                <Smartphone size={13} />
-                <span>Phone Frame</span>
-              </>
-            )}
-          </button>
-        </div>
-      </header>
-
-      {/* Incoming Transmission Toast Notification */}
+      {/* Incoming Transmission Toast */}
       {incomingAlert && (
-        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[9999] bg-neutral-900 border border-neutral-700 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-fade-in max-w-sm">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+        <div style={{
+          position: 'fixed',
+          top: '76px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 9998,
+          background: 'rgba(15, 23, 42, 0.96)',
+          border: '1px solid rgba(99, 102, 241, 0.5)',
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8), 0 0 24px rgba(99, 102, 241, 0.35)',
+          borderRadius: '12px',
+          padding: '12px 22px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }} />
           <div>
-            <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
-              Transmission from {incomingAlert.sender}
+            <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Incoming Transmission from {incomingAlert.sender}
             </div>
-            <div className="text-xs font-semibold text-white mt-0.5">
+            <div style={{ fontSize: '14px', fontWeight: 600, color: '#ffffff' }}>
               "{incomingAlert.text}"
             </div>
           </div>
         </div>
       )}
 
-      {/* Main Mobile App Frame */}
-      <main
-        className={`mobile-device-frame ${!isPhoneFrame ? '!max-w-2xl !h-auto !min-h-[840px]' : ''}`}
-      >
-        {/* Sleek Dynamic Island / Phone Notch Pill */}
-        {isPhoneFrame && <div className="phone-notch-pill"></div>}
+      {/* Query / Transmission History Slide-Over Drawer */}
+      <QueryHistoryDrawer
+        isOpen={historyDrawerOpen}
+        onClose={() => setHistoryDrawerOpen(false)}
+        history={transmissionHistory}
+        onSelectHistoryItem={(item) => {
+          setReport(item.report);
+          scrollToSection('receiver');
+        }}
+        onClearHistory={() => setTransmissionHistory([])}
+      />
 
-        {/* Tab Viewport Content */}
-        <div className="flex-1 w-full flex flex-col overflow-hidden">
-          {activeTab === 'home' && (
-            <HomeView
-              onGetStarted={() => setActiveTab('transceiver')}
-              onOpenProfile={() => setIsProfileOpen(true)}
-              onOpenArchitecture={() => setActiveTab('architecture')}
-              callsign={callsign}
-              connectedNodesCount={peers.length + 1}
-            />
-          )}
+      {/* 2) Section 1: Hero Landing (Exact July Landing Page Architecture) */}
+      <Hero
+        onGetStarted={() => scrollToSection('studio')}
+        onOpenDevices={() => setDevicesModalOpen(true)}
+        connectedClientsCount={webClients.length}
+      />
 
-          {activeTab === 'transceiver' && (
-            <TransceiverView
-              languages={languages}
-              selectedLanguage={selectedLanguage}
-              onSelectLanguage={setSelectedLanguage}
-              onAudioReady={handleAudioReady}
-              isProcessing={isProcessing}
-              report={report}
-              peers={peers}
-              connectedClientsCount={webClients.length}
-              activeTransport={activeTransport}
-              onSelectTransport={handleQuickConnectLocal}
-              onConnectPeer={handleConnectPeer}
-              onSendTextMessage={handleSendTextMessage}
-            />
-          )}
+      {/* 3) Section 2: Radio Studio (Interactive July MicButton & Transmitter) */}
+      <TransmitterPanel
+        languages={languages}
+        selectedLanguage={selectedLanguage}
+        onSelectLanguage={setSelectedLanguage}
+        onAudioReady={handleAudioReady}
+        rawTranscript={report?.transcript.raw || ''}
+        normalizedTranscript={report?.transcript.normalized || ''}
+        criticalSpans={report?.transcript.critical_spans || []}
+        tokenCount={report ? Math.round(report.transport.source_bits / 14) : 0}
+        isProcessing={isProcessing}
+        activeTransport={activeTransport}
+        onSelectTransport={(t) => handleQuickConnectLocal(t)}
+        onOpenConnectionModal={() => setDevicesModalOpen(true)}
+      />
 
-          {activeTab === 'models' && <NeuralModelsView />}
-
-          {activeTab === 'architecture' && <ArchitectureView callsign={callsign} />}
-        </div>
-
-        {/* Bottom Navigation Dock */}
-        <BottomNav
-          activeTab={activeTab}
-          onSelectTab={setActiveTab}
-          isPttActive={isProcessing}
-        />
-      </main>
-
-      {/* Node Identity & Hardware Modal Sheet (Screen 4) */}
-      <NodeIdentityModal
-        isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
-        callsign={callsign}
-        onSaveCallsign={handleSaveCallsign}
-        activeTransport={activeTransport ? activeTransport.replace('_', ' ').toUpperCase() : 'Wi-Fi Direct P2P + Bluetooth 5.x'}
+      {/* 4) Section 3: Receiver Sink, Reconstruction & Latency Waterfall */}
+      <ReceiverPanel
+        status={report?.receiver.status || 'idle'}
+        reconstructedText={report?.receiver.text || null}
+        audioOutputBase64={report?.audio_output_base64 || null}
+        latencyMs={report?.latency_ms || null}
+        warnings={report?.warnings || []}
       />
     </div>
   );
