@@ -158,7 +158,7 @@ export const ReceiverPanel: React.FC<ReceiverPanelProps> = ({
         { label: 'Capture & Preprocessing', ms: latencyMs.capture, color: '#00f0ff' },
         { label: 'ASR Acoustic Model', ms: latencyMs.asr, color: '#38bdf8' },
         { label: 'Semantic Tokenizer', ms: latencyMs.encode, color: '#a855f7' },
-        { label: 'RF Channel Sim', ms: latencyMs.channel, color: '#f59e0b' },
+        { label: 'Local Mesh Wire', ms: latencyMs.channel, color: '#f59e0b' },
         { label: 'Packet Reassembly & FEC', ms: latencyMs.decode, color: '#10b981' },
         { label: 'TTS Synthetic Voice', ms: latencyMs.tts, color: '#f43f5e' },
       ]

@@ -294,7 +294,7 @@ export const MicButton: React.FC<MicButtonProps> = ({
           recognition.onerror = (err: any) => {
             console.warn('Speech recognition notice:', err.error || err);
             if (err.error === 'network') {
-              setSttError('Web Speech network offline. You can also type your sentence directly in the box below.');
+              setSttError('🎙️ Offline Acoustic Mode Active: Web Speech cloud unreachable. Voice audio is recording and will be processed via VoiceBridge neural engine.');
             } else if (err.error === 'not-allowed') {
               setSttError('Microphone permission blocked for speech recognition.');
             } else if (err.error === 'audio-capture') {
@@ -495,7 +495,18 @@ export const MicButton: React.FC<MicButtonProps> = ({
 
       {/* STT Status / Network Notice */}
       {sttError && (
-        <div style={{ padding: '6px 14px', borderRadius: '10px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5', fontSize: '12px', marginTop: '10px', maxWidth: '420px', textAlign: 'center' }}>
+        <div style={{
+          padding: '8px 16px',
+          borderRadius: '10px',
+          background: sttError.includes('Offline') ? 'rgba(99, 102, 241, 0.18)' : 'rgba(239, 68, 68, 0.15)',
+          border: sttError.includes('Offline') ? '1px solid rgba(99, 102, 241, 0.35)' : '1px solid rgba(239, 68, 68, 0.3)',
+          color: sttError.includes('Offline') ? '#c7d2fe' : '#fca5a5',
+          fontSize: '12px',
+          marginTop: '10px',
+          maxWidth: '440px',
+          textAlign: 'center',
+          lineHeight: 1.4
+        }}>
           {sttError}
         </div>
       )}

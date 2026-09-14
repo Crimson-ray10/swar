@@ -13,7 +13,7 @@ export const Hero: React.FC<HeroProps> = ({ onGetStarted, onOpenDevices, connect
     wireRate: 0,
     fidelity: 0,
     compression: 0,
-    stages: 0
+    transports: 0
   });
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export const Hero: React.FC<HeroProps> = ({ onGetStarted, onOpenDevices, connect
         wireRate: Math.round(2000 * easeOut),
         fidelity: parseFloat((99.2 * easeOut).toFixed(1)),
         compression: Math.round(256 * easeOut),
-        stages: Math.round(8 * easeOut)
+        transports: Math.round(3 * easeOut)
       });
     };
 
@@ -43,7 +43,7 @@ export const Hero: React.FC<HeroProps> = ({ onGetStarted, onOpenDevices, connect
           wireRate: 2000,
           fidelity: 99.2,
           compression: 256,
-          stages: 8
+          transports: 3
         });
       }
     };
@@ -205,8 +205,8 @@ export const Hero: React.FC<HeroProps> = ({ onGetStarted, onOpenDevices, connect
 
         <div className="stat-card anim" style={{ '--d': '0.74s' } as React.CSSProperties}>
           <div className="stat-icon">#</div>
-          <div className="stat-value">{stats.stages}</div>
-          <div className="stat-label">Pipeline Stages</div>
+          <div className="stat-value">{stats.transports}</div>
+          <div className="stat-label">Local Transports</div>
         </div>
       </footer>
     </section>

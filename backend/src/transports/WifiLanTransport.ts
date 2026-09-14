@@ -113,10 +113,15 @@ export class WifiLanTransport extends EventEmitter implements VoiceTransport {
     const targetPort = peer.port || this.port;
 
     return new Promise((resolve) => {
+      let isResolved = false;
       const socket = net.createConnection({ host: peer.address, port: targetPort }, () => {
+        socket.setTimeout(0); // Crucial: clear connection timeout once connected!
         this.activeSocket = socket;
         this.setState('CONNECTED');
-        resolve(true);
+        if (!isResolved) {
+          isResolved = true;
+          resolve(true);
+        }
       });
 
       socket.on('data', (chunk) => {
@@ -131,13 +136,19 @@ export class WifiLanTransport extends EventEmitter implements VoiceTransport {
       socket.on('error', (err) => {
         this.emit('error', err);
         this.setState('DISCONNECTED');
-        resolve(false);
+        if (!isResolved) {
+          isResolved = true;
+          resolve(false);
+        }
       });
 
-      socket.setTimeout(3500, () => {
-        socket.destroy();
-        this.setState('DISCONNECTED');
-        resolve(false);
+      socket.setTimeout(10000, () => {
+        if (!isResolved) {
+          isResolved = true;
+          socket.destroy();
+          this.setState('DISCONNECTED');
+          resolve(false);
+        }
       });
     });
   }

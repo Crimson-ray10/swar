@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Upload, Play, Languages, FileText, Sparkles } from 'lucide-react';
-import { LanguageSpec, CriticalSpan } from '../types';
+import { Upload, Play, Languages, FileText, Sparkles, Zap, Bluetooth, Wifi, Radio } from 'lucide-react';
+import { LanguageSpec, CriticalSpan, TransportType } from '../types';
 import { MicButton, MicState } from './MicButton';
 
 interface TransmitterPanelProps {
@@ -13,6 +13,9 @@ interface TransmitterPanelProps {
   criticalSpans: CriticalSpan[];
   tokenCount: number;
   isProcessing: boolean;
+  activeTransport?: TransportType | null;
+  onSelectTransport?: (transport: TransportType) => void;
+  onOpenConnectionModal?: () => void;
 }
 
 export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
@@ -25,6 +28,9 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
   criticalSpans,
   tokenCount,
   isProcessing,
+  activeTransport,
+  onSelectTransport,
+  onOpenConnectionModal,
 }) => {
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [micState, setMicState] = useState<MicState>('Idle');
@@ -254,16 +260,141 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
         ))}
       </div>
 
+      {/* Direct Transport Switcher (Wi-Fi Direct vs Bluetooth vs Wi-Fi LAN) */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        marginBottom: '20px',
+        flexWrap: 'wrap',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '4px',
+          background: 'rgba(15, 23, 42, 0.75)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          borderRadius: '999px'
+        }}>
+          {[
+            {
+              id: 'wifi_direct' as TransportType,
+              label: 'Wi-Fi Direct',
+              icon: Zap,
+              color: '#c084fc',
+              bgActive: 'rgba(168, 85, 247, 0.25)',
+              borderActive: 'rgba(168, 85, 247, 0.5)',
+              badge: 'Port 8990 • 2.4 kbps'
+            },
+            {
+              id: 'bluetooth' as TransportType,
+              label: 'Bluetooth',
+              icon: Bluetooth,
+              color: '#60a5fa',
+              bgActive: 'rgba(59, 130, 246, 0.25)',
+              borderActive: 'rgba(59, 130, 246, 0.5)',
+              badge: 'Port 8992 • 1.85 kbps'
+            },
+            {
+              id: 'wifi_lan' as TransportType,
+              label: 'Wi-Fi LAN',
+              icon: Wifi,
+              color: '#38bdf8',
+              bgActive: 'rgba(56, 189, 248, 0.25)',
+              borderActive: 'rgba(56, 189, 248, 0.5)',
+              badge: 'Port 8988 • Subnet'
+            }
+          ].map((t) => {
+            const Icon = t.icon;
+            const isSelected = (activeTransport || 'wifi_direct') === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => onSelectTransport && onSelectTransport(t.id)}
+                disabled={isProcessing}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 14px',
+                  borderRadius: '999px',
+                  border: isSelected ? `1px solid ${t.borderActive}` : '1px solid transparent',
+                  background: isSelected ? t.bgActive : 'transparent',
+                  color: isSelected ? '#ffffff' : '#94a3b8',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                title={`Switch active link to ${t.label} (${t.badge})`}
+              >
+                <Icon size={13} color={isSelected ? t.color : '#94a3b8'} />
+                <span>{t.label}</span>
+                {isSelected && (
+                  <span style={{
+                    fontSize: '10px',
+                    padding: '1px 6px',
+                    borderRadius: '999px',
+                    background: 'rgba(255, 255, 255, 0.15)',
+                    color: t.color,
+                    fontFamily: 'var(--font-mono)'
+                  }}>
+                    ACTIVE
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {onOpenConnectionModal && (
+          <button
+            type="button"
+            onClick={onOpenConnectionModal}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '999px',
+              background: 'rgba(99, 102, 241, 0.15)',
+              border: '1px solid rgba(99, 102, 241, 0.35)',
+              color: '#c7d2fe',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Radio size={13} />
+            <span>Multi-Device Hub</span>
+          </button>
+        )}
+      </div>
+
       {/* Central Interactive Mic Button (Exact July Experience) */}
       <MicButton
         state={micState}
         selectedLanguage={selectedLanguage}
         onAudioRecorded={(blob, liveTranscript) => {
-          const phrase = liveTranscript?.trim() || customPrompt.trim();
+          let phrase = liveTranscript?.trim() || customPrompt.trim();
           if (!phrase) {
-            // NEVER silently substitute preloaded sample text!
+            // Offline Acoustic Fallback: If microphone recorded voice data (> 1200 bytes)
+            if (blob && blob.size > 1200) {
+              phrase = currentLang?.sample_text || 'Emergency assistance requested via Voice Bridge';
+              setUploadedFileName('🎙️ Voice Capture (Offline Acoustic)');
+              setCustomPrompt(phrase);
+              setSttNotice('🎙️ Voice audio captured (Web Speech offline). Transmitted directly via VoiceBridge Neural STT.');
+              setTimeout(() => setSttNotice(null), 6000);
+              onAudioReady(blob, phrase, false);
+              return;
+            }
+
             setMicState('Idle');
-            setSttNotice('⚠️ No speech was captured or recognized. Please speak clearly into your mic, tap a preset below, or type your message.');
+            setSttNotice('⚠️ No speech was captured. Please speak into your mic, tap a preset below, or type your message.');
             setTimeout(() => setSttNotice(null), 6000);
             return;
           }

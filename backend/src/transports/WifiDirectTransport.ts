@@ -95,10 +95,15 @@ export class WifiDirectTransport extends EventEmitter implements VoiceTransport 
     const targetPort = peer.port || this.port;
 
     return new Promise((resolve) => {
+      let isResolved = false;
       const sock = net.createConnection({ host: peer.address, port: targetPort }, () => {
+        sock.setTimeout(0); // Crucial: clear connection timeout once connected!
         this.socket = sock;
         this.setState('CONNECTED');
-        resolve(true);
+        if (!isResolved) {
+          isResolved = true;
+          resolve(true);
+        }
       });
 
       sock.on('data', (chunk) => this.decoder.push(chunk));
@@ -109,13 +114,19 @@ export class WifiDirectTransport extends EventEmitter implements VoiceTransport 
       sock.on('error', (err) => {
         this.emit('error', err);
         this.setState('DISCONNECTED');
-        resolve(false);
+        if (!isResolved) {
+          isResolved = true;
+          resolve(false);
+        }
       });
 
-      sock.setTimeout(3000, () => {
-        sock.destroy();
-        this.setState('DISCONNECTED');
-        resolve(false);
+      sock.setTimeout(10000, () => {
+        if (!isResolved) {
+          isResolved = true;
+          sock.destroy();
+          this.setState('DISCONNECTED');
+          resolve(false);
+        }
       });
     });
   }
