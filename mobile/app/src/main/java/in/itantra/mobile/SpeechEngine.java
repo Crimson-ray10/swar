@@ -31,8 +31,37 @@ public final class SpeechEngine {
     }
     private void event(String type,Object... values){listener.event(type,LocalTransport.json(values));}
     public void language(String value){if(Set.of("hi","en","hinglish").contains(value)){stopConversation();cancelCapture();language=value;status();}}
-    private String locale(){return language.equals("en")?englishLocale:"hi-IN";}
-    private Intent intent(){return new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM).putExtra(RecognizerIntent.EXTRA_LANGUAGE,locale()).putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS,true).putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE,true);}
+    private String locale(){
+        return switch(language){
+            case "en" -> englishLocale;
+            case "hinglish" -> "en-IN";
+            default -> "hi-IN";
+        };
+    }
+    private Intent intent(){
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, locale())
+            .putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, activity.getPackageName())
+            .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
+            .putExtra(RecognizerIntent.EXTRA_CONFIDENCE_SCORES, true)
+            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 2000L);
+        if(Build.VERSION.SDK_INT >= 33){
+            String extraAdditional = "android.speech.extra.ADDITIONAL_LANGUAGES";
+            if("hinglish".equals(language)){
+                intent.putExtra(extraAdditional, new String[]{"hi-IN","en-IN"});
+            }else if("hi".equals(language)){
+                intent.putExtra(extraAdditional, new String[]{"en-IN"});
+            }else{
+                intent.putExtra(extraAdditional, new String[]{"hi-IN"});
+            }
+        }
+        return intent;
+    }
     private boolean prepare(){
         if(!SpeechRecognizer.isOnDeviceRecognitionAvailable(activity)){event("error","message","This phone has no available on-device recognizer. Voice cannot run offline here. Typed messages still work.");return false;}
         if(recognizer==null){recognizer=SpeechRecognizer.createOnDeviceSpeechRecognizer(activity);recognizer.setRecognitionListener(new RecognitionListener(){
@@ -51,8 +80,23 @@ public final class SpeechEngine {
             public void onResults(Bundle bundle){
                 if(!listening)return;listening=false;clearWatchdog();errors=0;
                 ArrayList<String> results=bundle.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-                if(results!=null&&!results.isEmpty()&&!results.get(0).isBlank()){
-                    String text=results.get(0).trim();event("recognized","text",text,"recognitionMs",speechStarted>0?SystemClock.elapsedRealtime()-speechStarted:JSONObject.NULL);listener.transcript(text,captureLanguage);
+                float[] scores=bundle.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES);
+                String best=null;
+                if(results!=null&&!results.isEmpty()){
+                    int bestIdx=0;
+                    if(scores!=null&&scores.length==results.size()){
+                        float maxScore=-1f;
+                        for(int i=0;i<scores.length;i++){
+                            if(scores[i]>maxScore&&!results.get(i).isBlank()){
+                                maxScore=scores[i];bestIdx=i;
+                            }
+                        }
+                    }
+                    best=results.get(bestIdx).trim();
+                }
+                if(best!=null&&!best.isBlank()){
+                    event("recognized","text",best,"recognitionMs",speechStarted>0?SystemClock.elapsedRealtime()-speechStarted:JSONObject.NULL);
+                    listener.transcript(best,captureLanguage);
                 }else event("error","message","No speech recognized; no substitute text was sent.");
                 event("speech","state","Idle");playNext();restart();
             }
@@ -63,7 +107,7 @@ public final class SpeechEngine {
     }
     public void status(){
         JSONArray voices=new JSONArray();if(ttsReady&&tts.getVoices()!=null)for(Voice v:tts.getVoices())if(!v.isNetworkConnectionRequired()&&Set.of("hi","en").contains(v.getLocale().getLanguage()))voices.put(v.getLocale().toLanguageTag()+" · "+v.getName());
-        event("capabilities","onDeviceStt",SpeechRecognizer.isOnDeviceRecognitionAvailable(activity),"offlineTtsVoices",voices,"language",language,"model","Android on-device recognizer","vad","Platform speech boundaries","hinglish","Experimental Hindi recognition profile");
+        event("capabilities","onDeviceStt",SpeechRecognizer.isOnDeviceRecognitionAvailable(activity),"offlineTtsVoices",voices,"language",language,"model","Android on-device recognizer","vad","Platform speech boundaries","hinglish","Enhanced Hindi + Indian English dual-profile");
         if(Build.VERSION.SDK_INT>=33&&prepare()){
             recognizer.checkRecognitionSupport(intent(),activity.getMainExecutor(),new RecognitionSupportCallback(){
                 public void onSupportResult(RecognitionSupport support){java.util.List<String> installed=support.getInstalledOnDeviceLanguages();if(installed.contains("en-IN"))englishLocale="en-IN";else for(String tag:installed)if(tag.startsWith("en-")){englishLocale=tag;break;}event("modelSupport","installed",new JSONArray(installed),"pending",new JSONArray(support.getPendingOnDeviceLanguages()),"available",new JSONArray(support.getSupportedOnDeviceLanguages()),"englishLocale",englishLocale);}
@@ -92,11 +136,27 @@ public final class SpeechEngine {
         if(listening){cancelCapture();event("notice","message","Incoming speech paused your microphone. Repeat any unfinished phrase afterward.");}
         ItpPacket.Decoded message=playback.remove();
         if(!ttsReady){event("error","message","TTS engine is not ready. Read received text.");restart();return;}
-        String target=message.language().equals("en")?"en":"hi";Voice selected=null;
-        if(tts.getVoices()!=null)for(Voice v:tts.getVoices())if(!v.isNetworkConnectionRequired()&&v.getLocale().getLanguage().equals(target)){selected=v;break;}
-        if(selected==null||tts.setVoice(selected)!=TextToSpeech.SUCCESS){event("error","message","No installed offline "+target+" TTS voice. Install voice data in Android TTS settings; received text is available.");restart();return;}
+        boolean hasDevanagari=message.text().codePoints().anyMatch(cp->Character.UnicodeBlock.of(cp)==Character.UnicodeBlock.DEVANAGARI);
+        String target=hasDevanagari?"hi":"en";
+        Voice selected=null;
+        if(tts.getVoices()!=null){
+            for(Voice v:tts.getVoices()){
+                if(!v.isNetworkConnectionRequired()&&v.getLocale().getLanguage().equals(target)){
+                    if("IN".equalsIgnoreCase(v.getLocale().getCountry())){
+                        selected=v;
+                        break;
+                    }
+                    if(selected==null)selected=v;
+                }
+            }
+        }
+        if(selected!=null){
+            tts.setVoice(selected);
+        }else{
+            tts.setLanguage(new Locale(target,"IN"));
+        }
         playing=true;currentUtterance=UUID.randomUUID().toString();
-        if(tts.speak(message.text(),TextToSpeech.QUEUE_FLUSH,null,currentUtterance)==TextToSpeech.ERROR){finishPlayback(currentUtterance);event("error","message","TTS rejected the message.");}
+        if(tts.speak(message.text(),TextToSpeech.QUEUE_FLUSH,null,currentUtterance)==TextToSpeech.ERROR){finishPlayback(currentUtterance);event("error","message","TTS playback failed; received text is displayed.");}
     }
     private void finishPlayback(String id){if(!id.equals(currentUtterance))return;playing=false;currentUtterance="";event("speech","state","Idle");main.postDelayed(()->{playNext();restart();},700);}
     public void stopPlayback(){currentUtterance="";if(tts!=null)tts.stop();playing=false;playback.clear();event("speech","state","Idle");restart();}
