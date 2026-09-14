@@ -7,4 +7,4 @@
 // or override via VITE_APK_DOWNLOAD_URL in your .env file.
 export const DEFAULT_APK_DOWNLOAD_URL: string =
   (import.meta.env.VITE_APK_DOWNLOAD_URL as string) ||
-  'https://github.com/itantra/voicebridge/releases/latest/download/itantra-debug.apk';
+  '/itantra-debug.apk';

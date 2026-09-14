@@ -75,12 +75,12 @@ export const Hero: React.FC<HeroProps> = ({ onGetStarted, onOpenDevices, connect
 
         {/* Headline (Exact July Dot-Matrix Typography & Entrance Animation) */}
         <h1 className="headline">
-          <span className="headline-line line-1">Meet Voice Bridge</span>
+          <span className="headline-line line-1">Meet iTantra</span>
         </h1>
 
         {/* Subhead */}
         <p className="subhead anim" style={{ '--d': '0.28s' } as React.CSSProperties}>
-          Voice Bridge is an offline voice-communication system transmitting compact text frames over local Wi-Fi Direct, Wi-Fi LAN, and Bluetooth Classic with local speech-to-text and synthetic voice playback.
+          iTantra is an offline voice-communication system transmitting compact text frames over local Wi-Fi Direct, Wi-Fi LAN, and Bluetooth Classic with local speech-to-text and synthetic voice playback.
         </p>
 
         {/* 3-Step Visual Quick Flow Guide */}

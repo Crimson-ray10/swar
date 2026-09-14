@@ -59,8 +59,8 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={() => handleNavClick('hero')}
           className="logo-btn"
-          aria-label="Voice Bridge Home"
-          title="Voice Bridge Offline Voice Communication"
+          aria-label="iTantra Home"
+          title="iTantra Offline Voice Communication"
         >
           <svg viewBox="0 0 100 100" style={{ width: '28px', height: '28px' }}>
             <circle cx="50" cy="50" r="46" fill="#ffffff" />
