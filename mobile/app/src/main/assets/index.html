@@ -363,6 +363,66 @@
       cursor: pointer;
     }
 
+    /* Connection Request & Sonar Waiting Styles */
+    .peer-req-avatar-wrapper {
+      position: relative;
+      width: 76px;
+      height: 76px;
+      margin: 4px auto 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .peer-req-sonar {
+      position: absolute;
+      inset: -6px;
+      border: 2px solid var(--accent-emerald);
+      border-radius: 50%;
+      animation: req-pulse 1.8s infinite cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    @keyframes req-pulse {
+      0% { transform: scale(0.85); opacity: 0.9; }
+      100% { transform: scale(1.4); opacity: 0; }
+    }
+    .peer-req-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2.5px solid #111827;
+      color: #111827;
+      font-size: 22px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+      z-index: 2;
+    }
+    .sonar-emitter {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: #f8fafc;
+      border: 2px solid #111827;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      margin: 6px auto 16px;
+    }
+    .sonar-wave {
+      position: absolute;
+      border: 1.5px solid var(--accent-emerald);
+      border-radius: 50%;
+      inset: -12px;
+      animation: sonar-expand 2s infinite cubic-bezier(0, 0.2, 0.8, 1);
+    }
+    @keyframes sonar-expand {
+      0% { transform: scale(0.7); opacity: 0.8; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+
     /* Form Fields */
     .input-group {
       margin-bottom: 16px;
@@ -1182,6 +1242,75 @@
     </div>
   </div>
 
+  <!-- INCOMING CONNECTION REQUEST MODAL (Peer Authorization Dialog) -->
+  <div id="incomingRequestModal" class="modal-backdrop hidden">
+    <div class="modal-card" style="text-align:center; position:relative; overflow:hidden;">
+      <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1.2px; color:var(--accent-emerald); margin-bottom:4px;">
+        Incoming Connection
+      </div>
+      <div class="modal-title" style="font-size:18px; margin-bottom:14px;">Link Request</div>
+
+      <!-- Requester Avatar with Live Ripple Ring -->
+      <div class="peer-req-avatar-wrapper">
+        <div class="peer-req-sonar"></div>
+        <div class="peer-req-avatar" id="reqAvatar">OP</div>
+      </div>
+
+      <div style="font-size:17px; font-weight:800; color:var(--text); margin-top:12px;" id="reqPeerName">OnePlus 11R</div>
+      <div style="display:flex; justify-content:center; gap:6px; margin:6px 0 12px; flex-wrap:wrap;">
+        <span class="header-pill pill-neutral" id="reqCallsignBadge">Callsign: Sarthak Patil</span>
+        <span class="header-pill pill-emerald" id="reqAddressBadge">10.33.63.111</span>
+      </div>
+
+      <p style="font-size:12px; color:var(--text-muted); line-height:1.5; margin:0 0 18px;">
+        This phone wants to connect with your iTantra transceiver. Allow mesh voice talk and tactical message exchange?
+      </p>
+
+      <div style="display:flex; gap:10px;">
+        <button class="btn-outline" id="btnDeclineRequest" style="flex:1; padding:12px; border-color:#e5e7eb; color:#ef4444;">
+          ✕ Decline
+        </button>
+        <button class="btn-pill" id="btnAcceptRequest" style="flex:1; padding:12px; background:var(--accent-emerald); color:#ffffff; box-shadow:0 4px 14px rgba(16,185,129,0.35);">
+          ✓ Accept
+        </button>
+      </div>
+
+      <div id="reqProgressWrap" style="height:3px; background:#f1f3f5; border-radius:2px; margin-top:16px; overflow:hidden;">
+        <div id="reqProgressBar" style="height:100%; width:100%; background:var(--accent-emerald); transition:width 1s linear;"></div>
+      </div>
+      <div style="font-size:9.5px; color:var(--text-light); margin-top:6px;">Auto-declines in <span id="reqTimerText">30</span>s</div>
+    </div>
+  </div>
+
+  <!-- OUTGOING CONNECTION REQUEST WAITING MODAL -->
+  <div id="outgoingRequestModal" class="modal-backdrop hidden">
+    <div class="modal-card" style="text-align:center;">
+      <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-muted); margin-bottom:4px;">
+        Connecting to Peer
+      </div>
+      <div class="modal-title" style="font-size:18px; margin-bottom:16px;">Requesting Link</div>
+
+      <!-- Radar Animation Box -->
+      <div class="sonar-emitter">
+        <div class="sonar-wave"></div>
+        <div class="sonar-wave" style="animation-delay:0.6s;"></div>
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#111827" stroke-width="2"><path d="M5 12.55a11 1 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+      </div>
+
+      <div style="font-size:16px; font-weight:800; color:var(--text); margin-bottom:4px;" id="outgoingTargetName">Google Pixel 9a</div>
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:14px;" id="outgoingTargetIp">10.33.63.163</div>
+
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px; font-size:11.5px; color:#475569; line-height:1.5; margin-bottom:16px;">
+        Waiting for confirmation on the other device...<br>
+        <span style="font-size:10.5px; color:var(--text-light);">A prompt has appeared on their screen asking to connect.</span>
+      </div>
+
+      <button class="btn-outline full-width" id="btnCancelOutgoing" style="padding:12px; border-color:#e5e7eb;">
+        Cancel Request
+      </button>
+    </div>
+  </div>
+
   <!-- JAVASCRIPT CORE LOGIC & NATIVE BRIDGE -->
   <script>
     const $ = id => document.getElementById(id);
@@ -1337,6 +1466,65 @@
     pttBtn.oncontextmenu = e => e.preventDefault();
     window.onblur = stopPtt;
 
+    // Connection Request Management
+    let reqTimer = null;
+    let reqSeconds = 30;
+
+    function requestConnectToPeer(peer) {
+      $('outgoingTargetName').textContent = peer.name || 'Nearby Device';
+      $('outgoingTargetIp').textContent = (peer.address || '') + (peer.port ? ` · Port ${peer.port}` : '');
+      $('outgoingRequestModal').classList.remove('hidden');
+      command('connect', {
+        address: peer.address,
+        port: peer.port || selectedPort,
+        pin: $('inputManualPin').value.trim() || '',
+        callsign: callsign
+      });
+    }
+
+    $('btnCancelOutgoing').onclick = () => {
+      $('outgoingRequestModal').classList.add('hidden');
+      command('cancelRequest');
+      showToast('Connection request cancelled.');
+    };
+
+    function showIncomingRequest(data) {
+      const pName = data.name || data.peer || 'Nearby Device';
+      const pCallsign = data.callsign || pName;
+      const initials = pCallsign.replace(/iTantra-/, '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'PH';
+
+      $('reqAvatar').textContent = initials;
+      $('reqPeerName').textContent = pName;
+      $('reqCallsignBadge').textContent = 'Callsign: ' + pCallsign;
+      $('reqAddressBadge').textContent = (data.address || 'Local LAN') + (data.port ? ` · Port ${data.port}` : '');
+      $('incomingRequestModal').classList.remove('hidden');
+
+      clearInterval(reqTimer);
+      reqSeconds = 30;
+      $('reqTimerText').textContent = reqSeconds;
+      $('reqProgressBar').style.width = '100%';
+
+      reqTimer = setInterval(() => {
+        reqSeconds--;
+        $('reqTimerText').textContent = reqSeconds;
+        $('reqProgressBar').style.width = Math.round((reqSeconds / 30) * 100) + '%';
+        if (reqSeconds <= 0) {
+          clearInterval(reqTimer);
+          dismissIncomingRequest(false, 'Request timed out');
+        }
+      }, 1000);
+    }
+
+    function dismissIncomingRequest(accept, note) {
+      clearInterval(reqTimer);
+      $('incomingRequestModal').classList.add('hidden');
+      command('respondConnection', { accept: !!accept });
+      if (!accept && note) showToast(note);
+    }
+
+    $('btnAcceptRequest').onclick = () => dismissIncomingRequest(true);
+    $('btnDeclineRequest').onclick = () => dismissIncomingRequest(false, 'Declined connection request.');
+
     // Manual Direct Connection
     $('btnManualConnect').onclick = () => {
       const address = $('inputManualIp').value.trim();
@@ -1345,14 +1533,22 @@
         showToast('Please enter the host IP address.');
         return;
       }
-      command('connect', { address, pin, port: selectedPort });
+      $('outgoingTargetName').textContent = 'Host Node (' + address + ')';
+      $('outgoingTargetIp').textContent = address + ' · Port ' + selectedPort;
+      $('outgoingRequestModal').classList.remove('hidden');
+      command('connect', { address, pin, port: selectedPort, callsign });
     };
 
-    $('btnDisconnect').onclick = () => command('disconnect');
+    $('btnDisconnect').onclick = () => {
+      $('outgoingRequestModal').classList.add('hidden');
+      $('incomingRequestModal').classList.add('hidden');
+      clearInterval(reqTimer);
+      command('disconnect');
+    };
 
     function selectDevice(name, detail) {
       showToast('Selected ' + name + '. Initiating peer handshake...');
-      command('connect', { address: '192.168.43.1', pin: '123456', port: selectedPort });
+      requestConnectToPeer({ name: name, address: '192.168.43.1', port: selectedPort });
     }
 
     // Offline Translation Engine (English <-> Hindi & Hinglish)
@@ -1436,6 +1632,22 @@
         case 'device':
           $('specModel').textContent = data.name || 'Android Handset';
           $('specOs').textContent = 'Android ' + (data.android || '15');
+          command('callsign', { callsign });
+          break;
+
+        case 'connection_request':
+          showIncomingRequest(data);
+          break;
+
+        case 'request_cancelled':
+          clearInterval(reqTimer);
+          $('incomingRequestModal').classList.add('hidden');
+          showToast((data.peer || 'Peer') + ' cancelled the connection request.');
+          break;
+
+        case 'request_declined':
+          $('outgoingRequestModal').classList.add('hidden');
+          showToast(data.reason || ((data.peer || 'Peer') + ' declined the connection request.'));
           break;
 
         case 'connection':
@@ -1443,9 +1655,17 @@
           const pill = $('connectionPill');
           pill.textContent = data.state;
           if (connected) {
+            $('incomingRequestModal').classList.add('hidden');
+            $('outgoingRequestModal').classList.add('hidden');
+            clearInterval(reqTimer);
             pill.className = 'header-pill pill-emerald';
+            pill.textContent = 'CONNECTED · ' + (data.peer || 'PEER');
             showToast('Mesh Link Established with ' + (data.peer || 'peer node'));
+          } else if (data.state === 'WAITING_APPROVAL') {
+            pill.className = 'header-pill pill-neutral';
+            pill.textContent = 'WAITING APPROVAL';
           } else {
+            $('outgoingRequestModal').classList.add('hidden');
             pill.className = 'header-pill pill-neutral';
           }
           break;
@@ -1453,7 +1673,6 @@
         case 'host':
           $('displayPin').textContent = data.pin || '------';
           $('displayAddress').textContent = 'IP: ' + (data.addresses?.join(' / ') || '192.168.43.1') + ' · Port ' + data.port;
-          showToast('Beacon broadcasting PIN: ' + data.pin);
           break;
 
         case 'discovery':
@@ -1514,18 +1733,21 @@
       list.forEach(p => {
         const item = document.createElement('div');
         item.className = 'device-item';
+        const rawName = p.name.replace(/^iTantra-/, '');
+        const initials = rawName.split('-')[0].slice(0, 2).toUpperCase() || 'PH';
         item.innerHTML = `
           <div class="device-left">
-            <svg class="device-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#10b981" stroke-width="2"><path d="M5 12.55a11 1 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+            <div class="header-avatar" style="width:34px; height:34px; font-size:12px; border-width:1.5px; border-color:#10b981; color:#059669; background:#ecfdf5;">${initials}</div>
             <div>
               <div class="device-name">${p.name}</div>
-              <div class="device-detail">WI-FI DIRECT · ${p.address} · Port ${p.port || 8785}</div>
+              <div class="device-detail">WI-FI DIRECT · ${p.address} · Port ${p.port || 8988}</div>
             </div>
           </div>
-          <button class="btn-pill" style="padding:6px 12px; font-size:11px;">Connect</button>
+          <button class="btn-pill" style="padding:6px 14px; font-size:11px; background:#111827;">Connect</button>
         `;
-        item.onclick = () => {
-          command('connect', { address: p.address, pin: $('inputManualPin').value || '123456', port: p.port || selectedPort });
+        item.onclick = (e) => {
+          e.stopPropagation();
+          requestConnectToPeer(p);
         };
         container.append(item);
       });

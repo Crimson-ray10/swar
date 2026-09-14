@@ -55,7 +55,10 @@ public final class MainActivity extends Activity {
             switch(action){
                 case "host" -> transport.host();
                 case "discover" -> transport.discover();
-                case "connect" -> transport.connect(data.optString("address"),data.optInt("port",8988),data.optString("pin"));
+                case "connect" -> transport.connect(data.optString("address"),data.optInt("port",8988),data.optString("pin"),data.optString("callsign"));
+                case "respondConnection" -> transport.respondRequest(data.optBoolean("accept",false));
+                case "cancelRequest" -> transport.cancelRequest();
+                case "callsign" -> transport.callsign(data.optString("callsign"));
                 case "disconnect" -> {speech.pause();speech.resume();transport.disconnect();}
                 case "send" -> transport.sendText(data.optString("text"),data.optString("language","hi"));
                 case "start" -> {if(transport.isConnected())speech.start();else event("error",LocalTransport.json("message","Connect to the other phone before speaking."));}

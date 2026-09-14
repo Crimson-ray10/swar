@@ -28,7 +28,7 @@ public final class LocalTransport {
     private volatile Socket socket;
     private volatile ServerSocket server;
     private volatile boolean connected=false,closed=false,hosting=false;
-    private volatile String pin="",address="",peer="",state="DISCONNECTED";
+    private volatile String pin="",address="",peer="",state="DISCONNECTED",callsign=Build.MODEL;
     private volatile int port=8988;
     private long seq=0,sent=0,received=0,bytesSent=0,bytesReceived=0,sourceSent=0,payloadSent=0,crcFailures=0,fecFailures=0,corrected=0,duplicates=0,unacked=0,lastPacketBytes=0;
     private volatile long lastReceived=now(),nextSend=0,generation=0;
@@ -41,12 +41,15 @@ public final class LocalTransport {
     private NsdManager.RegistrationListener registration;
     private NsdManager.DiscoveryListener discovery;
     private final Set<String> resolving=ConcurrentHashMap.newKeySet();
+    private volatile Socket pendingSocket=null;
+    private volatile ScheduledFuture<?> approvalTimer=null;
 
     public LocalTransport(Context context,Listener listener) {
         this.listener=listener; nsd=(NsdManager)context.getSystemService(Context.NSD_SERVICE);
         WifiManager wifi=(WifiManager)context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         multicast=wifi.createMulticastLock("itantra-discovery");multicast.setReferenceCounted(false);
         clock.scheduleWithFixedDelay(this::tick,2,2,TimeUnit.SECONDS);
+        startListening();
     }
     private static long now(){return android.os.SystemClock.elapsedRealtime();}
     static JSONObject json(Object... fields){JSONObject o=new JSONObject();try{for(int i=0;i<fields.length;i+=2)o.put((String)fields[i],fields[i+1]);}catch(JSONException e){throw new IllegalArgumentException(e);}return o;}
@@ -54,40 +57,99 @@ public final class LocalTransport {
     private void state(String value){state=value;event("connection","state",value,"peer",peer);}
     public boolean isConnected(){return connected;}
     public void bitrate(int value){if(value==500||value==1000||value==2000||value==4000||value==8000||value==16000)bitrate=value;}
+    public void callsign(String name){if(name!=null&&!name.trim().isEmpty())callsign=name.trim();}
+
+    public void startListening(){
+        if(closed||server!=null)return;
+        io.execute(()->{
+            if(server!=null)return;
+            try{
+                ServerSocket localServer=new ServerSocket();localServer.setReuseAddress(true);localServer.bind(new InetSocketAddress(8988));server=localServer;
+                advertise();
+                while(!closed&&server==localServer){
+                    Socket incoming=localServer.accept();
+                    if(socket!=null||pendingSocket!=null){
+                        try{
+                            DataOutputStream out=new DataOutputStream(incoming.getOutputStream());
+                            JSONObject busy=json("type","REJECT","reason","Device is busy in another session");
+                            FrameIO.write(out,(byte)1,busy.toString().getBytes(StandardCharsets.UTF_8));
+                            incoming.close();
+                        }catch(Exception ignored){}
+                        continue;
+                    }
+                    attach(incoming,true);
+                }
+            }catch(Exception ignored){}
+        });
+    }
 
     public void host(){
         io.execute(()->{
-            if(server!=null){event("host","pin",pin,"addresses",addresses(),"port",port);return;}
+            if(server!=null){event("host","pin",pin,"addresses",addresses(),"port",8988);return;}
             disconnect();hosting=true;pin=String.format(Locale.US,"%06d",new SecureRandom().nextInt(1000000));
-            long cycle=generation;
-            try{
-            ServerSocket localServer=new ServerSocket(); localServer.setReuseAddress(true);localServer.bind(new InetSocketAddress(8988));server=localServer;
-            advertise();state("DISCOVERING");event("host","pin",pin,"addresses",addresses(),"port",8988);
-            while(!closed && server==localServer){Socket incoming=localServer.accept();if(socket!=null){incoming.close();continue;}attach(incoming,true);}
-        }catch(Exception e){if(!closed&&cycle==generation){hosting=false;closeServer();state("FAILED");event("error","message","Cannot host: "+e.getMessage());}}});
+            startListening();state("DISCOVERING");event("host","pin",pin,"addresses",addresses(),"port",8988);
+        });
     }
-    public void connect(String host,int requestedPort,String code){
-        if(!host.matches("(?:\\d{1,3}\\.){3}\\d{1,3}")||requestedPort<1||requestedPort>65535||!code.matches("\\d{6}")){event("error","message","Enter the host's local IPv4 address and six-digit joining code.");return;}
+    public void connect(String host,int requestedPort,String code,String clientCallsign){
+        if(!host.matches("(?:\\d{1,3}\\.){3}\\d{1,3}")||requestedPort<1||requestedPort>65535){event("error","message","Enter a valid local IPv4 address.");return;}
         try{InetAddress ip=InetAddress.getByName(host);if(!ip.isSiteLocalAddress()&&!ip.isLinkLocalAddress()){event("error","message","Only local-network addresses are accepted.");return;}}catch(Exception e){return;}
-        disconnect();closeServer();hosting=false;address=host;port=requestedPort;pin=code;retry=0;connectInternal();
+        if(clientCallsign!=null&&!clientCallsign.trim().isEmpty())callsign=clientCallsign.trim();
+        disconnect();hosting=false;address=host;port=requestedPort;pin=code!=null?code:"";retry=0;connectInternal();
     }
-    private void connectInternal(){long cycle=generation;io.execute(()->{if(closed||hosting||connected||address.isEmpty()||cycle!=generation)return;state(retry==0?"CONNECTING":"RECONNECTING");Socket next=new Socket();try{next.connect(new InetSocketAddress(address,port),5000);if(cycle!=generation){next.close();return;}attach(next,false);}catch(Exception e){try{next.close();}catch(Exception ignored){}if(cycle==generation)lost(null,e.getMessage());}});}
+    public void connect(String host,int requestedPort,String code){connect(host,requestedPort,code,callsign);}
+    private void connectInternal(){long cycle=generation;io.execute(()->{if(closed||hosting||connected||address.isEmpty()||cycle!=generation)return;state(retry==0?"WAITING_APPROVAL":"RECONNECTING");Socket next=new Socket();try{next.connect(new InetSocketAddress(address,port),5000);if(cycle!=generation){next.close();return;}attach(next,false);}catch(Exception e){try{next.close();}catch(Exception ignored){}if(cycle==generation)lost(null,e.getMessage());}});}
 
     private void attach(Socket next,boolean accepted)throws IOException{
-        next.setTcpNoDelay(true);next.setSoTimeout(10000);socket=next;connected=false;lastReceived=now();remoteSession=null;remoteSequence=0;state("CONNECTING");
-        if(!accepted)control(json("type","HELLO","protocol",1,"session",session.toString(),"name",Build.MODEL,"pin",pin,"codec","utf8-deflate-hamming84","languages","hi,en,hinglish-experimental"));
+        next.setTcpNoDelay(true);next.setSoTimeout(10000);socket=next;connected=false;lastReceived=now();remoteSession=null;remoteSequence=0;
+        state(accepted?"CONNECTING":"WAITING_APPROVAL");
+        if(!accepted)control(json("type","HELLO","protocol",1,"session",session.toString(),"name",Build.MODEL,"callsign",callsign,"pin",pin,"codec","utf8-deflate-hamming84","languages","hi,en,hinglish-experimental"));
         io.execute(()->{try{DataInputStream input=new DataInputStream(next.getInputStream());while(!closed&&socket==next){byte[] body=FrameIO.read(input);int length=body.length;synchronized(this){bytesReceived+=length+4;}lastReceived=now();if(body[0]==1)onControl(new JSONObject(new String(body,1,length-1,StandardCharsets.UTF_8)),accepted);else if(body[0]==2){if(!connected)throw new IOException("Data before handshake");onPacket(Arrays.copyOfRange(body,1,length));}else throw new IOException("Unknown frame kind");}}catch(Exception e){lost(next,e.getMessage());}});
     }
     private void onControl(JSONObject data,boolean accepted)throws Exception{
         String type=data.optString("type");
         if(!connected){
             if(accepted&&type.equals("HELLO")){
-                if(data.optInt("protocol")!=1||!pin.equals(data.optString("pin"))||!data.optString("codec").equals("utf8-deflate-hamming84")){control(json("type","REJECT"));throw new IOException("Joining code or protocol mismatch");}
-                remoteSession=UUID.fromString(data.getString("session"));peer=data.optString("name","Phone");
-                control(json("type","READY","protocol",1,"session",session.toString(),"name",Build.MODEL,"codec","utf8-deflate-hamming84"));ready();return;
+                if(data.optInt("protocol")!=1||!data.optString("codec").equals("utf8-deflate-hamming84")){
+                    control(json("type","REJECT","reason","Protocol or codec mismatch"));
+                    throw new IOException("Protocol mismatch");
+                }
+                remoteSession=UUID.fromString(data.getString("session"));
+                String reqName=data.optString("name","Nearby Phone");
+                String reqCallsign=data.optString("callsign",reqName);
+                peer=reqCallsign;
+                pendingSocket=socket;
+                state("PENDING_APPROVAL");
+                String clientIp=socket!=null&&socket.getInetAddress()!=null?socket.getInetAddress().getHostAddress():address;
+                event("connection_request","peer",reqCallsign,"name",reqName,"callsign",reqCallsign,"address",clientIp,"pin",data.optString("pin",""));
+                if(approvalTimer!=null)approvalTimer.cancel(false);
+                approvalTimer=clock.schedule(()->{
+                    if(pendingSocket!=null&&!connected){
+                        respondRequest(false);
+                    }
+                },30,TimeUnit.SECONDS);
+                return;
             }
-            if(!accepted&&type.equals("READY")&&data.optInt("protocol")==1&&data.optString("codec").equals("utf8-deflate-hamming84")){remoteSession=UUID.fromString(data.getString("session"));peer=data.optString("name","Phone");ready();return;}
-            throw new IOException(type.equals("REJECT")?"Joining code rejected":"Invalid handshake");
+            if(!accepted&&type.equals("READY")&&data.optInt("protocol")==1&&data.optString("codec").equals("utf8-deflate-hamming84")){
+                remoteSession=UUID.fromString(data.getString("session"));
+                peer=data.optString("callsign",data.optString("name","Phone"));
+                ready();
+                return;
+            }
+            if(!accepted&&type.equals("REJECT")){
+                String reason=data.optString("reason","Connection request was declined by "+peer);
+                event("request_declined","peer",peer,"reason",reason);
+                retry=99;
+                lost(socket,reason);
+                return;
+            }
+            if(accepted&&type.equals("CANCEL")){
+                if(approvalTimer!=null){approvalTimer.cancel(false);approvalTimer=null;}
+                event("request_cancelled","peer",peer);
+                if(pendingSocket!=null){try{pendingSocket.close();}catch(Exception ignored){}pendingSocket=null;}
+                lost(socket,"Request cancelled by peer");
+                return;
+            }
+            throw new IOException(type.equals("REJECT")?"Connection rejected":"Invalid handshake");
         }
         switch(type){
             case "PING" -> control(json("type","PONG","at",data.getLong("at")));
@@ -97,6 +159,38 @@ public final class LocalTransport {
             default -> throw new IOException("Unknown control message");
         }
     }
+
+    public void respondRequest(boolean accept){
+        if(approvalTimer!=null){approvalTimer.cancel(false);approvalTimer=null;}
+        Socket s=pendingSocket!=null?pendingSocket:socket;
+        if(s==null)return;
+        io.execute(()->{
+            try{
+                if(accept){
+                    control(json("type","READY","protocol",1,"session",session.toString(),"name",Build.MODEL,"callsign",callsign,"codec","utf8-deflate-hamming84"));
+                    pendingSocket=null;
+                    ready();
+                }else{
+                    control(json("type","REJECT","reason","Connection declined by "+(callsign.isEmpty()?Build.MODEL:callsign)));
+                    pendingSocket=null;
+                    retry=99;
+                    lost(s,"Connection declined by user");
+                }
+            }catch(Exception e){
+                lost(s,e.getMessage());
+            }
+        });
+    }
+
+    public void cancelRequest(){
+        if(!connected&&socket!=null){
+            io.execute(()->{
+                try{control(json("type","CANCEL"));}catch(Exception ignored){}
+                disconnect();
+            });
+        }
+    }
+
     private void ready(){connected=true;retry=0;state("CONNECTED");}
     private void onPacket(byte[] wire)throws IOException{
         ItpPacket.Decoded message;
@@ -133,15 +227,32 @@ public final class LocalTransport {
     private synchronized void lost(Socket expected,String reason){
         if(expected!=null&&socket!=expected)return;Socket old=socket;socket=null;connected=false;if(old!=null)try{old.close();}catch(Exception ignored){}
         if(closed)return;event("error","message","Link: "+reason);
+        if(reason!=null&&(reason.contains("Declined")||reason.contains("declined")||reason.contains("reject")||reason.contains("Reject"))){
+            retry=99;
+        }
         if(!hosting&&!address.isEmpty()&&retry<4){retry++;state("RECONNECTING");long cycle=generation;clock.schedule(()->{if(cycle==generation&&!connected)connectInternal();},Math.min(8,retry*2),TimeUnit.SECONDS);}else state(hosting?"DISCOVERING":"DISCONNECTED");
     }
-    public synchronized void disconnect(){generation++;address="";connected=false;hosting=false;closeServer();Socket old=socket;socket=null;if(old!=null)try{old.close();}catch(Exception ignored){}for(long id:pending.keySet())event("delivery","sequence",id,"state","Disconnected; delivery uncertain");pending.clear();state("DISCONNECTED");}
+    public synchronized void disconnect(){
+        generation++;address="";connected=false;hosting=false;
+        if(approvalTimer!=null){approvalTimer.cancel(false);approvalTimer=null;}
+        Socket p=pendingSocket;pendingSocket=null;if(p!=null)try{p.close();}catch(Exception ignored){}
+        Socket old=socket;socket=null;if(old!=null)try{control(json("type","BYE"));old.close();}catch(Exception ignored){}
+        for(long id:pending.keySet())event("delivery","sequence",id,"state","Disconnected; delivery uncertain");
+        pending.clear();state("DISCONNECTED");
+        startListening();
+    }
     private void advertise(){
-        NsdServiceInfo info=new NsdServiceInfo();info.setServiceName("iTantra-"+Build.MODEL+"-"+session.toString().substring(0,4));info.setServiceType("_itantra._tcp.");info.setPort(8988);
+        if(registration!=null)return;
+        NsdServiceInfo info=new NsdServiceInfo();
+        String nodeName=callsign!=null&&!callsign.isEmpty()?callsign:Build.MODEL;
+        info.setServiceName("iTantra-"+nodeName.replaceAll("[^a-zA-Z0-9-]", "")+"-"+session.toString().substring(0,4));
+        info.setServiceType("_itantra._tcp.");
+        info.setPort(8988);
         registration=new NsdManager.RegistrationListener(){public void onServiceRegistered(NsdServiceInfo i){}public void onRegistrationFailed(NsdServiceInfo i,int error){event("error","message","Discovery advertising unavailable; use host address.");}public void onServiceUnregistered(NsdServiceInfo i){}public void onUnregistrationFailed(NsdServiceInfo i,int e){}};
         try{nsd.registerService(info,NsdManager.PROTOCOL_DNS_SD,registration);}catch(Exception e){event("error","message","Use host address; discovery registration failed.");}
     }
     public void discover(){
+        startListening();
         if(discovery!=null)return;
         try{multicast.acquire();discovery=new NsdManager.DiscoveryListener(){
             public void onDiscoveryStarted(String type){event("discovery","state","Scanning local network");}
