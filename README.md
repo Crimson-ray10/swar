@@ -1,4 +1,10 @@
-# Voice Bridge — Offline Multi-Transport Voice Communication
+# iTantra Android demo + legacy Voice Bridge prototype
+
+**The Android app is in `mobile/`.** Build it with `./scripts/build-mobile.ps1` and see [mobile setup and demo](docs/mobile-demo.md), [audit](docs/mobile-audit.md), and [protocol draft](docs/mobile-protocol.md).
+
+The legacy web/backend documentation below describes prototype intentions, not verified phone capabilities. Its STT accepts supplied text, its TTS generates tones, its Bluetooth/Wi-Fi Direct adapters use ordinary TCP, and some dashboard metrics are fixed values. Do not use that prototype as evidence of offline speech, Bluetooth, Wi-Fi Direct, or measured performance. The Android path is separate, has no backend dependency, and requires physical-device validation.
+
+# Legacy Voice Bridge prototype
 
 **Offline voice-communication system transmitting text over local Wi-Fi Direct, Wi-Fi LAN, and Bluetooth Classic RFCOMM.**
 

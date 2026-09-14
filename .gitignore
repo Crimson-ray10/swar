@@ -72,3 +72,10 @@ dist-ssr/
 Thumbs.db
 
 .vercel
+
+# Android local outputs
+mobile/.gradle/
+mobile/local.properties
+mobile/app/src/main/assets/generated/
+*.apk
+*.jks

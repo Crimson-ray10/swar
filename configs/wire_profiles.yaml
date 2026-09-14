@@ -1,0 +1,128 @@
+# iTantra Wire Profiles & Semantic Radio Pacing Specifications
+# Protocol: ITP/1 (Indian Multilingual TTS & STT Aided Neural Transceiver Radio Access)
+# Reference: Section 11 & Section 20 of agent.md
+
+version: "1.0.0"
+protocol: "ITP/1"
+description: >
+  Defines low-bitrate semantic payload pacing profiles and framing parameters
+  for physical emergency communications. These denote iTantra configured
+  semantic payload targets, distinct from raw Wi-Fi/Hotspot PHY/MAC bitrates.
+
+# Global framing and transport constants
+global_transport:
+  port: 8988
+  service_type: "_itantra._tcp."
+  length_field_bytes: 4
+  kind_field_bytes: 1
+  kind_control: 1
+  kind_itp_fec: 2
+  min_frame_length: 2
+  max_frame_length: 32768
+  itp_header_bytes: 38
+  crc32_bytes: 4
+  raw_itp_overhead_bytes: 42
+  fec_algorithm: "Extended Hamming(8,4)"
+  fec_expansion_multiplier: 2
+  single_bit_error_correction: true
+  double_bit_error_rejection: true
+  ping_interval_ms: 2000
+  pong_timeout_ms: 6000
+  ack_uncertain_timeout_ms: 12000
+  max_reconnect_attempts: 4
+  reconnect_backoff_ms: 1000
+
+# Audio & Speech defaults
+speech:
+  audio_format: "PCM_16BIT_MONO"
+  sample_rate_hz: 16000
+  channels: 1
+  vad_silence_timeout_ms: 700
+  languages:
+    - id: "hi"
+      name: "Hindi"
+      locale: "hi-IN"
+      profile_code: 1
+    - id: "en"
+      name: "English"
+      locale: "en-IN"
+      profile_code: 2
+    - id: "hinglish"
+      name: "Hinglish"
+      locale: "hi-IN"
+      profile_code: 3
+
+# Configurable low-bitrate payload pacing profiles
+profiles:
+  - id: "p500"
+    name: "0.5 kbps — Deep Fade / Extreme Constrained"
+    target_bps: 500
+    target_kbps: 0.5
+    description: >
+      Extreme emergency profile for ultra-low bandwidth, deep fade,
+      or severely contested links. Enforces aggressive inter-burst pacing.
+    pacing_ms_per_payload_byte: 16.0
+    recommended_max_chars: 140
+    adaptive_deflate: true
+    fec_enabled: true
+
+  - id: "p1000"
+    name: "1.0 kbps — Narrowband Tactical"
+    target_bps: 1000
+    target_kbps: 1.0
+    description: >
+      Narrowband profile emulating long-range tactical VHF/UHF data links.
+      Suitable for short, concise emergency dispatches.
+    pacing_ms_per_payload_byte: 8.0
+    recommended_max_chars: 280
+    adaptive_deflate: true
+    fec_enabled: true
+
+  - id: "p2000"
+    name: "2.0 kbps — Standard Emergency (Default)"
+    target_bps: 2000
+    target_kbps: 2.0
+    is_default: true
+    description: >
+      Default balanced profile for rapid text dispatches and short voice notes.
+      Offers prompt turnaround while maintaining bounded link utilization.
+    pacing_ms_per_payload_byte: 4.0
+    recommended_max_chars: 500
+    adaptive_deflate: true
+    fec_enabled: true
+
+  - id: "p4000"
+    name: "4.0 kbps — High Turnaround"
+    target_bps: 4000
+    target_kbps: 4.0
+    description: >
+      Enhanced throughput profile for fast-paced walkie-talkie exchanges
+      with low inter-packet transmission latency.
+    pacing_ms_per_payload_byte: 2.0
+    recommended_max_chars: 1000
+    adaptive_deflate: true
+    fec_enabled: true
+
+  - id: "p8000"
+    name: "8.0 kbps — Continuous Conversation"
+    target_bps: 8000
+    target_kbps: 8.0
+    description: >
+      High-capacity profile optimized for persistent conversation mode,
+      allowing near-continuous conversational turn exchanges.
+    pacing_ms_per_payload_byte: 1.0
+    recommended_max_chars: 2000
+    adaptive_deflate: true
+    fec_enabled: true
+
+  - id: "p16000"
+    name: "16.0 kbps — Rapid Exchange / High Density"
+    target_bps: 16000
+    target_kbps: 16.0
+    description: >
+      Maximum rate profile for multi-device channels or rapid burst
+      situational awareness messages.
+    pacing_ms_per_payload_byte: 0.5
+    recommended_max_chars: 4000
+    adaptive_deflate: true
+    fec_enabled: true
