@@ -1664,9 +1664,11 @@
           } else if (data.state === 'WAITING_APPROVAL') {
             pill.className = 'header-pill pill-neutral';
             pill.textContent = 'WAITING APPROVAL';
+            $('outgoingRequestModal').classList.remove('hidden');
           } else {
             $('outgoingRequestModal').classList.add('hidden');
             pill.className = 'header-pill pill-neutral';
+            pill.textContent = data.state;
           }
           break;
 

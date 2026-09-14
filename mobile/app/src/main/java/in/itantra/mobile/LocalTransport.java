@@ -68,7 +68,7 @@ public final class LocalTransport {
                 advertise();
                 while(!closed&&server==localServer){
                     Socket incoming=localServer.accept();
-                    if(socket!=null||pendingSocket!=null){
+                    if(connected){
                         try{
                             DataOutputStream out=new DataOutputStream(incoming.getOutputStream());
                             JSONObject busy=json("type","REJECT","reason","Device is busy in another session");
@@ -76,6 +76,14 @@ public final class LocalTransport {
                             incoming.close();
                         }catch(Exception ignored){}
                         continue;
+                    }
+                    if(pendingSocket!=null){
+                        try{pendingSocket.close();}catch(Exception ignored){}
+                        pendingSocket=null;
+                    }
+                    if(socket!=null&&!connected){
+                        try{socket.close();}catch(Exception ignored){}
+                        socket=null;
                     }
                     attach(incoming,true);
                 }
@@ -100,10 +108,10 @@ public final class LocalTransport {
     private void connectInternal(){long cycle=generation;io.execute(()->{if(closed||hosting||connected||address.isEmpty()||cycle!=generation)return;state(retry==0?"WAITING_APPROVAL":"RECONNECTING");Socket next=new Socket();try{next.connect(new InetSocketAddress(address,port),5000);if(cycle!=generation){next.close();return;}attach(next,false);}catch(Exception e){try{next.close();}catch(Exception ignored){}if(cycle==generation)lost(null,e.getMessage());}});}
 
     private void attach(Socket next,boolean accepted)throws IOException{
-        next.setTcpNoDelay(true);next.setSoTimeout(10000);socket=next;connected=false;lastReceived=now();remoteSession=null;remoteSequence=0;
+        next.setTcpNoDelay(true);next.setSoTimeout(45000);socket=next;connected=false;lastReceived=now();remoteSession=null;remoteSequence=0;
         state(accepted?"CONNECTING":"WAITING_APPROVAL");
         if(!accepted)control(json("type","HELLO","protocol",1,"session",session.toString(),"name",Build.MODEL,"callsign",callsign,"pin",pin,"codec","utf8-deflate-hamming84","languages","hi,en,hinglish-experimental"));
-        io.execute(()->{try{DataInputStream input=new DataInputStream(next.getInputStream());while(!closed&&socket==next){byte[] body=FrameIO.read(input);int length=body.length;synchronized(this){bytesReceived+=length+4;}lastReceived=now();if(body[0]==1)onControl(new JSONObject(new String(body,1,length-1,StandardCharsets.UTF_8)),accepted);else if(body[0]==2){if(!connected)throw new IOException("Data before handshake");onPacket(Arrays.copyOfRange(body,1,length));}else throw new IOException("Unknown frame kind");}}catch(Exception e){lost(next,e.getMessage());}});
+        io.execute(()->{try{DataInputStream input=new DataInputStream(next.getInputStream());while(!closed&&(socket==next||pendingSocket==next)){byte[] body=FrameIO.read(input);int length=body.length;synchronized(this){bytesReceived+=length+4;}lastReceived=now();if(body[0]==1)onControl(new JSONObject(new String(body,1,length-1,StandardCharsets.UTF_8)),accepted);else if(body[0]==2){if(!connected)throw new IOException("Data before handshake");onPacket(Arrays.copyOfRange(body,1,length));}else throw new IOException("Unknown frame kind");}}catch(Exception e){lost(next,e.getMessage());}});
     }
     private void onControl(JSONObject data,boolean accepted)throws Exception{
         String type=data.optString("type");
@@ -167,10 +175,12 @@ public final class LocalTransport {
         io.execute(()->{
             try{
                 if(accept){
-                    control(json("type","READY","protocol",1,"session",session.toString(),"name",Build.MODEL,"callsign",callsign,"codec","utf8-deflate-hamming84"));
+                    socket=s;
                     pendingSocket=null;
+                    control(json("type","READY","protocol",1,"session",session.toString(),"name",Build.MODEL,"callsign",callsign,"codec","utf8-deflate-hamming84"));
                     ready();
                 }else{
+                    socket=s;
                     control(json("type","REJECT","reason","Connection declined by "+(callsign.isEmpty()?Build.MODEL:callsign)));
                     pendingSocket=null;
                     retry=99;
@@ -191,7 +201,7 @@ public final class LocalTransport {
         }
     }
 
-    private void ready(){connected=true;retry=0;state("CONNECTED");}
+    private void ready(){lastReceived=now();connected=true;retry=0;state("CONNECTED");}
     private void onPacket(byte[] wire)throws IOException{
         ItpPacket.Decoded message;
         try{message=ItpPacket.decode(wire);}catch(IOException e){synchronized(this){if(e.getMessage().contains("CRC"))crcFailures++;else fecFailures++;}event("error","message","Packet rejected: "+e.getMessage());return;}
@@ -217,7 +227,7 @@ public final class LocalTransport {
         }catch(Exception e){event("error","message","Message not sent: "+e.getMessage());}});
     }
     private void control(JSONObject data)throws IOException{write((byte)1,data.toString().getBytes(StandardCharsets.UTF_8));}
-    private void write(byte kind,byte[] bytes)throws IOException{synchronized(writeLock){Socket current=socket;if(current==null)throw new IOException("Disconnected");DataOutputStream out=new DataOutputStream(current.getOutputStream());FrameIO.write(out,kind,bytes);bytesSent+=bytes.length+5;}}
+    private void write(byte kind,byte[] bytes)throws IOException{synchronized(writeLock){Socket current=socket!=null?socket:pendingSocket;if(current==null)throw new IOException("Disconnected");DataOutputStream out=new DataOutputStream(current.getOutputStream());FrameIO.write(out,kind,bytes);bytesSent+=bytes.length+5;}}
     private void tick(){try{
         if(connected){if(now()-lastReceived>9000){lost(socket,"Heartbeat timeout");return;}control(json("type","PING","at",now()));}
         for(var entry:pending.entrySet())if(now()-entry.getValue()>12000&&pending.remove(entry.getKey(),entry.getValue())){unacked++;event("delivery","sequence",entry.getKey(),"state","No decode acknowledgement; delivery uncertain");}
@@ -225,8 +235,11 @@ public final class LocalTransport {
         event("metrics","sent",sent,"received",received,"txBytes",bytesSent,"rxBytes",bytesReceived,"appTxBps",Math.round(bytesSent*8/seconds),"payloadBps",Math.round(payloadSent*8/seconds),"payloadBytes",payloadSent,"sourceBytes",sourceSent,"crcFailures",crcFailures,"fecFailures",fecFailures,"fecCorrected",corrected,"duplicates",duplicates,"unacknowledged",unacked,"rttMs",rtt,"configuredBps",bitrate,"lastPacketBytes",lastPacketBytes,"overheadBytes",bytesSent-payloadSent,"textCompression",payloadSent==0?0:Math.round(sourceSent*100.0/payloadSent)/100.0);
     }catch(Exception e){if(connected)lost(socket,e.getMessage());}}
     private synchronized void lost(Socket expected,String reason){
-        if(expected!=null&&socket!=expected)return;Socket old=socket;socket=null;connected=false;if(old!=null)try{old.close();}catch(Exception ignored){}
-        if(closed)return;event("error","message","Link: "+reason);
+        if(expected!=null&&socket!=expected&&pendingSocket!=expected)return;
+        Socket old=socket;socket=null;connected=false;if(old!=null)try{old.close();}catch(Exception ignored){}
+        Socket p=pendingSocket;pendingSocket=null;if(p!=null)try{p.close();}catch(Exception ignored){}
+        if(approvalTimer!=null){approvalTimer.cancel(false);approvalTimer=null;}
+        if(closed)return;event("error","message","Link: "+(reason!=null&&!reason.trim().isEmpty()?reason:"Connection closed"));
         if(reason!=null&&(reason.contains("Declined")||reason.contains("declined")||reason.contains("reject")||reason.contains("Reject"))){
             retry=99;
         }
