@@ -154,7 +154,7 @@ export const Hero: React.FC<HeroProps> = ({ onGetStarted, onOpenDevices, connect
             onClick={onGetStarted}
             className="cta-btn cursor-pointer"
           >
-            Open Radio Studio
+            Open Voice Studio
           </button>
 
           {onOpenDevices && (

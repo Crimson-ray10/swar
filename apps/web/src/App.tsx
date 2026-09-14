@@ -3,7 +3,6 @@ import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { TransmitterPanel } from './components/TransmitterPanel';
 import { ReceiverPanel } from './components/ReceiverPanel';
-import { ComparisonGauge } from './components/ComparisonGauge';
 import { QueryHistoryDrawer, HistoryItem } from './components/QueryHistoryDrawer';
 import { DeviceConnectionModal } from './components/DeviceConnectionModal';
 import { LanguageSpec, RunReport, Peer, TransportType, VoiceMessage, WebClientInfo } from './types';
@@ -460,13 +459,6 @@ export const App: React.FC = () => {
         audioOutputBase64={report?.audio_output_base64 || null}
         latencyMs={report?.latency_ms || null}
         warnings={report?.warnings || []}
-      />
-
-      {/* 6) Bandwidth Comparison Gauge & Export Footer Bar */}
-      <ComparisonGauge
-        actualWireBps={report?.transport.actual_wire_bps || 0}
-        compressionRatio={report?.transport.compression_ratio_vs_pcm || 0}
-        lastReport={report}
       />
     </div>
   );

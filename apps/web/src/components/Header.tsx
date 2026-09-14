@@ -77,13 +77,13 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => handleNavClick('studio')}
             className={`nav-link ${activeSection === 'studio' ? 'active' : ''}`}
           >
-            Radio Studio
+            Voice Studio
           </button>
           <button
             onClick={() => handleNavClick('receiver')}
             className={`nav-link ${activeSection === 'receiver' ? 'active' : ''}`}
           >
-            Receiver Sink
+            Voice Receiver
           </button>
           <button
             onClick={() => {
@@ -226,13 +226,13 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => handleNavClick('studio')}
                 className={`mobile-nav-link ${activeSection === 'studio' ? 'active' : ''}`}
               >
-                Radio Studio
+                Voice Studio
               </button>
               <button
                 onClick={() => handleNavClick('receiver')}
                 className={`mobile-nav-link ${activeSection === 'receiver' ? 'active' : ''}`}
               >
-                Receiver Sink
+                Voice Receiver
               </button>
               <button
                 onClick={() => {
