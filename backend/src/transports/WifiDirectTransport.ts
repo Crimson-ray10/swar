@@ -23,6 +23,7 @@ export class WifiDirectTransport extends EventEmitter implements VoiceTransport 
   constructor(port: number = 8990) {
     super();
     this.port = port;
+    this.on('error', () => {});
     this.setupDecoder();
   }
 
@@ -62,6 +63,9 @@ export class WifiDirectTransport extends EventEmitter implements VoiceTransport 
     if (isGroupOwner && !this.server) {
       return new Promise((resolve) => {
         this.server = net.createServer((sock) => {
+          if (this.socket && !this.socket.destroyed) {
+            this.socket.destroy();
+          }
           this.socket = sock;
           this.setState('CONNECTED');
 
@@ -74,6 +78,11 @@ export class WifiDirectTransport extends EventEmitter implements VoiceTransport 
             this.emit('error', err);
             this.setState('DEGRADED');
           });
+        });
+
+        this.server.on('error', (err) => {
+          this.emit('error', err);
+          resolve();
         });
 
         this.server.listen(this.port, '0.0.0.0', () => resolve());

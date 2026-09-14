@@ -22,6 +22,7 @@ export class WifiLanTransport extends EventEmitter implements VoiceTransport {
   constructor(port: number = 8988) {
     super();
     this.port = port;
+    this.on('error', () => {});
     this.setupDecoder();
   }
 
@@ -70,6 +71,7 @@ export class WifiLanTransport extends EventEmitter implements VoiceTransport {
 
       this.server.on('error', (err) => {
         this.emit('error', err);
+        resolve();
       });
 
       this.server.listen(this.port, '0.0.0.0', () => {

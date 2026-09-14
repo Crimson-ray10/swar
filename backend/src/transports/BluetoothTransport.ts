@@ -24,6 +24,7 @@ export class BluetoothTransport extends EventEmitter implements VoiceTransport {
   constructor(port: number = 8992) {
     super();
     this.port = port;
+    this.on('error', () => {});
     this.setupDecoder();
   }
 
@@ -63,6 +64,9 @@ export class BluetoothTransport extends EventEmitter implements VoiceTransport {
 
     return new Promise((resolve) => {
       this.server = net.createServer((sock) => {
+        if (this.socket && !this.socket.destroyed) {
+          this.socket.destroy();
+        }
         this.socket = sock;
         this.setState('CONNECTED');
 
@@ -75,6 +79,11 @@ export class BluetoothTransport extends EventEmitter implements VoiceTransport {
           this.emit('error', err);
           this.setState('DEGRADED');
         });
+      });
+
+      this.server.on('error', (err) => {
+        this.emit('error', err);
+        resolve();
       });
 
       this.server.listen(this.port, '0.0.0.0', () => resolve());

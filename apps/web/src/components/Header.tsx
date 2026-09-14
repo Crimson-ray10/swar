@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { History, Copy, Check, RotateCcw, Cpu } from 'lucide-react';
+import { History, Copy, Check, RotateCcw, Cpu, Radio } from 'lucide-react';
 
 interface HeaderProps {
   sessionId: string;
@@ -9,6 +9,12 @@ interface HeaderProps {
   onNavigate: (section: string) => void;
   onOpenHistory: () => void;
   historyCount: number;
+  onOpenDevices: () => void;
+  peerCount: number;
+  isConnected: boolean;
+  activeTransport: string | null;
+  connectedClientsCount?: number;
+  wsConnectionStatus?: 'connected' | 'reconnecting' | 'offline';
   onReset: () => void;
 }
 
@@ -20,6 +26,12 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigate,
   onOpenHistory,
   historyCount,
+  onOpenDevices,
+  peerCount,
+  isConnected,
+  activeTransport,
+  connectedClientsCount = 1,
+  wsConnectionStatus = 'connected',
   onReset
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -79,6 +91,47 @@ export const Header: React.FC<HeaderProps> = ({
           >
             Receiver Sink
           </button>
+          <button
+            onClick={() => {
+              onOpenDevices();
+              setMobileMenuOpen(false);
+            }}
+            className={`nav-link ${isConnected || connectedClientsCount > 1 ? 'active' : ''}`}
+            style={{
+              borderColor: isConnected || connectedClientsCount > 1 ? 'rgba(16, 185, 129, 0.4)' : undefined,
+              color: isConnected || connectedClientsCount > 1 ? '#34d399' : undefined,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            title="Multi-Device Intercom & P2P Mesh"
+          >
+            <Radio size={13} color={isConnected || connectedClientsCount > 1 ? '#34d399' : undefined} />
+            <span>
+              {connectedClientsCount > 1
+                ? `${connectedClientsCount} Devices Active`
+                : isConnected
+                ? (activeTransport || 'P2P').toUpperCase().replace('_', ' ')
+                : 'P2P Mesh'}
+            </span>
+            <span
+              style={{
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                backgroundColor:
+                  wsConnectionStatus === 'reconnecting'
+                    ? '#fbbf24'
+                    : isConnected || connectedClientsCount > 1
+                    ? '#10b981'
+                    : peerCount > 0
+                    ? '#38bdf8'
+                    : '#64748b',
+                boxShadow: isConnected || connectedClientsCount > 1 ? '0 0 8px #10b981' : undefined
+              }}
+            />
+          </button>
+
           <button
             onClick={() => {
               onOpenHistory();
@@ -192,6 +245,27 @@ export const Header: React.FC<HeaderProps> = ({
                 className={`mobile-nav-link ${activeSection === 'receiver' ? 'active' : ''}`}
               >
                 Receiver Sink
+              </button>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenDevices();
+                }}
+                className="mobile-nav-link"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', color: isConnected ? '#34d399' : undefined }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Radio size={14} color={isConnected ? '#34d399' : undefined} />
+                  <span>P2P Multi-Transport Mesh</span>
+                </div>
+                <span
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: isConnected ? '#10b981' : peerCount > 0 ? '#38bdf8' : '#64748b'
+                  }}
+                />
               </button>
               <button
                 onClick={() => {

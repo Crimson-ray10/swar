@@ -1595,3 +1595,113 @@ body {
     filter: none !important;
   }
 }
+
+/* ==========================================================================
+   Drawer & P2P Multi-Transport Modal Overlays
+   ========================================================================== */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  justify-content: flex-end;
+  animation: overlayIn 0.2s ease-out forwards;
+}
+
+.drawer-panel {
+  width: 100%;
+  max-width: 520px;
+  height: 100%;
+  background: #0d1117;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6);
+  overflow-y: auto;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: overlayIn 0.2s ease-out forwards;
+}
+
+@keyframes modalZoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-panel {
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  background: #0d1117;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85), 0 0 40px rgba(99, 102, 241, 0.2);
+  overflow: hidden;
+  margin: 0 auto;
+  box-sizing: border-box;
+  animation: modalZoomIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Mobile Responsiveness for Modal Popups */
+@media (max-width: 640px) {
+  .modal-backdrop {
+    padding: 8px !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .modal-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 93vh !important;
+    margin: 0 auto !important;
+    border-radius: 16px !important;
+  }
+  .modal-panel-header {
+    padding: 14px 16px !important;
+  }
+  .modal-panel-body {
+    padding: 14px 12px !important;
+    gap: 14px !important;
+  }
+  .modal-tab-nav {
+    padding: 0 10px !important;
+  }
+  .modal-tab-btn {
+    padding: 10px 10px !important;
+    font-size: 12px !important;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+

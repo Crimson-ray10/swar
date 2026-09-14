@@ -73,12 +73,22 @@ export class ConnectivitySupervisor extends EventEmitter {
 
   private setupTransportListeners(): void {
     for (const [type, transport] of this.transports.entries()) {
+      transport.on('error', (_err) => {
+        if (this.activeTransportType === type) {
+          this.handleActiveTransportDrop(type);
+        }
+      });
+
       transport.on('message', (msg: any, byteLength: number) => {
         this.handleIncomingTransportMessage(type, msg, byteLength);
       });
 
       transport.on('stateChanged', (connState: ConnectionState) => {
-        if (this.activeTransportType === type) {
+        if (connState === 'CONNECTED' && this.state !== 'CONNECTED') {
+          this.activeTransportType = type;
+          this.setState('CONNECTED');
+          this.startHeartbeat();
+        } else if (this.activeTransportType === type) {
           if (connState === 'DISCONNECTED' || connState === 'DEGRADED') {
             this.handleActiveTransportDrop(type);
           }
@@ -209,7 +219,21 @@ export class ConnectivitySupervisor extends EventEmitter {
       const transport = this.transports.get(transportType);
       if (!transport) continue;
 
-      const success = await transport.connect(peer);
+      const targetPort =
+        peer.ports?.[transportType] ||
+        (transportType === 'wifi_lan'
+          ? (peer.port || 8988)
+          : transportType === 'wifi_direct'
+          ? (peer.ports?.wifi_direct || 8990)
+          : (peer.ports?.bluetooth || 8992));
+
+      const peerForTransport: Peer = {
+        ...peer,
+        port: targetPort,
+        transport: transportType,
+      };
+
+      const success = await transport.connect(peerForTransport);
       if (success) {
         this.activeTransportType = transportType;
         this.setState('HANDSHAKING');

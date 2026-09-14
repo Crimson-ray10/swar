@@ -29,8 +29,57 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [micState, setMicState] = useState<MicState>('Idle');
   const [customPrompt, setCustomPrompt] = useState<string>('');
+  const [sttNotice, setSttNotice] = useState<string | null>(null);
 
   const currentLang = languages.find((l) => l.id === selectedLanguage);
+
+  const getPresetPhrases = () => {
+    switch (selectedLanguage) {
+      case 'hi':
+        return [
+          { label: '🚨 Emergency', text: currentLang?.sample_text || 'मुझे तुरंत मदद चाहिए, यहाँ आग लगी है।' },
+          { label: '📍 Location', text: 'टीम सुरक्षित है, स्थिति सामान्य है।' },
+          { label: '🩺 Medical', text: 'चिकित्सा सहायता की तत्काल आवश्यकता है।' },
+          { label: '✅ All Clear', text: 'सभी कर्मी सुरक्षित हैं, सामान्य स्थिति।' },
+        ];
+      case 'ta':
+        return [
+          { label: '🚨 அவசரநிலை', text: currentLang?.sample_text || 'எனக்கு உடனடி உதவி தேவை, இங்கே அவசரநிலை உள்ளது.' },
+          { label: '📍 இடம்', text: 'குழு பாதுகாப்பாக உள்ளது, இடம் பகிரப்பட்டது.' },
+          { label: '🩺 மருத்துவம்', text: 'மருத்துவ உதவி உடனடியாக தேவை.' },
+          { label: '✅ இயல்பு', text: 'அனைத்து நிலைகளும் இயல்பாக உள்ளன.' },
+        ];
+      case 'te':
+        return [
+          { label: '🚨 అత్యవసరం', text: currentLang?.sample_text || 'నాకు తక్షణ సహాయం కావాలి, ఇక్కడ అగ్ని ప్రమాదం జరిగింది.' },
+          { label: '📍 స్థానం', text: 'బృందం సురక్షితంగా ఉంది, స్థానం పంపబడింది.' },
+          { label: '🩺 వైద్యం', text: 'వైద్య సహాయం తక్షణమే అవసరం.' },
+          { label: '✅ సురక్షితం', text: 'పరిస్థితి సాధారణంగా ఉంది.' },
+        ];
+      case 'mr':
+        return [
+          { label: '🚨 आणीबाणी', text: currentLang?.sample_text || 'मला तातडीने मदतीची गरज आहे, येथे आग लागली आहे.' },
+          { label: '📍 स्थान', text: 'पथक सुरक्षित आहे, लोकेशन पाठवले आहे.' },
+          { label: '🩺 वैद्यकीय', text: 'वैद्यकीय मदतीची तातडीने गरज आहे.' },
+          { label: '✅ सुरक्षित', text: 'सर्व काही सामान्य आहे.' },
+        ];
+      case 'bn':
+        return [
+          { label: '🚨 জরুরি', text: currentLang?.sample_text || 'আমার অবিলম্বে সাহায্য দরকার, এখানে আগুন লেগেছে।' },
+          { label: '📍 অবস্থান', text: 'দল নিরাপদ, অবস্থান পাঠানো হয়েছে।' },
+          { label: '🩺 চিকিৎসা', text: 'চিকিৎসা সহায়তা জরুরি প্রয়োজন।' },
+          { label: '✅ নিরাপদ', text: 'সবকিছু স্বাভাবিক আছে।' },
+        ];
+      default:
+        return [
+          { label: '🚨 Emergency', text: currentLang?.sample_text || 'I need immediate assistance, there is an emergency here.' },
+          { label: '📍 Location Report', text: 'Team secure at coordinates, requesting status update.' },
+          { label: '🩺 Medical Needed', text: 'Medical assistance required immediately at site.' },
+          { label: '✅ All Clear', text: 'All personnel accounted for, situation normal.' },
+        ];
+    }
+  };
+
 
   // Sync processing state with mic state
   React.useEffect(() => {
@@ -210,13 +259,16 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
         state={micState}
         selectedLanguage={selectedLanguage}
         onAudioRecorded={(blob, liveTranscript) => {
-          setUploadedFileName('Microphone Utterance');
           const phrase = liveTranscript?.trim() || customPrompt.trim();
           if (!phrase) {
-            alert('No speech was detected or recognized by the STT engine. Please speak clearly into the microphone or type your sentence in the box below.');
+            // NEVER silently substitute preloaded sample text!
             setMicState('Idle');
+            setSttNotice('⚠️ No speech was captured or recognized. Please speak clearly into your mic, tap a preset below, or type your message.');
+            setTimeout(() => setSttNotice(null), 6000);
             return;
           }
+          setUploadedFileName(`Utterance: "${phrase.slice(0, 18)}..."`);
+          setCustomPrompt(phrase);
           onAudioReady(blob, phrase, false);
         }}
         onLiveTranscriptChange={(text) => {
@@ -224,6 +276,25 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
         }}
         onStateChange={setMicState}
       />
+
+      {/* STT Feedback Notice Banner */}
+      {sttNotice && (
+        <div style={{
+          marginTop: '10px',
+          padding: '8px 16px',
+          borderRadius: '999px',
+          background: 'rgba(99, 102, 241, 0.18)',
+          border: '1px solid rgba(99, 102, 241, 0.35)',
+          color: '#c7d2fe',
+          fontSize: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          animation: 'fadeIn 0.2s ease-in-out'
+        }}>
+          <span>{sttNotice}</span>
+        </div>
+      )}
 
       {/* Secondary Action Buttons (Upload WAV, Sample Utterance) */}
       <div className="mic-actions-row">
@@ -246,7 +317,7 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
           title={`Transmit pre-recorded verified sample: "${currentLang?.sample_text || ''}"`}
         >
           <Play size={13} />
-          <span>Transmit Pre-recorded Sample</span>
+          <span>Transmit Sample ({currentLang?.name || 'Voice'})</span>
         </button>
 
         {uploadedFileName && (
@@ -262,7 +333,8 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
           e.preventDefault();
           const text = customPrompt.trim();
           if (!text) {
-            alert('Please speak into the microphone or type your sentence in the box before transmitting.');
+            setSttNotice('Please type a phrase or select a quick preset below before transmitting.');
+            setTimeout(() => setSttNotice(null), 4000);
             return;
           }
           setUploadedFileName(`Text: "${text.slice(0, 18)}..."`);
@@ -290,47 +362,48 @@ export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
         />
         <button
           type="submit"
-          disabled={isProcessing || !customPrompt.trim()}
+          disabled={isProcessing}
           className="secondary-pill-btn"
-          style={{ padding: '0 20px', background: customPrompt.trim() ? '#6366f1' : undefined, color: customPrompt.trim() ? '#ffffff' : undefined }}
+          style={{ padding: '0 20px', background: '#6366f1', color: '#ffffff' }}
         >
           <span>Transmit</span>
         </button>
       </form>
 
-      {/* Quick Test Sentence Suggestions */}
+      {/* One-Tap Emergency & Operational Phrase Chips */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
         <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Quick Presets:</span>
-        {[
-          'The patient is stable and arriving now.',
-          'Doctor requested assistance in Ward B.',
-          'नमस्ते, रोगी की हालत स्थिर है।',
-          'எனக்கு உடனடி உதவி தேவை.'
-        ].map((phrase, idx) => (
+        {getPresetPhrases().map((item, idx) => (
           <button
             key={idx}
             type="button"
             onClick={() => {
-              setCustomPrompt(phrase);
-              setUploadedFileName(`Preset: "${phrase.slice(0, 15)}..."`);
-              transmitWithText(phrase, false);
+              setCustomPrompt(item.text);
+              setUploadedFileName(`Preset: ${item.label}`);
+              transmitWithText(item.text, false);
             }}
             disabled={isProcessing}
             style={{
-              padding: '4px 10px',
+              padding: '5px 12px',
               borderRadius: '999px',
               background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              color: '#cbd5e1',
+              border: '1px solid rgba(255, 255, 255, 0.14)',
+              color: '#e2e8f0',
               fontSize: '11px',
+              fontWeight: 500,
               cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
               transition: 'all 0.15s ease'
             }}
+            title={item.text}
           >
-            "{phrase.length > 25 ? phrase.slice(0, 25) + '...' : phrase}"
+            <span>{item.label}</span>
           </button>
         ))}
       </div>
+
 
       {/* Transcripts & Telemetry Cards */}
       <div style={{ width: '100%', maxWidth: '820px', marginTop: '36px', display: 'flex', flexDirection: 'column', gap: '16px' }}>

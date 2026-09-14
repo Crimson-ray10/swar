@@ -22,7 +22,7 @@ export const MicButton: React.FC<MicButtonProps> = ({
 }) => {
   const [activeStream, setActiveStream] = useState<MediaStream | null>(null);
   const [liveTranscript, setLiveTranscript] = useState<string>('');
-  const [vadEnabled, setVadEnabled] = useState<boolean>(true);
+  const [vadEnabled, setVadEnabled] = useState<boolean>(false);
   const [isVoiceActive, setIsVoiceActive] = useState<boolean>(false);
   const [silenceCountdown, setSilenceCountdown] = useState<number | null>(null);
   const [sttError, setSttError] = useState<string | null>(null);
@@ -30,6 +30,7 @@ export const MicButton: React.FC<MicButtonProps> = ({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const liveTranscriptRef = useRef<string>('');
+  const accumulatedTranscriptRef = useRef<string>('');
   const recognitionRef = useRef<any>(null);
   const audioChunks = useRef<Blob[]>([]);
   const vadIntervalRef = useRef<number | null>(null);
@@ -168,7 +169,7 @@ export const MicButton: React.FC<MicButtonProps> = ({
       recordingStartTimeRef.current = Date.now();
       noiseFloorRef.current = 1.0;
 
-      const SILENCE_TIMEOUT_MS = 1500; // 1.5s of silence after speech -> auto transmit
+      const SILENCE_TIMEOUT_MS = 4000; // 4.0s of silence after speech -> auto transmit (gives ample time)
       const INITIAL_MAX_SILENCE_MS = 15000; // 15s initial timeout
 
       vadIntervalRef.current = window.setInterval(() => {
@@ -241,6 +242,7 @@ export const MicButton: React.FC<MicButtonProps> = ({
     try {
       setLiveTranscript('');
       liveTranscriptRef.current = '';
+      accumulatedTranscriptRef.current = '';
       if (onLiveTranscriptChange) onLiveTranscriptChange('');
 
       // Browser Web Speech recognition for interim live preview
@@ -267,20 +269,24 @@ export const MicButton: React.FC<MicButtonProps> = ({
           recognition.lang = langMap[selectedLanguage] || (selectedLanguage === 'en' ? 'en-IN' : 'hi-IN');
 
           recognition.onresult = (event: any) => {
-            let combined = '';
-            for (let i = 0; i < event.results.length; i++) {
-              combined += event.results[i][0].transcript + ' ';
+            let interim = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+              const text = event.results[i][0]?.transcript || '';
+              if (event.results[i].isFinal) {
+                accumulatedTranscriptRef.current += (accumulatedTranscriptRef.current ? ' ' : '') + text.trim();
+              } else {
+                interim += text;
+              }
             }
-            const trimmed = combined.trim();
-            if (trimmed.length > 0) {
-              setLiveTranscript(trimmed);
-              liveTranscriptRef.current = trimmed;
-
+            const fullTranscript = (accumulatedTranscriptRef.current + (interim ? ' ' + interim : '')).trim();
+            if (fullTranscript) {
+              setLiveTranscript(fullTranscript);
+              liveTranscriptRef.current = fullTranscript;
               hasSpokenRef.current = true;
               lastSpeechTimeRef.current = Date.now();
 
               if (onLiveTranscriptChange) {
-                onLiveTranscriptChange(trimmed);
+                onLiveTranscriptChange(fullTranscript);
               }
             }
           };
@@ -291,6 +297,19 @@ export const MicButton: React.FC<MicButtonProps> = ({
               setSttError('Web Speech network offline. You can also type your sentence directly in the box below.');
             } else if (err.error === 'not-allowed') {
               setSttError('Microphone permission blocked for speech recognition.');
+            } else if (err.error === 'audio-capture') {
+              setSttError('Microphone device in use. Please retry recording.');
+            }
+          };
+
+          recognition.onend = () => {
+            // Auto-restart if recognition prematurely terminates while still recording
+            if (!isStoppingRef.current && mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+              try {
+                recognition.start();
+              } catch {
+                // ignore
+              }
             }
           };
 
@@ -328,13 +347,21 @@ export const MicButton: React.FC<MicButtonProps> = ({
       };
 
       recorder.onstop = async () => {
-        const rawBlob = new Blob(audioChunks.current, { type: recorder.mimeType || 'audio/webm' });
-        const finalTranscript = liveTranscriptRef.current.trim();
+        try {
+          const rawBlob = new Blob(audioChunks.current, { type: recorder.mimeType || 'audio/webm' });
+          const finalTranscript = (liveTranscriptRef.current || accumulatedTranscriptRef.current).trim();
 
-        // Convert audio into standard 16 kHz Mono 16-bit PCM WAV for Voice Bridge backend
-        const wavBlob = await convertTo16kHzMonoWav(rawBlob);
-        onAudioRecorded(wavBlob, finalTranscript);
-        cleanupAudio();
+          // Convert audio into standard 16 kHz Mono 16-bit PCM WAV for Voice Bridge backend
+          try {
+            const wavBlob = await convertTo16kHzMonoWav(rawBlob);
+            onAudioRecorded(wavBlob, finalTranscript);
+          } catch (convErr) {
+            console.warn('WAV conversion notice, sending rawBlob:', convErr);
+            onAudioRecorded(rawBlob, finalTranscript);
+          }
+        } finally {
+          cleanupAudio();
+        }
       };
 
       recorder.start(100);

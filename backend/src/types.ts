@@ -63,6 +63,11 @@ export interface Peer {
   name: string;
   address: string;
   port?: number;
+  ports?: {
+    wifi_lan?: number;
+    wifi_direct?: number;
+    bluetooth?: number;
+  };
   transport: TransportType;
   lastSeen: number;
   deviceInfo?: DeviceInfo;
@@ -111,3 +116,12 @@ export interface SupportedLanguage {
   script: string;
   sample_text: string;
 }
+
+export interface WebClientInfo {
+  id: string;
+  type: 'mobile' | 'desktop' | 'tablet';
+  name: string;
+  ip: string;
+  connectedAt: number;
+}
+

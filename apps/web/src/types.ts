@@ -84,3 +84,61 @@ export interface RunReport {
   };
   warnings: string[];
 }
+
+export type TransportType = 'wifi_direct' | 'wifi_lan' | 'bluetooth';
+export type ConnectionState = 'DISCONNECTED' | 'DISCOVERING' | 'CONNECTING' | 'HANDSHAKING' | 'CONNECTED' | 'DEGRADED' | 'RECONNECTING';
+
+export interface Peer {
+  id: string;
+  name: string;
+  address: string;
+  port?: number;
+  ports?: {
+    wifi_lan?: number;
+    wifi_direct?: number;
+    bluetooth?: number;
+  };
+  transport: TransportType;
+  lastSeen: number;
+}
+
+export interface LocalDeviceInfo {
+  deviceId: string;
+  deviceName: string;
+  localIps: string[];
+  primaryIp: string;
+  tunnelUrl?: string;
+  ports: {
+    http: number;
+    wifi_lan: number;
+    wifi_direct: number;
+    bluetooth: number;
+    discovery_udp: number;
+  };
+  transports: {
+    wifi_lan: { port: number; active: boolean; protocol: string };
+    wifi_direct: { port: number; active: boolean; protocol: string };
+    bluetooth: { port: number; active: boolean; protocol: string };
+  };
+}
+
+export interface VoiceMessage {
+  version: number;
+  messageId: string;
+  senderId: string;
+  language: string;
+  type: 'NORMAL' | 'ALERT';
+  sequence: number;
+  timestamp: number;
+  text: string;
+}
+
+export interface WebClientInfo {
+  id: string;
+  type: 'mobile' | 'desktop' | 'tablet';
+  name: string;
+  ip: string;
+  connectedAt: number;
+  isSelf?: boolean;
+}
+

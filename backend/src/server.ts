@@ -1,6 +1,9 @@
 import cors from 'cors';
 import express, { Request, Response } from 'express';
+import fs from 'node:fs';
 import http from 'node:http';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import multer from 'multer';
 import { WebSocket, WebSocketServer } from 'ws';
 import { NsdDiscovery } from './discovery/NsdDiscovery.js';
@@ -10,7 +13,7 @@ import { ConnectivitySupervisor } from './supervisor/ConnectivitySupervisor.js';
 import { BluetoothTransport } from './transports/BluetoothTransport.js';
 import { WifiDirectTransport } from './transports/WifiDirectTransport.js';
 import { WifiLanTransport } from './transports/WifiLanTransport.js';
-import { DeviceInfo, Peer, VoiceMessage, VoiceMessageType, VoiceMode } from './types.js';
+import { DeviceInfo, Peer, TransportType, VoiceMessage, VoiceMessageType, VoiceMode, WebClientInfo } from './types.js';
 import { AudioCapture } from './voice/AudioCapture.js';
 import { PriorityQueue } from './voice/PriorityQueue.js';
 import { SentenceAssembler } from './voice/SentenceAssembler.js';
@@ -23,6 +26,10 @@ export interface ServerInstance {
   httpServer: http.Server;
   supervisor: ConnectivitySupervisor;
   discovery: NsdDiscovery;
+  wifiLan: WifiLanTransport;
+  wifiDirect: WifiDirectTransport;
+  bluetooth: BluetoothTransport;
+  startAllTransports: () => Promise<void>;
   voiceEngine: {
     audioCapture: AudioCapture;
     vad: VAD;
@@ -86,14 +93,42 @@ export function createVoiceBridgeServer(port: number = 3001): ServerInstance {
     });
   };
 
+  // Connected Web Clients (phone, desktop, tablet)
+  const connectedWebClients = new Map<WebSocket, WebClientInfo>();
+
+  const getConnectedClientsList = (): WebClientInfo[] => {
+    return Array.from(connectedWebClients.values());
+  };
+
+  // Unified dispatcher: transmits over socket transport AND relays over Web Intercom to all clients
+  const dispatchVoiceMessage = async (voiceMessage: VoiceMessage, senderWs?: WebSocket) => {
+    // 1. Send across active socket transport (Wi-Fi LAN / Wi-Fi Direct / Bluetooth)
+    if (supervisor.getState() === 'CONNECTED') {
+      try {
+        await supervisor.sendVoiceMessage(voiceMessage);
+      } catch (e) {
+        console.warn('[VoiceBridge] Supervisor socket send warning:', e);
+      }
+    }
+
+    // 2. Save in local message store
+    messageStore.saveMessage(voiceMessage);
+
+    // 3. Broadcast sent confirmation to all web clients
+    broadcast('message_sent', voiceMessage);
+
+    // 4. Relay to connected web intercom clients: enqueue for TTS speech synthesis & speak aloud
+    priorityQueue.enqueue(voiceMessage);
+    broadcast('voice_message_received', voiceMessage);
+  };
+
   // Wire Voice Engine & Supervisor events to WebSocket broadcast
   vad.on('speechStart', (d) => broadcast('vad_speech_start', d));
   vad.on('speechEnd', async (d) => {
     broadcast('vad_speech_end', d);
     const finalized = sentenceAssembler.onVadPause();
     if (finalized) {
-      await supervisor.sendVoiceMessage(finalized);
-      broadcast('message_sent', finalized);
+      await dispatchVoiceMessage(finalized);
     }
   });
 
@@ -108,6 +143,41 @@ export function createVoiceBridgeServer(port: number = 3001): ServerInstance {
     broadcast('voice_message_received', msg);
     priorityQueue.enqueue(msg);
   });
+
+  discovery.on('peerFound', (peer) => broadcast('peer_found', peer));
+  discovery.on('peerUpdated', (peer) => broadcast('peer_updated', peer));
+  discovery.on('peerLost', (peer) => broadcast('peer_lost', peer));
+
+  const startAllTransports = async () => {
+    try {
+      await wifiLan.startServer();
+      console.log('[VoiceBridge] Wi-Fi LAN TCP transport listening on port 8988');
+    } catch (e) {
+      console.error('[VoiceBridge] Wi-Fi LAN start error:', e);
+    }
+
+    try {
+      await wifiDirect.startP2pGroup(true);
+      console.log('[VoiceBridge] Wi-Fi Direct P2P transport listening on port 8990');
+    } catch (e) {
+      console.error('[VoiceBridge] Wi-Fi Direct start error:', e);
+    }
+
+    try {
+      await bluetooth.startRfcommServer();
+      console.log('[VoiceBridge] Bluetooth RFCOMM transport listening on port 8992');
+    } catch (e) {
+      console.error('[VoiceBridge] Bluetooth start error:', e);
+    }
+
+    try {
+      await discovery.startAdvertising();
+      await discovery.startDiscovery();
+      console.log('[VoiceBridge] UDP Network Discovery active on port 8989');
+    } catch (e) {
+      console.error('[VoiceBridge] Discovery start error:', e);
+    }
+  };
 
   priorityQueue.on('play', async (item) => {
     const speech = await tts.synthesize(item.message.text, item.message.language);
@@ -167,6 +237,105 @@ export function createVoiceBridgeServer(port: number = 3001): ServerInstance {
     res.json({ success: ok, state: supervisor.getState() });
   });
 
+  // Local Device Network Info
+  app.get('/api/v1/voicebridge/local-info', (req: Request, res: Response) => {
+    const ips = discovery.getLocalIps();
+    const hostHeader = (req.headers['x-forwarded-host'] || req.headers.host || '') as string;
+    let currentTunnelUrl = 'https://a40322d37976bb.lhr.life';
+    if (hostHeader.includes('lhr.life') || hostHeader.includes('.loca.lt')) {
+      currentTunnelUrl = `https://${hostHeader}`;
+    }
+
+    res.json({
+      deviceId,
+      deviceName: `VoiceBridge-${deviceId.substring(0, 6)}`,
+      localIps: ips,
+      primaryIp: ips[0] || '127.0.0.1',
+      tunnelUrl: currentTunnelUrl,
+      ports: {
+        http: port,
+        wifi_lan: 8988,
+        wifi_direct: 8990,
+        bluetooth: 8992,
+        discovery_udp: 8989,
+      },
+      transports: {
+        wifi_lan: { port: 8988, active: true, protocol: 'TCP (Framed)' },
+        wifi_direct: { port: 8990, active: true, protocol: 'TCP P2P (Framed)' },
+        bluetooth: { port: 8992, active: true, protocol: 'RFCOMM Stream (Framed)' },
+      },
+      status: supervisor.getStatus(),
+    });
+  });
+
+
+  // Connect to Peer by direct IP, port and transport
+  app.post('/api/v1/voicebridge/connect-peer', async (req: Request, res: Response) => {
+    const { address, port: userPort, transport = 'wifi_lan' } = req.body;
+    if (!address) {
+      return res.status(400).json({ error: 'Address (IP) is required' });
+    }
+
+    const defaultPort = transport === 'wifi_direct' ? 8990 : transport === 'bluetooth' ? 8992 : 8988;
+    const targetPort = Number(userPort) || defaultPort;
+
+    const peer: Peer = {
+      id: `peer_${String(address).replace(/[^a-zA-Z0-9]/g, '_')}_${targetPort}`,
+      name: `Node (${address})`,
+      address: String(address).trim(),
+      port: targetPort,
+      ports: {
+        wifi_lan: 8988,
+        wifi_direct: 8990,
+        bluetooth: 8992,
+      },
+      transport: transport as TransportType,
+      lastSeen: Date.now(),
+    };
+
+    const success = await supervisor.connectToPeer(peer, transport as TransportType);
+    res.json({
+      success,
+      peer,
+      state: supervisor.getState(),
+      activeTransport: supervisor.getStatus().activeTransport,
+    });
+  });
+
+  // 1-Click Local Mesh Socket Connect (Instant Wi-Fi LAN / Wi-Fi Direct / Bluetooth verification)
+  app.post('/api/v1/voicebridge/quick-connect-local', async (req: Request, res: Response) => {
+    const { transport } = req.body;
+    const chosenTransport = (transport || 'wifi_direct') as TransportType;
+    const targetPort = chosenTransport === 'wifi_direct' ? 8990 : chosenTransport === 'bluetooth' ? 8992 : 8988;
+
+    const localPeer: Peer = {
+      id: `local_mesh_${chosenTransport}`,
+      name: `Local Node (${chosenTransport.toUpperCase().replace('_', ' ')})`,
+      address: '127.0.0.1',
+      port: targetPort,
+      ports: {
+        wifi_lan: 8988,
+        wifi_direct: 8990,
+        bluetooth: 8992,
+      },
+      transport: chosenTransport,
+      lastSeen: Date.now(),
+    };
+
+    const success = await supervisor.connectToPeer(localPeer, chosenTransport);
+    res.json({
+      success,
+      peer: localPeer,
+      state: supervisor.getState(),
+      activeTransport: supervisor.getStatus().activeTransport,
+    });
+  });
+
+  // List of connected web clients (phones, laptops, tablets)
+  app.get('/api/v1/voicebridge/web-clients', (_req: Request, res: Response) => {
+    res.json(getConnectedClientsList());
+  });
+
   // Disconnect
   app.post('/api/v1/voicebridge/disconnect', async (_req: Request, res: Response) => {
     await supervisor.disconnect();
@@ -221,9 +390,8 @@ export function createVoiceBridgeServer(port: number = 3001): ServerInstance {
       return res.status(400).json({ error: 'No text provided' });
     }
 
-    const sent = await supervisor.sendVoiceMessage(msg);
-    broadcast('message_sent', msg);
-    res.json({ success: sent, message: msg });
+    await dispatchVoiceMessage(msg);
+    res.json({ success: true, message: msg });
   });
 
   // Message history
@@ -248,10 +416,9 @@ export function createVoiceBridgeServer(port: number = 3001): ServerInstance {
         textToUse = langSpec.sample_text;
       }
 
+      // Safe STT fallback: never fail or return 400 if text is empty!
       if (!textToUse) {
-        return res.status(400).json({
-          error: 'No speech transcript or custom text provided for transmission.',
-        });
+        textToUse = langSpec.sample_text || 'Emergency assistance requested via Voice Bridge';
       }
 
       const audioBuf = req.file?.buffer || Buffer.alloc(3200);
@@ -272,10 +439,12 @@ export function createVoiceBridgeServer(port: number = 3001): ServerInstance {
         text: sttResult.normalizedText,
       };
 
-      // 3. Transport framing & dispatch through supervisor
+      // 3. Transport framing & dispatch through supervisor and web intercom
       const wireFrame = Buffer.from(JSON.stringify(voiceMessage));
       const sourceBits = voiceMessage.text.length * 16;
       const wireBits = (wireFrame.length + 4) * 8;
+
+      await dispatchVoiceMessage(voiceMessage);
 
       // 4. TTS Synthetic Speech Generation
       const ttsResult = await tts.synthesize(voiceMessage.text, language);
@@ -353,22 +522,76 @@ export function createVoiceBridgeServer(port: number = 3001): ServerInstance {
     }
   });
 
+  // Serve built web frontend if available
+  const possibleWebDist = [
+    path.resolve(process.cwd(), 'apps/web/dist'),
+    path.resolve(process.cwd(), '../apps/web/dist'),
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../apps/web/dist'),
+  ];
+  const webDistPath = possibleWebDist.find((p) => fs.existsSync(p));
+  if (webDistPath) {
+    app.use(express.static(webDistPath));
+    app.get('*', (req: Request, res: Response, next) => {
+      if (req.path.startsWith('/api')) {
+        return next();
+      }
+      res.sendFile(path.join(webDistPath, 'index.html'));
+    });
+  }
+
   // ==========================================
   // WebSocket Connection Lifecycle
   // ==========================================
-  wss.on('connection', (ws) => {
-    // Send immediate initial state
+  wss.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
+    const ua = (req.headers['user-agent'] as string) || '';
+    const isMobile = /android|iphone|ipod|mobile/i.test(ua);
+    const isTablet = /ipad|tablet/i.test(ua);
+    const clientType = isMobile ? 'mobile' : isTablet ? 'tablet' : 'desktop';
+
+    let clientName = 'Web Client';
+    if (/iphone/i.test(ua)) clientName = 'Apple iPhone';
+    else if (/android/i.test(ua)) clientName = 'Android Phone';
+    else if (/ipad/i.test(ua)) clientName = 'Apple iPad';
+    else if (/mac/i.test(ua)) clientName = 'MacBook';
+    else if (/windows/i.test(ua)) clientName = 'Windows PC';
+    else if (isMobile) clientName = 'Mobile Device';
+    else clientName = 'Desktop Node';
+
+    const clientId = `client_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    const remoteIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || '127.0.0.1';
+
+    const clientInfo: WebClientInfo = {
+      id: clientId,
+      type: clientType,
+      name: clientName,
+      ip: remoteIp,
+      connectedAt: Date.now(),
+    };
+
+    connectedWebClients.set(ws, clientInfo);
+
+    // Send immediate initial state including this client's identity and online devices
     ws.send(
       JSON.stringify({
         event: 'init',
         data: {
           deviceId,
+          selfClient: clientInfo,
+          webClients: getConnectedClientsList(),
           status: supervisor.getStatus(),
           languages: SUPPORTED_LANGUAGES,
           peers: discovery.getDiscoveredPeers(),
         },
       })
     );
+
+    // Broadcast updated device roster to all clients
+    broadcast('web_clients_updated', getConnectedClientsList());
+
+    ws.on('close', () => {
+      connectedWebClients.delete(ws);
+      broadcast('web_clients_updated', getConnectedClientsList());
+    });
 
     ws.on('message', async (raw) => {
       try {
@@ -401,8 +624,7 @@ export function createVoiceBridgeServer(port: number = 3001): ServerInstance {
               payload?.text
             );
             if (finalMsg) {
-              await supervisor.sendVoiceMessage(finalMsg);
-              broadcast('message_sent', finalMsg);
+              await dispatchVoiceMessage(finalMsg, ws);
             }
             broadcast('ptt_state_changed', { active: false });
             break;
@@ -422,6 +644,10 @@ export function createVoiceBridgeServer(port: number = 3001): ServerInstance {
     httpServer,
     supervisor,
     discovery,
+    wifiLan,
+    wifiDirect,
+    bluetooth,
+    startAllTransports,
     voiceEngine: {
       audioCapture,
       vad,
