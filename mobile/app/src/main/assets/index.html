@@ -372,6 +372,81 @@
       margin-bottom: 14px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.04);
     }
+    /* Radar Language Selector (Hindi / English / Hinglish) */
+    .radar-lang-bar {
+      margin: 10px 0 12px;
+      padding: 10px 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+    }
+    .radar-lang-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .radar-lang-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+    }
+    .radar-tts-engine {
+      font-size: 9px;
+      font-weight: 700;
+      font-family: monospace;
+      color: var(--emerald-text);
+      background: var(--emerald-light);
+      border: 1px solid var(--emerald-border);
+      border-radius: 999px;
+      padding: 1.5px 7px;
+      letter-spacing: 0.2px;
+    }
+    .radar-lang-options {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .radar-lang-pill {
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 6px 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+    }
+    .radar-lang-pill:active {
+      transform: scale(0.97);
+    }
+    .radar-lang-pill .lang-primary {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .radar-lang-pill .lang-code {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.3px;
+    }
+    .radar-lang-pill.active {
+      background: #0f172a;
+      border-color: #0f172a;
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.22);
+    }
+    .radar-lang-pill.active .lang-primary {
+      color: #ffffff;
+    }
+    .radar-lang-pill.active .lang-code {
+      color: #34d399;
+    }
     .radar-wrapper {
       position: relative;
       width: 100%;
@@ -1017,6 +1092,34 @@
 
         <div style="text-align:center; margin-top:10px; font-size:11px; font-weight:600; color:var(--text-muted);" id="radarStatusSub">
           Radar sweeping 2.4/5GHz local band… Tap any detected phone bubble to link.
+        </div>
+
+        <!-- Radar Language Selector (Hindi / English / Hinglish) & AI4Bharat Indic-TTS Engine Badge -->
+        <div class="radar-lang-bar">
+          <div class="radar-lang-header">
+            <span class="radar-lang-title">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-right:4px;"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              Speech Language:
+            </span>
+            <span class="radar-tts-engine" title="AI4Bharat Indic-TTS Neural Synthesizer">
+              AI4Bharat Indic-TTS
+            </span>
+          </div>
+
+          <div class="radar-lang-options" id="radarLangGroup">
+            <button type="button" class="radar-lang-pill active" data-lang="hi" onclick="setRadarLanguage('hi')">
+              <span class="lang-primary">हिन्दी</span>
+              <span class="lang-code">Hindi · hi-IN</span>
+            </button>
+            <button type="button" class="radar-lang-pill" data-lang="en" onclick="setRadarLanguage('en')">
+              <span class="lang-primary">English</span>
+              <span class="lang-code">en-IN</span>
+            </button>
+            <button type="button" class="radar-lang-pill" data-lang="hinglish" onclick="setRadarLanguage('hinglish')">
+              <span class="lang-primary">Hinglish</span>
+              <span class="lang-code">Dual-ASR</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1689,6 +1792,38 @@
       }
     };
 
+    // Central Language & Radar State
+    let currentLanguage = 'hi';
+
+    window.setRadarLanguage = function(lang) {
+      if (!['hi', 'en', 'hinglish'].includes(lang)) return;
+      currentLanguage = lang;
+
+      document.querySelectorAll('.radar-lang-pill').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
+      });
+
+      command('language', { language: lang });
+
+      const langNames = {
+        hi: 'Hindi (हिन्दी · hi-IN)',
+        en: 'English (Indian English · en-IN)',
+        hinglish: 'Hinglish (Dual ASR + Indic-TTS)'
+      };
+      const label = langNames[lang] || lang;
+
+      if ($('radarStatusSub')) {
+        $('radarStatusSub').innerHTML = `Active Speech: <b>${label}</b> · <span style="color:var(--emerald-text)">AI4Bharat Indic-TTS</span>`;
+      }
+
+      const pttLabel = document.querySelector('.ptt-label');
+      if (pttLabel) {
+        pttLabel.textContent = `PTT (${lang.toUpperCase()})`;
+      }
+
+      showToast(`Language set to ${label}. Using AI4Bharat Indic-TTS.`);
+    };
+
     // Central PTT Interaction
     const pttBtn = $('pttBtn');
     const pttRing = $('pttOuterRing');
@@ -1851,7 +1986,7 @@
     $('btnSendDispatch').onclick = () => {
       const text = $('dispatchInput').value.trim();
       if (text) {
-        command('send', { text, language: 'hi' });
+        command('send', { text, language: currentLanguage });
         $('dispatchInput').value = '';
         $('dispatchTranslationResult').classList.add('hidden');
       }

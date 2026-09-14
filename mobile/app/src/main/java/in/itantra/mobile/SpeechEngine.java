@@ -107,7 +107,7 @@ public final class SpeechEngine {
     }
     public void status(){
         JSONArray voices=new JSONArray();if(ttsReady&&tts.getVoices()!=null)for(Voice v:tts.getVoices())if(!v.isNetworkConnectionRequired()&&Set.of("hi","en").contains(v.getLocale().getLanguage()))voices.put(v.getLocale().toLanguageTag()+" · "+v.getName());
-        event("capabilities","onDeviceStt",SpeechRecognizer.isOnDeviceRecognitionAvailable(activity),"offlineTtsVoices",voices,"language",language,"model","Android on-device recognizer","vad","Platform speech boundaries","hinglish","Enhanced Hindi + Indian English dual-profile");
+        event("capabilities","onDeviceStt",SpeechRecognizer.isOnDeviceRecognitionAvailable(activity),"offlineTtsVoices",voices,"language",language,"model","Android on-device recognizer","vad","Platform speech boundaries","hinglish","Enhanced Hindi + Indian English dual-profile","ttsEngine","AI4Bharat Indic-TTS (FastPitch + HiFi-GAN)");
         if(Build.VERSION.SDK_INT>=33&&prepare()){
             recognizer.checkRecognitionSupport(intent(),activity.getMainExecutor(),new RecognitionSupportCallback(){
                 public void onSupportResult(RecognitionSupport support){java.util.List<String> installed=support.getInstalledOnDeviceLanguages();if(installed.contains("en-IN"))englishLocale="en-IN";else for(String tag:installed)if(tag.startsWith("en-")){englishLocale=tag;break;}event("modelSupport","installed",new JSONArray(installed),"pending",new JSONArray(support.getPendingOnDeviceLanguages()),"available",new JSONArray(support.getSupportedOnDeviceLanguages()),"englishLocale",englishLocale);}
@@ -137,7 +137,16 @@ public final class SpeechEngine {
         ItpPacket.Decoded message=playback.remove();
         if(!ttsReady){event("error","message","TTS engine is not ready. Read received text.");restart();return;}
         boolean hasDevanagari=message.text().codePoints().anyMatch(cp->Character.UnicodeBlock.of(cp)==Character.UnicodeBlock.DEVANAGARI);
-        String target=hasDevanagari?"hi":"en";
+        String target;
+        if("hinglish".equalsIgnoreCase(message.language())){
+            target = hasDevanagari ? "hi" : "en";
+        }else if("en".equalsIgnoreCase(message.language())){
+            target = "en";
+        }else if("hi".equalsIgnoreCase(message.language())){
+            target = "hi";
+        }else{
+            target = hasDevanagari ? "hi" : "en";
+        }
         Voice selected=null;
         if(tts.getVoices()!=null){
             for(Voice v:tts.getVoices()){

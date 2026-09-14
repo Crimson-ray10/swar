@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { History, Copy, Check, RotateCcw, Cpu, Radio } from 'lucide-react';
+import { History, Copy, Check, RotateCcw, Cpu, Radio, Download } from 'lucide-react';
+import { DEFAULT_APK_DOWNLOAD_URL } from '../config';
 
 interface HeaderProps {
   sessionId: string;
@@ -16,6 +17,7 @@ interface HeaderProps {
   connectedClientsCount?: number;
   wsConnectionStatus?: 'connected' | 'reconnecting' | 'offline';
   onReset: () => void;
+  apkDownloadUrl?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -32,7 +34,8 @@ export const Header: React.FC<HeaderProps> = ({
   activeTransport,
   connectedClientsCount = 1,
   wsConnectionStatus = 'connected',
-  onReset
+  onReset,
+  apkDownloadUrl = DEFAULT_APK_DOWNLOAD_URL,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -157,41 +160,59 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </nav>
 
-        {/* Status & Session Pill (Exact July Dark Pill Treatment) */}
-        <div
-          className="signin-pill"
-          onClick={handleCopySession}
-          title={`Click to copy session: ${sessionId} | Hardware: ${hardwareStatus}`}
-        >
-          <span className={`status-dot-live ${isStreaming ? 'transmitting' : ''}`} />
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', letterSpacing: '0.04em' }}>
-            {isStreaming ? 'TRANSMITTING' : sessionId.slice(0, 8)}
-          </span>
-          {copied ? (
-            <Check size={13} color="#10b981" />
-          ) : (
-            <Copy size={12} style={{ opacity: 0.6 }} />
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onReset();
-            }}
-            disabled={isStreaming}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'inherit',
-              cursor: isStreaming ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              marginLeft: '4px',
-              opacity: 0.7
-            }}
-            title="Reset transceiver console"
+        {/* Top-Right Action Group: Download APK & Session Status */}
+        <div className="header-actions">
+          {/* Download APK Button */}
+          <a
+            href={apkDownloadUrl}
+            className="download-apk-btn"
+            target={apkDownloadUrl.startsWith('http') ? '_blank' : undefined}
+            rel={apkDownloadUrl.startsWith('http') ? 'noopener noreferrer' : undefined}
+            download={!apkDownloadUrl.startsWith('http') ? 'itantra-app-debug.apk' : undefined}
+            title="Download iTantra Android Demo APK"
+            aria-label="Download iTantra Android Demo APK"
           >
-            <RotateCcw size={13} />
-          </button>
+            <Download size={14} className="download-apk-icon" />
+            <span className="download-apk-text">Download APK</span>
+            <span className="download-apk-badge">v1.0</span>
+          </a>
+
+          {/* Status & Session Pill (Exact July Dark Pill Treatment) */}
+          <div
+            className="signin-pill"
+            onClick={handleCopySession}
+            title={`Click to copy session: ${sessionId} | Hardware: ${hardwareStatus}`}
+          >
+            <span className={`status-dot-live ${isStreaming ? 'transmitting' : ''}`} />
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', letterSpacing: '0.04em' }}>
+              {isStreaming ? 'TRANSMITTING' : sessionId.slice(0, 8)}
+            </span>
+            {copied ? (
+              <Check size={13} color="#10b981" />
+            ) : (
+              <Copy size={12} style={{ opacity: 0.6 }} />
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onReset();
+              }}
+              disabled={isStreaming}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'inherit',
+                cursor: isStreaming ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                marginLeft: '4px',
+                opacity: 0.7
+              }}
+              title="Reset transceiver console"
+            >
+              <RotateCcw size={13} />
+            </button>
+          </div>
         </div>
 
         {/* Mobile Hamburger Button (Exact July Morphing Bar Button) */}
@@ -279,6 +300,24 @@ export const Header: React.FC<HeaderProps> = ({
                   </span>
                 )}
               </button>
+              <a
+                href={apkDownloadUrl}
+                className="mobile-apk-download-btn"
+                target={apkDownloadUrl.startsWith('http') ? '_blank' : undefined}
+                rel={apkDownloadUrl.startsWith('http') ? 'noopener noreferrer' : undefined}
+                download={!apkDownloadUrl.startsWith('http') ? 'itantra-app-debug.apk' : undefined}
+                onClick={() => setMobileMenuOpen(false)}
+                title="Download iTantra Android Demo APK"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Download size={15} color="#34d399" />
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
+                    <span style={{ fontWeight: 600, fontSize: '13.5px', color: '#ffffff' }}>Download Android APK</span>
+                    <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>Install demo on Android 12+</span>
+                  </div>
+                </div>
+                <span className="mobile-apk-badge">APK</span>
+              </a>
               <div
                 className="mobile-signin-btn"
                 onClick={handleCopySession}

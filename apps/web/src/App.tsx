@@ -68,7 +68,7 @@ export const App: React.FC = () => {
     fetch('/api/v1/voicebridge/peers')
       .then((r) => r.json())
       .then((data: Peer[]) => setPeers(data))
-      .catch(() => {});
+      .catch(() => { });
   };
 
   // Fetch backend health & capabilities with resilient auto-reconnecting WebSocket
@@ -142,7 +142,7 @@ export const App: React.FC = () => {
             } else if (payload.event === 'tts_playback_started') {
               if (payload.data?.audioBase64) {
                 const audio = new Audio(`data:audio/wav;base64,${payload.data.audioBase64}`);
-                audio.play().catch(() => {});
+                audio.play().catch(() => { });
               }
             }
           } catch {
@@ -313,7 +313,7 @@ export const App: React.FC = () => {
       setConnectionState('DISCONNECTED');
       setActiveTransport(null);
       fetchStatus();
-    } catch {}
+    } catch { }
   };
 
   const handleQuickConnectLocal = async (transport: TransportType = 'wifi_direct') => {

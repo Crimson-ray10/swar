@@ -181,11 +181,11 @@ body {
 
 .header {
   width: 100%;
-  max-width: 880px;
+  max-width: min(1040px, 96vw);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: clamp(16px, 2.5vw, 28px);
+  gap: clamp(14px, 2vw, 22px);
   flex-shrink: 0;
   z-index: 10;
   animation: slideDown 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -301,6 +301,87 @@ body {
   background-color: #323234;
   color: #ffffff;
   transform: translateY(-1px);
+}
+
+/* Header Top-Right Action Group */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1vw, 12px);
+  flex-shrink: 0;
+}
+
+/* Download APK Button (Theme-Matched Wispr Flow Aesthetic) */
+.download-apk-btn {
+  height: clamp(44px, 5.2vw, 48px);
+  padding: 0 clamp(14px, 1.6vw, 18px);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(13px, 1.3vw, 14.5px);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  user-select: none;
+}
+
+.download-apk-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(52, 211, 153, 0.45);
+  color: #ffffff;
+  transform: translateY(-1.5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.36), 0 0 16px rgba(16, 185, 129, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.download-apk-btn:active {
+  transform: translateY(0px) scale(0.98);
+}
+
+.download-apk-icon {
+  color: #34d399;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.download-apk-btn:hover .download-apk-icon {
+  transform: translateY(1.5px);
+}
+
+.download-apk-text {
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.download-apk-badge {
+  font-size: 10.5px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
+  padding: 1.5px 6.5px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.32);
+  color: #6ee7b7;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
+}
+
+@media (max-width: 960px) {
+  .download-apk-badge {
+    display: none;
+  }
 }
 
 .status-dot-live {
@@ -1390,7 +1471,8 @@ body {
   }
 
   .nav-pill,
-  .signin-pill {
+  .signin-pill,
+  .header-actions {
     display: none;
   }
 
@@ -1525,6 +1607,38 @@ body {
     justify-content: center;
     border: none;
     cursor: pointer;
+  }
+
+  /* Mobile Download APK Card */
+  .mobile-apk-download-btn {
+    width: 100%;
+    padding: 12px 16px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.24);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .mobile-apk-download-btn:hover {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.4);
+    transform: translateY(-1px);
+  }
+
+  .mobile-apk-badge {
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 2px 8px;
+    border-radius: 999px;
   }
 
   .headline {
