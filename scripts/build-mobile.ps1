@@ -1,7 +1,11 @@
 param([switch]$Install, [string]$Device)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$unityAndroid = 'C:\Program Files\Unity\Hub\Editor\6000.5.2f1\Editor\Data\PlaybackEngines\AndroidPlayer'
+$unityAndroid = if (Test-Path 'C:\Program Files\Unity\Hub\Editor\6000.6.0f1\Editor\Data\PlaybackEngines\AndroidPlayer') {
+    'C:\Program Files\Unity\Hub\Editor\6000.6.0f1\Editor\Data\PlaybackEngines\AndroidPlayer'
+} else {
+    'C:\Program Files\Unity\Hub\Editor\6000.5.2f1\Editor\Data\PlaybackEngines\AndroidPlayer'
+}
 $taskJava = Join-Path $unityAndroid 'OpenJDK'
 $taskSdk = Join-Path $unityAndroid 'SDK'
 $taskGradle = Join-Path $unityAndroid 'Tools\gradle\lib\*'
