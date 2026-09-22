@@ -79,3 +79,4 @@ mobile/local.properties
 mobile/app/src/main/assets/generated/
 *.apk
 *.jks
+*.mp4
