@@ -2172,8 +2172,8 @@
               </svg>
               Speech Language:
             </span>
-            <span class="radar-tts-engine" title="AI4Bharat Indic-TTS Neural Synthesizer">
-              AI4Bharat Indic-TTS
+            <span class="radar-tts-engine" title="Installed Android offline voice">
+              Android offline TTS
             </span>
           </div>
 
@@ -2383,7 +2383,7 @@
           </div>
           <div
             style="margin-top:12px; padding-top:10px; border-top:1px solid #f1f3f5; font-size:10px; color:var(--text-muted);">
-            <span id="activePeerCounter">Scanning 2.4/5GHz...</span>
+            <span id="activePeerCounter">Listening for acoustic peers...</span>
           </div>
         </div>
       </div>
@@ -2419,11 +2419,16 @@
 
       <!-- Manual Connection Drawer Toggle -->
       <details class="card" style="padding:14px; margin-bottom:14px;">
-        <summary style="font-size:12px; font-weight:700; color:var(--text); cursor:pointer;">Manual Direct IP / Port
-          Connection</summary>
+        <summary style="font-size:12px; font-weight:700; color:var(--text); cursor:pointer;">Transport &amp; Connection</summary>
         <div style="margin-top:12px;">
-          <label class="input-label">Host IPv4 Address</label>
-          <input class="input-text" id="inputManualIp" placeholder="e.g. 192.168.43.1" inputmode="decimal">
+          <label class="input-label" for="transportChoice">Transport</label>
+          <select class="input-text" id="transportChoice" onchange="activeTransport=this.value; command('transport',{transport:this.value}); updateCallsignDisplays();">
+            <option value="ACOUSTIC" selected>Acoustic · microphone / speaker</option>
+            <option value="WIFI_LAN">Legacy LAN · network required</option>
+            <option value="WEBSITE">Website · HTTPS network required</option>
+          </select>
+          <label class="input-label">LAN address or HTTPS room link (unused for acoustic)</label>
+          <input class="input-text" id="inputManualIp" placeholder="LAN IP or https://…/rooms/…#token">
 
           <label class="input-label" style="margin-top:8px;">6-Digit PIN</label>
           <input class="input-text" id="inputManualPin" placeholder="6-digit PIN" maxlength="6" inputmode="numeric">
@@ -2478,12 +2483,10 @@
             <div style="display:flex; align-items:center; justify-content:space-between;">
               <span style="font-size:14px; font-weight:800; color:var(--text);">Download the Pack</span>
               <span
-                style="font-size:9px; font-weight:800; background:#111827; color:#ffffff; padding:2px 7px; border-radius:4px;">INSTALLED</span>
+                style="font-size:9px; font-weight:800; background:#111827; color:#ffffff; padding:2px 7px; border-radius:4px;">UNVERIFIED</span>
             </div>
             <p style="font-size:11px; color:var(--text-muted); line-height:1.5; margin-top:6px;">
-              Includes complete bundle: Silero VAD (7.5 MB), AI4Bharat IndoConformer STT (58 MB), FastText Language
-              Auto-detector (1.2 MB), and all 10 Indic Voice Packs (Hindi, Gujarati, Marathi, Kannada, Malayalam, Tamil,
-              Telugu, Odia, Bengali, English). Required for auto-detection and speech synthesis.
+              Speech models are supplied by Android on-device services. AI4Bharat weights are not installed. Prepare languages before offline operation.
             </p>
           </div>
         </div>
@@ -2491,7 +2494,7 @@
         <div
           style="margin-top:12px; padding:8px 10px; background:var(--emerald-light); border:1px solid var(--emerald-border); border-radius:10px; font-size:11px; color:var(--emerald-text); font-weight:600; display:flex; align-items:center; gap:6px;">
           <span style="width:6px; height:6px; border-radius:50%; background:var(--accent-emerald);"></span>
-          All Language Models and neural transceiver are fully active.
+          <span id="offlineReadiness">MODEL_NOT_AVAILABLE</span> · <span id="modelReadinessDetail">Checking installed speech assets.</span>
         </div>
       </div>
 
@@ -3036,6 +3039,7 @@
     function safeGet(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }
     function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
     let connected = false;
+    let activeTransport = 'ACOUSTIC';
     let callsign = safeGet('itantra_callsign', 'Sarthak Patil');
     let selectedPort = 8988;
     const peers = new Map();
@@ -3051,7 +3055,7 @@
       $('modalAvatar').textContent = initials;
       $('specNodeId').textContent = 'LinC. - ' + initials + '1';
       $('specsNodeTitle').textContent = 'Node: LinC. - ' + initials + '1';
-      $('specsNodeSub').textContent = 'Callsign: ' + callsign + ' · Mesh: Wi-Fi Direct / 8785';
+      $('specsNodeSub').textContent = 'Callsign: ' + callsign + ' · Transport: ' + activeTransport;
       if ($('radarMyLabel')) {
         $('radarMyLabel').textContent = callsign;
       }
@@ -3475,7 +3479,7 @@
     $('toggleHost').onchange = (e) => {
       if (e.target.checked) {
         command('host');
-        $('hostInfoBox').classList.remove('hidden');
+        if(activeTransport!=='ACOUSTIC') $('hostInfoBox').classList.remove('hidden');
       } else {
         $('hostInfoBox').classList.add('hidden');
       }
@@ -3484,8 +3488,9 @@
     $('toggleDiscover').onchange = (e) => {
       if (e.target.checked) {
         command('discover');
-        $('activePeerCounter').textContent = 'Scanning 2.4/5GHz...';
+        $('activePeerCounter').textContent = 'Listening for acoustic peers...';
       } else {
+        command('disconnect');
         $('activePeerCounter').textContent = 'Discovery paused';
       }
     };
@@ -3549,6 +3554,7 @@
     });
 
     window.setRadarLanguage = function (lang) {
+      if(!['hi','en','hinglish'].includes(lang)){showToast('This ITP version supports Hindi, English and experimental Hinglish.');return;}
       currentLanguage = lang;
 
       // Update active pill highlight
@@ -3564,14 +3570,14 @@
 
       const label = langNames[lang] || lang;
       if ($('radarStatusSub')) {
-        $('radarStatusSub').innerHTML = `Active Speech: <b>${label}</b> · <span style="color:#0f172a">AI4Bharat Indic-TTS</span>`;
+        $('radarStatusSub').innerHTML = `Active Speech: <b>${label}</b> · <span style="color:#0f172a">Android offline TTS</span>`;
       }
 
       if ($('pttMainLabel') && !isPttLocked) {
         $('pttMainLabel').textContent = 'PUSH TO TALK';
       }
 
-      showToast(`Language set to ${label}. Using AI4Bharat Indic-TTS.`);
+      showToast(`Language set to ${label}. Using Android offline TTS.`);
     };
 
     // Capsule PTT Interaction with Swipe-Right-to-Lock
@@ -3591,7 +3597,7 @@
       isHoldingTalk = true;
       pttBtn.classList.add('active');
       pttTrack.classList.add('active');
-      $('pttStatusLabel').textContent = 'Transmitting speech... Swipe right to lock hands-free';
+      $('pttStatusLabel').textContent = 'Listening... Swipe right for conversation mode';
       $('pttStatusLabel').style.color = '#059669';
       command('start');
     }
@@ -3612,10 +3618,12 @@
       if ($('pttMainLabel')) $('pttMainLabel').textContent = 'PUSH TO TALK';
       $('pttStatusLabel').textContent = 'Hold to broadcast · Swipe right to lock hands-free';
       $('pttStatusLabel').style.color = 'var(--text-muted)';
+      command('conversation',{enabled:false});
       command('release');
     }
 
     function lockPtt() {
+      command('conversation',{enabled:true});
       isPttLocked = true;
       isDragging = false;
       pttBtn.classList.remove('active', 'dragging');
@@ -3627,7 +3635,7 @@
         pttLockTarget.style.transform = '';
         pttLockTarget.style.boxShadow = '';
       }
-      $('pttStatusLabel').textContent = 'Hands-free mesh broadcast locked. Tap capsule to stop.';
+      $('pttStatusLabel').textContent = 'Conversation mode active. Tap capsule to stop.';
       $('pttStatusLabel').style.color = '#059669';
       if (navigator.vibrate) {
         try { navigator.vibrate([30, 50, 30]); } catch (e) { }
@@ -3795,6 +3803,7 @@
 
     // Manual Direct Connection
     $('btnManualConnect').onclick = () => {
+      if (activeTransport === 'ACOUSTIC') { command('discover'); return; }
       const address = $('inputManualIp').value.trim();
       const pin = $('inputManualPin').value.trim();
       if (!address) {
@@ -3847,7 +3856,7 @@
         name: name,
         type: existingIdx >= 0 ? list[existingIdx].type : type,
         detail: 'Last connected · ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        address: address || '192.168.43.1',
+        address: activeTransport === 'ACOUSTIC' ? 'Sound' : (address || ''),
         port: port || selectedPort
       };
       if (existingIdx >= 0) {
@@ -3861,9 +3870,9 @@
       if (!name) return;
       sessionDevices.set(name, {
         name: name,
-        address: address || '192.168.43.1',
+        address: activeTransport === 'ACOUSTIC' ? 'Sound' : (address || ''),
         port: port || selectedPort,
-        detail: detail || 'Active Session · Mesh Link Established',
+        detail: detail || ('Active Session · ' + activeTransport),
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       });
       recordPastDevice(name, address, port);
@@ -3967,7 +3976,7 @@
     window.sendRequestToPastDevice = function (name, address, port) {
       closePastDevicesModal();
       showToast('Sending connection request to ' + name + '...');
-      requestConnectToPeer({ name: name, address: address || '192.168.43.1', port: port || selectedPort });
+      requestConnectToPeer({ name: name, address: activeTransport === 'ACOUSTIC' ? 'Sound' : (address || ''), port: port || selectedPort });
     };
 
     function selectDevice(name, detail) {
@@ -4010,7 +4019,7 @@
       const trans = offlineTranslate(text);
       const resBox = $('dispatchTranslationResult');
       resBox.classList.remove('hidden');
-      resBox.innerHTML = '<b>Tactical Hindi / Hinglish:</b><br>' + trans;
+      resBox.textContent = 'Dictionary substitutions (not machine translation): ' + trans;
     };
 
     $('btnSendDispatch').onclick = () => {
@@ -4036,9 +4045,9 @@
       ['lastPacketBytes', 'Last Frame', 'B'],
       ['textCompression', 'Compression', '×'],
       ['overheadBytes', 'Overhead', 'B'],
-      ['sent', 'Packets Sent', 'pkts'],
-      ['received', 'Packets Recv', 'pkts'],
-      ['rttMs', 'Heartbeat RTT', 'ms'],
+      ['sent', 'Messages Sent', 'msgs'],
+      ['received', 'Messages Recv', 'msgs'],
+      ['rttMs', 'Decode ACK RTT', 'ms'],
       ['txBytes', 'Total Sent', 'B'],
       ['rxBytes', 'Total Recv', 'B'],
       ['crcFailures', 'CRC Failures', ''],
@@ -4065,6 +4074,19 @@
           command('callsign', { callsign });
           break;
 
+        case 'conversation':
+          if(!data.enabled && isPttLocked) stopPtt(); break;
+        case 'transport':
+          activeTransport=data.transport; peers.clear(); sessionDevices.clear();
+          renderDiscoveredPeers(); renderSessionDevices(); updateCallsignDisplays(); break;
+        case 'acoustic':
+          $('scanStatusText').textContent='ACOUSTIC · '+data.state; break;
+        case 'models':
+          $('offlineReadiness').textContent=data.state;
+          $('modelReadinessDetail').textContent='Local STT: '+(data.sttInstalled?.join(', ')||'unverified')+'. Installed system voices; Hinglish quality unverified.';
+          document.querySelectorAll('.pack-sub').forEach(el=>el.textContent='Reference capability · verify local provider availability'); break;
+        case 'capabilities':
+          document.querySelectorAll('.radar-tts-engine').forEach(el=>el.textContent=data.ttsEngine); break;
         case 'connection_request':
           showIncomingRequest(data);
           break;
@@ -4081,7 +4103,8 @@
           break;
 
         case 'connection':
-          connected = data.state === 'CONNECTED';
+          connected = data.state === 'CONNECTED' || data.state === 'DEGRADED';
+          if(data.transport) activeTransport=data.transport;
           const pill = $('connectionPill');
           pill.textContent = data.state;
           if (connected) {
@@ -4090,8 +4113,8 @@
             clearInterval(reqTimer);
             pill.className = 'header-pill pill-emerald';
             const peerName = data.peer || ($('outgoingTargetName') ? $('outgoingTargetName').textContent : 'Peer Node');
-            pill.textContent = 'CONNECTED · ' + peerName;
-            showToast('Mesh Link Established with ' + peerName);
+            pill.textContent = activeTransport + ' · ' + peerName;
+            showToast(activeTransport + ' link established with ' + peerName);
             addSessionConnectedDevice(peerName, data.address, data.port);
           } else if (data.state === 'WAITING_APPROVAL') {
             pill.className = 'header-pill pill-neutral';
@@ -4150,7 +4173,7 @@
           for (const [key] of telemetryDefs) {
             const el = $('metric-' + key);
             if (el) {
-              el.textContent = (data[key] === undefined || data[key] < 0) ? '—' : Number(data[key]).toLocaleString();
+              el.textContent = (data[key] == null || data[key] < 0) ? '—' : Number(data[key]).toLocaleString();
             }
           }
           break;
@@ -4182,7 +4205,7 @@
       }
 
       if ($('activePeerCounter')) {
-        $('activePeerCounter').textContent = list.length ? `${list.length} node(s) detected` : 'Scanning 2.4/5GHz...';
+        $('activePeerCounter').textContent = list.length ? `${list.length} node(s) detected` : 'Listening for acoustic peers...';
       }
 
       if ($('radarStatusSub')) {

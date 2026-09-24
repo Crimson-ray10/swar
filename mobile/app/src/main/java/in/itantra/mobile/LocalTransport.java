@@ -13,9 +13,9 @@ import java.util.concurrent.*;
 import java.security.SecureRandom;
 
 /** Foreground, two-peer LAN transport. CONTROL and ITP are separate frame kinds. */
-public final class LocalTransport {
-    public interface Listener { void event(String type, JSONObject data); void received(ItpPacket.Decoded message); }
-    private final Listener listener;
+public final class LocalTransport implements Transport {
+    public interface Listener extends Transport.Listener {}
+    private final Transport.Listener listener;
     private final NsdManager nsd;
     private final WifiManager.MulticastLock multicast;
     private final ExecutorService io=Executors.newCachedThreadPool();
@@ -44,7 +44,7 @@ public final class LocalTransport {
     private volatile Socket pendingSocket=null;
     private volatile ScheduledFuture<?> approvalTimer=null;
 
-    public LocalTransport(Context context,Listener listener) {
+    public LocalTransport(Context context,Transport.Listener listener) {
         this.listener=listener; nsd=(NsdManager)context.getSystemService(Context.NSD_SERVICE);
         WifiManager wifi=(WifiManager)context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         multicast=wifi.createMulticastLock("itantra-discovery");multicast.setReferenceCounted(false);

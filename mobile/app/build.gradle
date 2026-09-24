@@ -4,6 +4,8 @@ android {
     compileSdk 36
     defaultConfig {
         applicationId 'in.itantra.mobile'
+        if (project.hasProperty('acousticTest')) applicationIdSuffix '.acoustictest'
+        manifestPlaceholders = [appLabel: project.hasProperty('acousticTest') ? 'LinC Acoustic Test' : 'LinC.']
         minSdk 31
         targetSdk 35
         versionCode 1

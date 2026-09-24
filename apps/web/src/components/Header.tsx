@@ -168,9 +168,9 @@ export const Header: React.FC<HeaderProps> = ({
             className="download-apk-btn"
             target={apkDownloadUrl.startsWith('http') ? '_blank' : undefined}
             rel={apkDownloadUrl.startsWith('http') ? 'noopener noreferrer' : undefined}
-            download={!apkDownloadUrl.startsWith('http') ? 'itantra-app-debug.apk' : undefined}
-            title="Download iTantra Android Demo APK"
-            aria-label="Download iTantra Android Demo APK"
+            download={!apkDownloadUrl.startsWith('http') ? 'linc-debug.apk' : undefined}
+            title="Download LinC Android Demo APK"
+            aria-label="Download LinC Android Demo APK"
           >
             <Download size={14} className="download-apk-icon" />
             <span className="download-apk-text">Download APK</span>
@@ -305,9 +305,9 @@ export const Header: React.FC<HeaderProps> = ({
                 className="mobile-apk-download-btn"
                 target={apkDownloadUrl.startsWith('http') ? '_blank' : undefined}
                 rel={apkDownloadUrl.startsWith('http') ? 'noopener noreferrer' : undefined}
-                download={!apkDownloadUrl.startsWith('http') ? 'itantra-app-debug.apk' : undefined}
+                download={!apkDownloadUrl.startsWith('http') ? 'linc-debug.apk' : undefined}
                 onClick={() => setMobileMenuOpen(false)}
-                title="Download iTantra Android Demo APK"
+                title="Download LinC Android Demo APK"
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Download size={15} color="#34d399" />
