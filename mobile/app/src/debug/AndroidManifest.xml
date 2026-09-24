@@ -1,3 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <instrumentation android:name="in.itantra.mobile.DeviceSmokeTest" android:targetPackage="in.itantra.mobile" android:label="iTantra developer smoke tests" />
+    <instrumentation android:name="in.itantra.mobile.DeviceSmokeTest" android:targetPackage="${applicationId}" android:label="iTantra developer smoke tests" />
+    <instrumentation android:name="in.itantra.mobile.AcousticDeviceTest" android:targetPackage="${applicationId}" android:label="Acoustic physical phone test" />
+    <instrumentation android:name="in.itantra.mobile.SpeechDeviceTest" android:targetPackage="${applicationId}" android:label="Offline speech probe" />
 </manifest>

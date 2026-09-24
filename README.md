@@ -1,5 +1,7 @@
 # iTantra Android demo + legacy Voice Bridge prototype
 
+The working branch integrates the LinC mobile frontend from upstream commit `8324091` with the local acoustic/backend implementation. **Acoustic is the default phone transport**; Wi-Fi LAN and website relay require explicit selection. Start with the [acoustic protocol and test procedure](docs/acoustic-protocol.md), [architecture audit](docs/acoustic-audit.md), and [speech model investigation](docs/speech-model-investigation.md). The older hotspot demo instructions below describe the explicit LAN mode. This is experimental software; configured modem bitrate is not measured payload throughput.
+
 **The Android app is in `mobile/`.** Build it with `./scripts/build-mobile.ps1` and see [mobile setup and demo](docs/mobile-demo.md), [audit](docs/mobile-audit.md), and [protocol draft](docs/mobile-protocol.md).
 
 The legacy web/backend documentation below describes prototype intentions, not verified phone capabilities. Its STT accepts supplied text, its TTS generates tones, its Bluetooth/Wi-Fi Direct adapters use ordinary TCP, and some dashboard metrics are fixed values. Do not use that prototype as evidence of offline speech, Bluetooth, Wi-Fi Direct, or measured performance. The Android path is separate, has no backend dependency, and requires physical-device validation.
