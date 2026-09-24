@@ -1,4 +1,4 @@
-param([switch]$Install, [string]$Device, [switch]$AcousticTest)
+param([switch]$Install, [string]$Device)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $unityAndroid = if (Test-Path 'C:\Program Files\Unity\Hub\Editor\6000.6.0f1\Editor\Data\PlaybackEngines\AndroidPlayer') {
@@ -15,9 +15,7 @@ $env:ANDROID_HOME = $taskSdk
 $env:ANDROID_SDK_ROOT = $taskSdk
 Push-Location (Join-Path $projectRoot 'mobile')
 try {
-    $taskArguments = @('--console=plain', ':app:assembleDebug')
-    if ($AcousticTest) { $taskArguments += '-PacousticTest=true' }
-    & "$taskJava\bin\java.exe" -classpath $taskGradle org.gradle.launcher.GradleMain @taskArguments
+    & "$taskJava\bin\java.exe" -classpath $taskGradle org.gradle.launcher.GradleMain --console=plain :app:assembleDebug
     if ($LASTEXITCODE -ne 0) { throw 'Android build failed' }
     $apk = Join-Path $projectRoot 'mobile\app\build\outputs\apk\debug\app-debug.apk'
     Write-Output "APK: $apk"
