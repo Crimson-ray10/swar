@@ -1,0 +1,389 @@
+================================================================================
+OFFLINE MULTILINGUAL VOICE WALKIE-TALKIE (LinC / iTantra)
+BUILD SPEC CLARIFICATIONS & ENGINEERING ANSWERS
+================================================================================
+
+READ FIRST: Section 10, "RESOLVED ENGINEERING DECISIONS", supersedes conflicting
+statements in Sections 1-9 and final.md. Earlier numerical estimates and reports
+of existing assets or completed tests must be verified before being used as
+implementation or release evidence.
+
+1. WHICH LANGUAGES MUST THE FIRST RELEASE SUPPORT?
+--------------------------------------------------------------------------------
+A. Speech Recognition (STT):
+   - Tier 1 (Mandatory in v1.0 Release Bundle):
+     * Hindi (hi) - Primary national language & largest user base.
+     * English (en / en-IN) - Strictly required. Essential bridge language
+       for disaster management, command personnel, inter-state teams, and
+       the translation anchor.
+     * Odia (or) - Strictly required. Explicitly mandated by the specification
+       (final.md) as a non-negotiable regional coverage benchmark.
+     * Core Regional Set: Bengali (bn), Tamil (ta), Telugu (te), and
+       Marathi (mr) (already integrated into the mobile UI dropdown).
+     * Hinglish (hi-en): Supported via the combined Hindi + Indian English
+       dual-profile acoustic/language model.
+   - Tier 2 (Post-v1 / Modular Language Packs):
+     * Remaining 16 official Indic languages supported by IndicConformer
+       (Gujarati, Kannada, Malayalam, Punjabi, Assamese, etc.) available as
+       downloadable or sideloadable offline language packs (.ilp).
+
+B. Speech Synthesis (TTS):
+   - 1:1 Parity with Tier 1 STT:
+     * Hindi (hi-IN), Indian English (en-IN), Odia (or-IN), Bengali (bn-IN),
+       Tamil (ta-IN), Telugu (te-IN), and Marathi (mr-IN).
+     * Powered by AI4Bharat Indic-TTS (FastPitch acoustic model + HiFi-GAN
+       vocoder).
+   - English Requirement: YES, English is strictly required in both STT and TTS.
+
+
+2. WHAT SHOULD HAPPEN WHEN TWO USERS CHOOSE DIFFERENT LANGUAGES OUTSIDE ENGLISH <-> HINDI?
+--------------------------------------------------------------------------------
+- Intended Behavior: Preserve the Sender's Language (Acoustic Relaying).
+  * The receiver hears the utterance spoken in the sender's language using the
+    sender's language TTS voice installed on the receiver's device, while
+    displaying the original transcript on screen.
+  * Cross-lingual translation outside En <-> Hi is NOT attempted in v1.0
+    because running large multilingual translation models (IndicTrans2 1B+) on
+    low-end mobile hardware exhausts RAM (>1.5 GB footprint) and blows past
+    the 600-800 ms latency budget.
+  * The system will NOT feed text from Language A into Language B's TTS engine
+    (e.g., passing Odia text into a Marathi FastPitch model). Phonemic maps,
+    graphemes, and pronunciations differ; doing so produces phonetic garbage
+    or crashes.
+- Operational Flow:
+  1. Sender speaks in their language (e.g., Odia). STT transcribes to Odia text.
+  2. Packet header carries language_code = Odia.
+  3. Receiver checks the pair: since it is not En <-> Hi, translation is skipped.
+  4. Receiver synthesizes the speech using Odia TTS (installed locally on receiver).
+  5. Receiver UI displays: "[Sender: Odia] <Transcript>" and plays Odia audio.
+     If the receiver does not understand Odia, the text transcript remains on screen.
+
+
+3. DO YOU ALREADY HAVE THE EXACT MODEL CHECKPOINTS AND ONNX EXPORTS?
+--------------------------------------------------------------------------------
+- Current Repository Status:
+  * The repository contains model cards, licensing manifests, and evaluation
+    tooling (scripts/score-speech-benchmark.py).
+  * No raw binary .onnx weight files or .nemo archives are checked into Git
+    (omitted to avoid bloating repository history beyond GitHub limits).
+- Implementation Scope:
+  * Preparing, exporting, quantizing, and verifying the ONNX checkpoints is an
+    explicit deliverable of the implementation pipeline.
+- Target Checkpoints & Configurations:
+  1. STT (sherpa-onnx):
+     * Checkpoint: AI4Bharat IndicConformer FastConformer Hybrid RNN-T/CTC
+       (indicconformer_stt_multi_hybrid_rnnt_600m.nemo or monolingual equivalents).
+     * Streaming Config: chunk_size = 16 frames (~640 ms chunk), left_context = 64.
+     * Quantization: Conformer encoder quantized to INT8 (encoder_int8.onnx);
+       joiner/decoder in FP16/FP32.
+  2. TTS (onnxruntime-mobile):
+     * Checkpoints: AI4Bharat Indic-TTS FastPitch (acoustic) + HiFi-GAN v1 (vocoder).
+     * Quantization: INT8 for both FastPitch and HiFi-GAN.
+  3. VAD:
+     * Silero VAD v4/v5 ONNX (silero_vad.onnx, ~1.8 MB).
+  4. Translation (English <-> Hindi):
+     * IndicTrans2 distilled 200M En<->Hi, exported with explicit past-key-values
+       KV-cache to ensure linear O(N) decode complexity.
+
+
+4. WHICH DEVICES DEFINE "LOW-END HARDWARE," AND WHAT STORAGE LIMIT SHOULD WE TARGET?
+--------------------------------------------------------------------------------
+A. Reference Hardware Specification:
+   - Target Low-End Profile:
+     * Processor: Octa-core ARM64 (MediaTek Helio G35/G85, Snapdragon 680,
+       or Unisoc T606/T612).
+     * RAM: 3 GB to 4 GB LPDDR4X (effective usable memory for foreground app
+       is ~1.0 GB to 1.2 GB before Android Low Memory Killer triggers).
+     * OS Baseline: Android 10 (API 29) through Android 13 (API 33).
+   - Validation Reference Phones:
+     * OnePlus 11R (High-end reference) and Google Pixel 9a (Mid-tier reference),
+       both already tested in local development.
+
+B. Storage Limits & Packaging:
+   - Base APK Size: < 100 MB (AOSP runtime, C++ .so runtimes for sherpa-onnx
+     and onnxruntime, Silero VAD model, UI assets).
+   - Total Device Storage Target: < 500 MB for active baseline deployment.
+   - Packaging Strategy:
+     * Do NOT bundle all 22 languages inside the APK (would result in 3-6 GB).
+     * Pre-bundled in Base APK: Hindi (hi), English (en), and Odia (or) (~280 MB INT8).
+     * Additional languages installed on-demand via offline P2P transfer
+       (Wi-Fi Direct) or imported from external storage / SD card.
+
+C. RAM Budget During Simultaneous Full-Duplex:
+   - Max Resident Set Size (RSS): < 800 MB:
+     * STT Streaming Engine (INT8): ~180 MB
+     * TTS Pipeline (FastPitch + HiFi-GAN INT8): ~160 MB
+     * Silero VAD + Ring Buffers + Sockets: ~40 MB
+     * App UI / WebView / Android Runtime: ~180 MB
+     * IndicTrans2 (KV-cache, when active): ~220 MB
+     * Total Peak RSS: ~780 MB (safely within a 3 GB phone's memory limit).
+
+
+5. HOW SHOULD USERS VERIFY AND TRUST ANOTHER DEVICE DURING PAIRING?
+--------------------------------------------------------------------------------
+- Primary In-Band Verification: 6-Digit Short Authentication String (SAS):
+  1. During the BLE handshake, both devices perform an ephemeral X25519
+     key exchange.
+  2. A 6-digit numeric SAS code is derived using HKDF:
+     Code = HKDF-Expand(K_shared, "iTantra-SAS-Verify", 4) % 1000000.
+  3. Both devices display the code: "Pairing Code: 684 192 - Do both match?".
+  4. Both users tap "Confirm" to complete mutual authentication and prevent
+     Man-in-the-Middle (MitM) attacks.
+- Secondary Out-of-Band Method: Offline QR Code:
+  * Device A displays a dynamic QR code containing its Device ID, Wi-Fi Direct
+    MAC, and Ed25519 identity key. Device B scans it, establishing zero-click
+    cryptographic trust.
+- Trust Persistence & Reconnection:
+  * YES, trusted peers reconnect automatically.
+  * The peer's permanent Ed25519 public key is stored in the local encrypted
+    keystore (KnownPeersStore).
+  * Subsequent reconnections or reconnections after a Group Owner drop
+    authenticate automatically via cryptographic challenge-response over BLE
+    without prompting the user.
+
+
+6. SHOULD RECEIVED SPEECH START FROM STABLE PARTIALS, OR ONLY AFTER A FINAL TRANSCRIPT?
+--------------------------------------------------------------------------------
+- Direct Mode (Translation OFF):
+  * YES: Stable-chunk incremental playback is the intended behavior.
+  * Tokens that remain unchanged across N=3 consecutive decode steps or end on
+    a VAD micro-pause are committed and transmitted as stt_partial with
+    stream_id, chunk_seq, and start_token_offset.
+  * Receiver immediately enqueues stable chunks into FastPitch/HiFi-GAN and
+    streams PCM audio to the AudioTrack.
+  * When stt_final arrives, the receiver synthesizes only the unplayed tail
+    tokens, completely preventing speech repetition.
+
+- Translation Mode (Translation ON: English <-> Hindi):
+  * NO: Stable-partial playback CANNOT be used during Translation.
+  * English is SVO (Subject-Verb-Object) while Hindi is SOV (Subject-Object-Verb).
+    Word-by-word streaming partial translation produces corrupt grammar because
+    verbs cannot be predicted before the sentence finishes.
+  * Translation Policy: Audio is emitted and synthesized at Clause and VAD
+    micro-pause boundaries (>= 250 ms). Only complete semantic clauses are
+    passed to IndicTrans2.
+
+
+7. HOW MANY PARTICIPANTS MUST WALKIE-TALKIE MODE SUPPORT, AND WHAT SHOULD HAPPEN DURING BLE FALLBACK?
+--------------------------------------------------------------------------------
+- Participant Capacity:
+  * Target: Up to 8 concurrent devices per Walkie-Talkie channel.
+  * Matches the physical softAP client limit of AOSP Wi-Fi Direct Group Owners.
+
+- BLE Fallback Behavior:
+  * Because iTantra transmits compact semantic text tokens (~50 bytes per
+    utterance) rather than raw audio waveforms, BLE can carry the channel traffic.
+  * When Wi-Fi Direct drops, the channel transitions to degraded BLE broadcast.
+  * Partials are disabled; only finalized text messages are transmitted over BLE
+    to conserve GATT MTU bandwidth.
+  * Latency increases to ~250-400 ms.
+  * UI displays "Degraded Mode - BLE Fallback". If the star topology cannot
+    sustain all 8 devices, connectivity gracefully reduces to reachable peers.
+
+- Group Owner (GO) Disconnection & Leader Re-election:
+  * YES: Autonomous leader re-election without user interaction is mandatory.
+  * BLE presence heartbeats (500 ms) detect GO failure after 3 missed beats (1500 ms).
+  * Surviving peers execute a deterministic election: the peer with the lowest
+    lexicographical Device ID automatically assumes the GO role.
+  * The new GO creates a Wi-Fi Direct group; remaining members connect to its
+    P2P MAC address, resuming the channel within 2-3 seconds.
+
+
+8. WHAT SHOULD CONVERSATION MODE DO ON PHONES WHERE ECHO CANCELLATION IS UNAVAILABLE OR INEFFECTIVE?
+--------------------------------------------------------------------------------
+- Headset Requirement Policy:
+  * A mandatory headset requirement is NOT acceptable for an emergency walkie-talkie
+    app (first responders and citizens must be able to use speakerphone).
+- Multi-Tier Echo Mitigation Strategy:
+  1. Headset Detection & Advisory:
+     * When earphones/headsets are plugged in, full-duplex Conversation Mode runs
+       with zero feedback risk.
+     * On speakerphone without hardware AEC, a non-blocking advisory appears:
+       "Headset recommended for two-way conversation".
+  2. Software Lexical Anti-Echo Filter:
+     * The device records the text and timestamp of remote TTS audio playing
+       through the speaker.
+     * If local STT produces a hypothesis matching recently played speech
+       (Levenshtein similarity > 80% within +/- 600 ms), the hypothesis is
+       flagged as acoustic echo and silently dropped before transmission.
+  3. Acoustic Ducking & Feedback Auto-Gating:
+     * While local speech is detected by VAD, TTS speaker volume is ducked by 10-12 dB.
+     * If feedback oscillation is detected (identical tokens ping-ponging),
+       the app temporarily activates voice-activated turn-taking (local mic
+       capture pauses incoming playback).
+
+
+9. WHAT COUNTS AS ACCEPTANCE, AND WHAT TESTING RESOURCES ARE AVAILABLE?
+--------------------------------------------------------------------------------
+A. Latency & Performance Targets:
+   - End-to-End Latency (600-800 ms):
+     * Wi-Fi Direct (Direct STT -> TTS): Hard Release Gate. Total mouth-to-ear
+       latency must remain <= 800 ms (STT stability ~250-300 ms + Wi-Fi hop
+       <50 ms + TTS start <300 ms).
+     * With IndicTrans2 Translation: Initial Goal / Soft Gate (< 1200 ms),
+       accounting for sequence-to-sequence translation overhead.
+   - TTS Real-Time Factor (RTF):
+     * Hard Release Gate: RTF < 0.3 on target ARM64 cores (synthesizing 1 sec
+       of audio must complete in <300 ms of CPU execution).
+
+B. Accuracy & Quantization Gates:
+   - STT Word Error Rate (WER):
+     * Baseline: <= 15% WER in quiet conditions; <= 25% WER in ambient noise.
+   - Quantization Gate:
+     * INT8 quantized models must show <= 2% absolute WER degradation compared
+       to FP32 baselines on the test corpus.
+
+C. Testing Resources & Instrumentation:
+   - Automated Scoring Benchmark:
+     * Repository includes scripts/score-speech-benchmark.py to evaluate WER,
+       CER, latency, peak RAM, model bytes, CPU time, and naturalness.
+   - Physical Hardware Available:
+     * OnePlus 11R (CPH2487, Android 16) and Google Pixel 9a (Android 17 beta)
+       are already active in project physical trials. Budget ARM64 phones
+       (e.g., Redmi 9A / Realme C31, 3-4 GB RAM) will be used for low-end sign-off.
+   - Test Corpora & Native Speaker Validation:
+     * 50 emergency-domain phrases in Hindi, English, and Odia tested through
+       the offline pipeline.
+     * Native speaker validation using a 5-point Mean Opinion Score (MOS >= 3.8 target)
+       for TTS naturalness and reverse-transcription checks.
+================================================================================
+
+10. RESOLVED ENGINEERING DECISIONS
+--------------------------------------------------------------------------------
+These decisions resolve the review questions using the user's authorization to
+make the remaining engineering choices. They take precedence over conflicting
+text in Sections 1-9 and final.md.
+
+A. Full-duplex and echo handling
+   - Conversation Mode must always allow simultaneous microphone capture,
+     recognition, transmission, reception, synthesis, and playback.
+   - Automatic turn-taking, microphone suppression because remote speech is
+     playing, and pausing incoming playback because local speech is detected
+     are prohibited. Section 8's turn-taking fallback is withdrawn.
+   - Use hardware AEC/NS where available. A software acoustic echo canceller
+     using the actual playback reference may be added if required and feasible
+     within the resource budget. Speakerphone remains a required use case.
+   - Non-blocking headset advice and bounded playback-volume ducking are
+     allowed, provided playback remains audible and both directions continue.
+   - Transcript similarity alone must not discard speech: intentional repetition
+     is valid user input. Lexical similarity may support echo diagnostics only.
+   - Headsets do not establish a guarantee of zero feedback. Speakerphone and
+     simultaneous-speech behavior require physical-device validation.
+
+B. Packaging and language availability
+   - Base APK target: less than 100 MB, including runtimes and VAD where feasible.
+   - Hindi, English, and Odia STT/TTS models belong in a separately distributed
+     offline starter pack, not inside the base APK.
+   - Baseline deployment target: less than 500 MB installed, including the APK,
+     extracted runtimes, starter-pack models, tokenizers, and required metadata.
+     Report additional temporary import space separately.
+   - All seven named languages (hi, en, or, bn, ta, te, mr) must be supported and
+     validated for v1. Bengali, Tamil, Telugu, and Marathi may be supplied as
+     separate offline packs. Optional installed packs add to baseline storage.
+   - The app must not download packs from the internet. Import from local storage
+     or transfer over authenticated, encrypted peer-to-peer transport.
+   - Advertise installed STT and TTS capabilities separately. If a receiver lacks
+     the sender-language voice pack, display the original transcript and a
+     voice-pack-required notice; offer local import or peer transfer. Never
+     silently synthesize using an unrelated language voice.
+   - Hinglish remains required, but its model support, transcript handling, and
+     bilingual synthesis must be verified. A combined profile is not assumed to
+     exist merely because it was named in Section 1.
+
+C. Models and resource feasibility
+   - Preserve the required families: IndicConformer, Indic-TTS FastPitch plus
+     HiFi-GAN, Silero VAD, and optional IndicTrans2 with an explicit KV cache.
+   - Prefer verified smaller monolingual IndicConformer checkpoints where needed
+     to satisfy the resource limits. Do not substitute another model family.
+   - The 600M checkpoint is a candidate, not a mandatory deployment artifact.
+     Section 4's per-component memory and model-size figures are estimates only.
+   - Inventory exact upstream checkpoints, licenses, language coverage, streaming
+     support, tokenizers, and export interfaces before finalizing integrations.
+     Do not assume a streaming export is possible from every listed checkpoint.
+   - Required language coverage, baseline installed size, and the less-than-800-MB
+     peak app RSS target remain requirements. Measure native allocations and
+     inference working memory, including optional translation when enabled.
+   - If available models cannot jointly satisfy these requirements, document the
+     measured conflict and obtain a scope decision. Do not silently drop a
+     language, replace a fixed family, or claim compliance using placeholders.
+   - INT8 quality and supported execution paths must be validated; quantization
+     does not by itself establish lower latency or acceptable intelligibility.
+   - KV caching is mandatory for translation. Do not describe caching as a
+     guarantee of linear total decode complexity or of a specific latency.
+
+D. Streaming, playback, and latency acceptance
+   - STT chunk size, left context, and stability timing are tunable within the
+     verified checkpoint's supported streaming configuration. The suggested
+     640 ms chunk and N=3 stability setting are starting points, not fixed gates.
+   - Direct mode uses committed stable chunks with stream identity, chunk order,
+     and explicit text offsets. Final messages reconcile the complete transcript
+     and schedule only text not already queued or played; they must also recover
+     missing chunks where possible. Playback must not repeat committed content.
+   - Text already spoken cannot be undone. If a final revises committed text,
+     update the displayed transcript and record the revision; do not automatically
+     replay the utterance as an audible correction.
+   - Translation operates on sufficiently complete clauses or finalized
+     utterances. A 250 ms pause is a candidate boundary, not proof of a complete
+     semantic clause. Do not independently translate every stable token chunk.
+   - Direct Wi-Fi mouth-to-ear acceptance: p95 <= 800 ms on the reference low-end
+     device under a documented workload. Report p50, p95, p99, maximum, and sample
+     count; do not hide cold starts or model-switch latency in warm-only results.
+   - Measure from source speech onset for the first audible committed chunk.
+     Also report subsequent chunk delay and final-utterance completion delay.
+     Cross-device timing needs measured clock-offset uncertainty or a shared
+     recording setup; unrelated device clocks cannot simply be subtracted.
+   - Translation < 1200 ms remains a soft target. Report both speech-onset-to-
+     playback and clause-ready-to-playback latency so boundary waiting is visible.
+   - TTS RTF < 0.3 is a hard gate measured using elapsed synthesis wall time divided
+     by generated audio duration, with concurrent STT active. Report time to first
+     audio and CPU time separately. Partial playback must not bypass deduplication.
+
+E. Group operation and recovery
+   - Eight total devices per Walkie-Talkie channel is a product target, not an
+     assumed universal Wi-Fi Direct or GATT hardware capacity.
+   - BLE fallback carries final messages only and may reduce connectivity to
+     reachable peers, clearly reported in the UI. Preserve authentication,
+     encryption, acknowledgments, deduplication, and floor control in fallback.
+   - BLE group delivery requires explicit GATT routing/forwarding; do not assume
+     the existence of a reliable GATT broadcast primitive.
+   - Elect a replacement coordinator deterministically among reachable eligible
+     peers using device ID ordering. Persist channel identity and use leadership
+     epochs plus expiring floor leases to reject stale grants after reconnection.
+   - Report partitions explicitly and reconcile leadership on reunion. A device
+     ID ordering rule alone is not proof that split leadership is impossible.
+   - Heartbeat timing and the 2-3 second recovery figure are initial tuning targets
+     requiring field measurement, not guaranteed radio behavior.
+
+F. Peer authentication
+   - Six-digit SAS comparison is the default first-pairing experience; require
+     confirmation at both ends before application data is accepted.
+   - QR pairing is an optional alternative. Bind the identity verified by QR to
+     the live cryptographic handshake; scanning an identity alone does not
+     authenticate an unrelated subsequent connection.
+   - The HKDF expression in Section 5 is illustrative, not a complete security
+     protocol. Use a reviewed authenticated pairing construction that binds both
+     identities, ephemeral keys, roles, and the handshake transcript, with key
+     confirmation and protection against repeated verification attempts.
+   - Reconnect using authenticated persistent identities and fresh session keys.
+     Protect protocol headers as AEAD associated data, enforce unique nonces,
+     reject replays, and separate key/nonce domains by direction and session.
+   - Peer public keys may be stored in app-private trusted-peer storage; protect
+     the local private identity with platform-backed key protection where usable.
+
+G. Validation evidence and release status
+   - Preserve WER gates: <= 15% in quiet conditions, <= 25% in documented ambient
+     noise, and <= 2 percentage points absolute degradation after quantization.
+     Report per-language results; an aggregate must not mask a failing language.
+   - Preserve native-speaker naturalness target MOS >= 3.8 and blind transcript-
+     back intelligibility checks. Save corpus versions, scoring procedures,
+     recordings, model hashes, and device/build details for repeatability.
+   - Locate and verify the claimed benchmark script, model manifests, recordings,
+     reference transcripts, and earlier test results before relying on them.
+   - Missing assets or results are outstanding work, not completed validation.
+     Export tooling alone does not count as a working model integration.
+   - High-end-device results do not establish low-end acceptance. Sign-off requires
+     physical low-end ARM64 testing, including full-duplex speakerphone operation,
+     all supported transport paths, reconnection, resource use, and native-speaker
+     validation for all seven release languages.
+   - Build completion, automated test completion, and physical release validation
+     must be reported separately. Never label unperformed tests as passing.

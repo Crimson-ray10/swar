@@ -85,3 +85,9 @@ mobile/app/src/main/assets/generated/
 # Scratch chat dumps
 chat_dump.*
 chat_full.txt
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
+
+# Local build logs
+*.log
