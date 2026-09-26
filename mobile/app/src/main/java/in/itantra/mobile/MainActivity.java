@@ -190,8 +190,8 @@ public final class MainActivity extends Activity {
         ObjectAnimator p1_sY = ObjectAnimator.ofFloat(mainTv, "scaleY", 0.9f, 1.1f, 1.0f);
         AnimatorSet pop = new AnimatorSet();
         pop.playTogether(p1_sX, p1_sY);
-        pop.setDuration(600);
-        pop.setInterpolator(new OvershootInterpolator());
+        pop.setDuration(350);
+        pop.setInterpolator(new OvershootInterpolator(1.2f));
         
         // --- PHASE 2: Translations burst out ---
         AnimatorSet burst = new AnimatorSet();
@@ -209,7 +209,7 @@ public final class MainActivity extends Activity {
             burstAnims.add(ObjectAnimator.ofFloat(tv, "rotation", 0f, rotations[i]));
         }
         burst.playTogether(burstAnims);
-        burst.setDuration(1000);
+        burst.setDuration(600);
         burst.setInterpolator(new DecelerateInterpolator());
         
         // --- PHASE 3: Scale Up (Pop starts) & Translations fade out ---
@@ -225,14 +225,14 @@ public final class MainActivity extends Activity {
         
         AnimatorSet outroPart1 = new AnimatorSet();
         outroPart1.playTogether(p3_sX_up, p3_sY_up, fadeTrans);
-        outroPart1.setDuration(500);
+        outroPart1.setDuration(350);
         outroPart1.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
         
         // --- PHASE 4: Scale Down & Translate & Delayed Fade out (Transition) ---
         ObjectAnimator p4_sX_down = ObjectAnimator.ofFloat(mainTv, "scaleX", 1.25f, 1.0f);
         ObjectAnimator p4_sY_down = ObjectAnimator.ofFloat(mainTv, "scaleY", 1.25f, 1.0f);
-        p4_sX_down.setDuration(700);
-        p4_sY_down.setDuration(700);
+        p4_sX_down.setDuration(550);
+        p4_sY_down.setDuration(550);
         
         float currentTransX = startX - (mainTv.getMeasuredWidth() / 2f);
         float currentTransY = startY - (mainTv.getMeasuredHeight() / 2f);
@@ -241,19 +241,19 @@ public final class MainActivity extends Activity {
         
         ObjectAnimator p4_tX = ObjectAnimator.ofFloat(mainTv, "translationX", currentTransX, endTransX);
         ObjectAnimator p4_tY = ObjectAnimator.ofFloat(mainTv, "translationY", currentTransY, endTransY);
-        p4_tX.setDuration(700);
-        p4_tY.setDuration(700);
+        p4_tX.setDuration(550);
+        p4_tY.setDuration(550);
         
         // Background black dissolves to transparent to reveal web home page
         ValueAnimator bgFadeOut = ValueAnimator.ofObject(new ArgbEvaluator(), 0xFF000000, 0x00000000);
-        bgFadeOut.setDuration(600);
+        bgFadeOut.setDuration(480);
         bgFadeOut.addUpdateListener(a -> {
             if (splash != null) splash.setBackgroundColor((int) a.getAnimatedValue());
         });
         
         // Morph text color of "LinC" from White -> #111827 to contrast against revealed white background
         ValueAnimator colorMorph = ValueAnimator.ofObject(new ArgbEvaluator(), 0xFFFFFFFF, 0xFF111827);
-        colorMorph.setDuration(550);
+        colorMorph.setDuration(450);
         colorMorph.addUpdateListener(a -> {
             int c = (int) a.getAnimatedValue();
             SpannableString s = new SpannableString("LinC.");
@@ -273,7 +273,7 @@ public final class MainActivity extends Activity {
         
         AnimatorSet outro = new AnimatorSet();
         outro.playSequentially(outroPart1, outroPart2);
-        outro.setStartDelay(1000); // Wait 1 second before doing the final disappear sequence
+        outro.setStartDelay(300); // Wait 300ms before doing the final transition sequence
         
         fullSequence.playSequentially(intro, outro);
         fullSequence.addListener(new AnimatorListenerAdapter() {
