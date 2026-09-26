@@ -1,3 +1,4 @@
 /libs/*.aar
 /src/main/assets/silero_vad.onnx
 /build/
+.kotlin/
