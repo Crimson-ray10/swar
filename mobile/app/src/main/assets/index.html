@@ -1924,7 +1924,7 @@
       line-height: 1.45;
     }
 
-    /* Pack List Items */
+    /* Pack List Items & Selective Model Downloader */
     .pack-item {
       display: flex;
       align-items: center;
@@ -1979,6 +1979,276 @@
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
+    }
+
+    /* Selective Model Downloader & Storage Management Styles */
+    .savings-badge {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-end;
+      padding: 6px 12px;
+      border-radius: 12px;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #059669;
+      flex-shrink: 0;
+    }
+
+    .storage-bar-track {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .storage-bar-fill {
+      height: 100%;
+      background: #111827;
+      border-radius: 999px;
+      transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .presets-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .preset-btn {
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .preset-btn:active {
+      transform: scale(0.96);
+    }
+
+    .preset-btn.active {
+      background: #111827;
+      color: #ffffff;
+      border-color: #111827;
+    }
+
+    .model-category-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 14px 2px 8px;
+    }
+
+    .cat-title {
+      font-size: 12.5px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.2px;
+    }
+
+    .cat-pill {
+      font-size: 9.5px;
+      font-weight: 700;
+      background: #f1f5f9;
+      color: #64748b;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .models-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .model-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: #ffffff;
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+      user-select: none;
+    }
+
+    .model-card:active {
+      transform: scale(0.99);
+    }
+
+    .model-card.selected {
+      border-color: #111827;
+      background: #fafafa;
+    }
+
+    .model-card.installed {
+      border-color: #a7f3d0;
+      background: #fcfdfd;
+    }
+
+    .model-card.downloading {
+      border-color: #93c5fd;
+      background: #eff6ff;
+    }
+
+    .model-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .model-checkbox {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      border: 1.5px solid #cbd5e1;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+    }
+
+    .model-checkbox.checked {
+      background: #111827;
+      border-color: #111827;
+      color: #ffffff;
+    }
+
+    .model-checkbox.installed {
+      background: var(--accent-emerald);
+      border-color: var(--accent-emerald);
+      color: #ffffff;
+    }
+
+    .model-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #475569;
+      flex-shrink: 0;
+    }
+
+    .model-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .model-name-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .model-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .model-tag {
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: #f1f5f9;
+      color: #64748b;
+    }
+
+    .model-sub {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .model-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      margin-left: 8px;
+    }
+
+    .model-size-pill {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .model-status-pill {
+      font-size: 9.5px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .status-installed {
+      background: #ecfdf5;
+      color: #059669;
+      border: 1px solid #a7f3d0;
+    }
+
+    .status-not-installed {
+      background: #f1f5f9;
+      color: #64748b;
+      border: 1px solid #e2e8f0;
+    }
+
+    .status-downloading {
+      background: #eff6ff;
+      color: #2563eb;
+      border: 1px solid #bfdbfe;
+      animation: pulse-soft 1.5s infinite;
+    }
+
+    @keyframes pulse-soft {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .sticky-download-bar {
+      position: sticky;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      margin-top: 18px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      z-index: 40;
     }
 
     /* Device List Items */
@@ -2093,7 +2363,7 @@
 
       <!-- Home Footer Terms & Compliance Notice -->
       <footer class="home-compliance-footer">
-        <div class="compliance-footer-title">PS-26173 Mandate Compliance</div>
+        <div class="compliance-footer-title">PS-2073 Mandate Compliance</div>
         <p class="compliance-footer-text">
           100% Offline · Zero Cloud Dependencies · Open Source TorchScript [BitStream] + AI4Bharat IndicTTS Audio
           synthesis · Direct IP/ZeroConf P2P Mesh (Meets all SIH2026 specifications).
@@ -2283,6 +2553,20 @@
                 <span class="item-check">✓</span>
               </button>
             </div>
+            <!-- Speech Model Offline Warning Banner -->
+            <div id="radarModelWarningBanner" class="hidden" style="margin-top:10px; padding:10px 12px; background:#fffbeb; border:1px solid #fde68a; border-radius:12px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+              <div style="display:flex; align-items:center; gap:8px; font-size:11px; color:#92400e; font-weight:600; line-height:1.35;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0;">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <span id="radarModelWarningText">Offline speech model is missing for selected language.</span>
+              </div>
+              <button type="button" class="btn-pill" style="padding:6px 12px; font-size:10.5px; font-weight:700; white-space:nowrap; background:#d97706; color:#ffffff; flex-shrink:0;" onclick="openSelectiveModelDownload()">
+                Choose &amp; Download
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -2455,273 +2739,130 @@
       </div>
     </section>
 
-    <!-- 3. NEURAL MODELS / DOWNLOADS SCREEN (Screen 1) -->
+    <!-- 3. NEURAL MODELS / SELECTIVE DOWNLOADS SCREEN (Screen 1) -->
     <section id="viewDownloads" class="view-page hidden">
       <!-- Top Section Header -->
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; padding:0 2px;">
         <div>
-          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">16-bit AI Pipeline · 20Hz VAD Cycle
-            on-disk</div>
+          <div style="font-size:16px; font-weight:800; color:var(--text); letter-spacing:-0.3px;">Model &amp; Storage Manager</div>
+          <div style="font-size:11px; color:var(--text-muted); font-weight:500; margin-top:2px;">
+            Choose only the models you need to save device storage.
+          </div>
         </div>
-        <span class="header-pill pill-neutral">Offline Storage</span>
+        <span class="header-pill pill-neutral" id="modelEngineTag">On-Device AI</span>
       </div>
 
-      <!-- Main Bundle Card -->
-      <div class="card" style="padding:16px; margin-bottom:16px;">
-        <div style="display:flex; align-items:flex-start; gap:12px;">
-          <div class="check-circle" style="width:28px; height:28px; margin-top:2px;">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </div>
+      <!-- Storage Optimization & Savings Calculator Card -->
+      <div class="card" style="padding:16px; margin-bottom:14px; position:relative; overflow:hidden;">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
           <div style="flex:1;">
-            <div style="display:flex; align-items:center; justify-content:space-between;">
-              <span style="font-size:14px; font-weight:800; color:var(--text);">Download the Pack</span>
-              <span
-                style="font-size:9px; font-weight:800; background:#111827; color:#ffffff; padding:2px 7px; border-radius:4px;">INSTALLED</span>
+            <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.8px; font-weight:800; color:var(--text-muted); margin-bottom:4px;">App Storage Optimization</div>
+            <div style="display:flex; align-items:baseline; gap:8px;">
+              <span style="font-size:24px; font-weight:900; color:var(--text);" id="statSelectedSize">78 MB</span>
+              <span style="font-size:12px; color:var(--text-muted);">selected for download</span>
             </div>
-            <p style="font-size:11px; color:var(--text-muted); line-height:1.5; margin-top:6px;">
-              Includes complete bundle: Silero VAD (7.5 MB), AI4Bharat IndoConformer STT (58 MB), FastText Language
-              Auto-detector (1.2 MB), and all 10 Indic Voice Packs (Hindi, Gujarati, Marathi, Kannada, Malayalam, Tamil,
-              Telugu, Odia, Bengali, English). Required for auto-detection and speech synthesis.
-            </p>
+            <div style="font-size:11px; color:var(--emerald-text); font-weight:700; margin-top:4px; display:flex; align-items:center; gap:5px;">
+              <span style="width:7px; height:7px; border-radius:50%; background:var(--accent-emerald); display:inline-block;"></span>
+              <span id="statSavingsText">Saves 201 MB phone storage (72% reduction)</span>
+            </div>
+          </div>
+          <div class="savings-badge" id="statSavingsBadge">
+            <span style="font-size:10px; font-weight:700; text-transform:uppercase;">Storage Saved</span>
+            <span style="font-size:16px; font-weight:900;" id="statSavingsMb">-201 MB</span>
           </div>
         </div>
 
-        <div
-          style="margin-top:12px; padding:8px 10px; background:var(--emerald-light); border:1px solid var(--emerald-border); border-radius:10px; font-size:11px; color:var(--emerald-text); font-weight:600; display:flex; align-items:center; gap:6px;">
-          <span style="width:6px; height:6px; border-radius:50%; background:var(--accent-emerald);"></span>
-          All Language Models and neural transceiver are fully active.
+        <!-- Storage Bar Visualizer -->
+        <div style="margin-top:14px;">
+          <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted); margin-bottom:5px; font-weight:600;">
+            <span>Selected Models: <strong id="barSelectedLabel" style="color:var(--text);">78 MB</strong></span>
+            <span>Total Bundle: <strong>279 MB</strong></span>
+          </div>
+          <div class="storage-bar-track">
+            <div class="storage-bar-fill" id="storageBarFill" style="width: 28%;"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:9.5px; color:var(--text-light); margin-top:4px;">
+            <span>Core + Selected Languages</span>
+            <span id="barSavedPercent">72% App Size Saved</span>
+          </div>
+        </div>
+
+        <div style="margin-top:12px; padding:9px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; font-size:11px; color:#475569; line-height:1.45;">
+          💡 <strong>Storage tip:</strong> Downloading only selected models avoids bloating the app. You can add or remove language models anytime.
         </div>
       </div>
 
-      <!-- Compulsory Language & Transceiver Packs (11) -->
-      <div style="font-size:13px; font-weight:800; margin: 16px 2px 10px; color:var(--text);">
-        Compulsory Language &amp; Transceiver Packs (11)
-      </div>
-
-      <div class="packs-list-wrap">
-        <!-- Pack 1 -->
-        <div class="pack-item">
-          <div class="pack-left">
-            <div class="pack-icon">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-            </div>
-            <div>
-              <div class="pack-title">Voice Activity Detector</div>
-              <div class="pack-sub">2 MB · silero_vad_v4.onnx</div>
-            </div>
-          </div>
-          <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-              stroke-width="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg></div>
-        </div>
-
-        <!-- Pack 2 -->
-        <div class="pack-item">
-          <div class="pack-left">
-            <div class="pack-icon">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-              </svg>
-            </div>
-            <div>
-              <div class="pack-title">Speech-To-Text Engine</div>
-              <div class="pack-sub">58 MB · indoconformer_multilingual_int8.bin</div>
-            </div>
-          </div>
-          <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-              stroke-width="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg></div>
-        </div>
-
-        <!-- Pack 3 -->
-        <div class="pack-item">
-          <div class="pack-left">
-            <div class="pack-icon">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="2" y1="12" x2="22" y2="12" />
-              </svg>
-            </div>
-            <div>
-              <div class="pack-title">Language Auto-Detector</div>
-              <div class="pack-sub">1.5 MB · lid.176.ftz</div>
-            </div>
-          </div>
-          <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-              stroke-width="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg></div>
-        </div>
-
-        <!-- Pack 4 -->
-        <div class="pack-item">
-          <div class="pack-left">
-            <div class="pack-icon">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            </div>
-            <div>
-              <div class="pack-title">Hindi Neural Voice (hi-IN)</div>
-              <div class="pack-sub">14 MB · Devanagari offline phonetic synthesis</div>
-            </div>
-          </div>
-          <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-              stroke-width="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg></div>
-        </div>
-
-        <!-- Pack 5 -->
-        <div class="pack-item">
-          <div class="pack-left">
-            <div class="pack-icon">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            </div>
-            <div>
-              <div class="pack-title">English (Indian Phonetics) (en-IN)</div>
-              <div class="pack-sub">12 MB · Indian accent natural voice</div>
-            </div>
-          </div>
-          <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-              stroke-width="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg></div>
-        </div>
-
-        <!-- Pack 6 -->
-        <div class="pack-item">
-          <div class="pack-left">
-            <div class="pack-icon">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            </div>
-            <div>
-              <div class="pack-title">Marathi Neural Voice (mr-IN)</div>
-              <div class="pack-sub">14 MB · High clarity Indic acoustic model</div>
-            </div>
-          </div>
-          <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-              stroke-width="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg></div>
-        </div>
-
-        <!-- Pack 7 -->
-        <div class="pack-item">
-          <div class="pack-left">
-            <div class="pack-icon">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            </div>
-            <div>
-              <div class="pack-title">Gujarati Neural Voice (gu-IN)</div>
-              <div class="pack-sub">13 MB · On-device lightweight acoustic pack</div>
-            </div>
-          </div>
-          <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-              stroke-width="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg></div>
-        </div>
-
-        <!-- Pack 8 -->
-        <div class="pack-item">
-          <div class="pack-left">
-            <div class="pack-icon">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            </div>
-            <div>
-              <div class="pack-title">Tamil Neural Voice (ta-IN)</div>
-              <div class="pack-sub">15 MB · Real-time Dravidian synthesis</div>
-            </div>
-          </div>
-          <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-              stroke-width="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg></div>
-        </div>
-
-        <!-- Pack 9 -->
-        <div class="pack-item">
-          <div class="pack-left">
-            <div class="pack-icon">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            </div>
-            <div>
-              <div class="pack-title">Telugu Neural Voice (te-IN)</div>
-              <div class="pack-sub">15 MB · Low-latency neural synthesis</div>
-            </div>
-          </div>
-          <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-              stroke-width="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg></div>
-        </div>
-
-        <!-- Pack 10 -->
-        <div class="pack-item">
-          <div class="pack-left">
-            <div class="pack-icon">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            </div>
-            <div>
-              <div class="pack-title">Kannada Neural Voice (kn-IN)</div>
-              <div class="pack-sub">14 MB · Offline phonetic prosody engine</div>
-            </div>
-          </div>
-          <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-              stroke-width="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg></div>
-        </div>
-
-        <!-- Pack 11 -->
-        <div class="pack-item">
-          <div class="pack-left">
-            <div class="pack-icon">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            </div>
-            <div>
-              <div class="pack-title">Bengali Neural Voice (bn-IN)</div>
-              <div class="pack-sub">14 MB · Eastern Indic acoustic voice model</div>
-            </div>
-          </div>
-          <div class="check-circle"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-              stroke-width="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg></div>
+      <!-- Quick Preset Buttons -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Quick Presets</div>
+        <div class="presets-row">
+          <button type="button" class="preset-btn active" id="presetRecommended" onclick="applyModelPreset('recommended')">
+            ⭐ Recommended (Hi + En)
+          </button>
+          <button type="button" class="preset-btn" id="presetHindi" onclick="applyModelPreset('hi-only')">
+            🇮🇳 Hindi Only (42 MB)
+          </button>
+          <button type="button" class="preset-btn" id="presetEnglish" onclick="applyModelPreset('en-only')">
+            🇬🇧 English Only (36 MB)
+          </button>
+          <button type="button" class="preset-btn" id="presetAll" onclick="applyModelPreset('all')">
+            All Indic (279 MB)
+          </button>
+          <button type="button" class="preset-btn" id="presetClear" onclick="applyModelPreset('clear')">
+            Clear
+          </button>
         </div>
       </div>
+
+      <!-- 1. Core Pre-Bundled Engines -->
+      <div class="model-category-header">
+        <span class="cat-title">1. Core Runtime Engines</span>
+        <span class="cat-pill">0 MB Extra Download</span>
+      </div>
+      <div id="coreModelsContainer" class="models-list"></div>
+
+      <!-- 2. Speech Recognition (STT) Models -->
+      <div class="model-category-header" style="margin-top:16px;">
+        <span class="cat-title">2. Speech-to-Text Recognition (STT)</span>
+        <span class="cat-pill">Choose for Speaking</span>
+      </div>
+      <div style="font-size:10.5px; color:var(--text-muted); margin-bottom:8px; padding:0 2px;">
+        Converts microphone audio to text completely offline on this phone.
+      </div>
+      <div id="sttModelsContainer" class="models-list"></div>
+
+      <!-- 3. Neural Voice Synthesis (TTS) Models -->
+      <div class="model-category-header" style="margin-top:16px;">
+        <span class="cat-title">3. Neural Voice Synthesis (TTS)</span>
+        <span class="cat-pill">Choose for Listening</span>
+      </div>
+      <div style="font-size:10.5px; color:var(--text-muted); margin-bottom:8px; padding:0 2px;">
+        Synthesizes incoming tactical mesh messages into natural voice speech.
+      </div>
+      <div id="ttsModelsContainer" class="models-list"></div>
 
       <!-- Diagnostics & System Integration Buttons -->
-      <div class="models-diagnostics" style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
-        <button class="btn-outline full-width" onclick="command('capabilities')">Recheck Installed Speech Engine</button>
-        <button class="btn-outline full-width" onclick="command('downloadModel')">Download Offline Language Model</button>
-        <button class="btn-outline full-width" onclick="command('speechSettings')">Open Offline Speech Settings (Android)</button>
-        <button class="btn-outline full-width" onclick="command('ttsSettings')">Open Android TTS Settings</button>
+      <div class="models-diagnostics" style="margin-top:20px; display:flex; flex-direction:column; gap:8px;">
+        <button type="button" class="btn-outline full-width" onclick="recheckModelStatus()">
+          🔄 Recheck Installed Phone Models
+        </button>
+        <button type="button" class="btn-outline full-width" onclick="command('speechSettings')">
+          ⚙️ Open Android Speech Recognition Settings
+        </button>
+        <button type="button" class="btn-outline full-width" onclick="command('ttsSettings')">
+          🔊 Open Android TTS Voice Settings
+        </button>
+      </div>
+
+      <!-- Sticky Download Action Bar at bottom -->
+      <div class="sticky-download-bar" id="stickyDownloadBar">
+        <div class="sticky-download-info">
+          <div style="font-size:12.5px; font-weight:800; color:var(--text);" id="stickySelectedCount">2 Models Selected · 78 MB</div>
+          <div style="font-size:11px; color:var(--emerald-text); font-weight:600;" id="stickySavingsText">Saves 201 MB Storage</div>
+        </div>
+        <button type="button" class="btn-pill" id="btnDownloadSelected" style="padding:10px 18px; font-size:12px; font-weight:800;" onclick="promptConfirmDownload()">
+          Download Selected
+        </button>
       </div>
     </section>
 
@@ -2730,7 +2871,7 @@
       <!-- Top Section Header -->
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; padding:0 2px;">
         <div>
-          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">PS-26173 Specifications</div>
+          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">PS-2073 Specifications</div>
         </div>
         <span class="header-pill pill-neutral">SIH2026</span>
       </div>
@@ -2802,7 +2943,8 @@
         <div style="display:flex; align-items:center; justify-content:space-between;">
           <div>
             <div style="font-size:13px; font-weight:800;" id="specsNodeTitle">Node: LinC. - SA1</div>
-            <div style="font-size:10.5px; color:var(--text-muted); margin-top:2px;" id="specsNodeSub">Callsign: Rohit · Mesh: Wi-Fi Direct / 8785</div>
+            <div style="font-size:10.5px; color:var(--text-muted); margin-top:2px;" id="specsNodeSub">Callsign: Sarthak
+              Patil · Mesh: Wi-Fi Direct / 8785</div>
           </div>
           <span class="header-pill pill-emerald">ACTIVE NODE</span>
         </div>
@@ -2874,7 +3016,7 @@
       <!-- Callsign / User Name Input -->
       <div class="input-group">
         <label class="input-label" for="inputCallsign">Callsign / User Name</label>
-        <input class="input-text" id="inputCallsign" value="Rohit">
+        <input class="input-text" id="inputCallsign" value="Sarthak Patil">
       </div>
 
       <!-- Device Specifications Table -->
@@ -2928,7 +3070,7 @@
       <div style="font-size:17px; font-weight:800; color:var(--text); margin-top:12px;" id="reqPeerName">OnePlus 11R
       </div>
       <div style="display:flex; justify-content:center; gap:6px; margin:6px 0 12px; flex-wrap:wrap;">
-        <span class="header-pill pill-neutral" id="reqCallsignBadge">Callsign: Rohit</span>
+        <span class="header-pill pill-neutral" id="reqCallsignBadge">Callsign: Sarthak Patil</span>
         <span class="header-pill pill-emerald" id="reqAddressBadge">10.33.63.111</span>
       </div>
 
@@ -3028,13 +3170,88 @@
     </div>
   </div>
 
+  <!-- CONFIRM SELECTIVE MODEL DOWNLOAD MODAL -->
+  <div id="modalConfirmModelDownload" class="modal-backdrop hidden">
+    <div class="modal-card" style="max-height:85vh; display:flex; flex-direction:column;">
+      <div class="modal-header">
+        <div class="modal-title" style="font-size:16px;">Confirm Selective Download</div>
+        <button class="modal-close" onclick="closeConfirmModal()">✕</button>
+      </div>
+
+      <div style="overflow-y:auto; padding-right:4px; flex:1;">
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px; line-height:1.45;">
+          You are choosing to download only selected models. This keeps LinC lightweight and saves phone storage.
+        </div>
+
+        <!-- Selected Models List in Modal -->
+        <div id="modalSelectedModelsList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;"></div>
+
+        <!-- Impact Summary Card -->
+        <div style="padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
+            <span style="color:var(--text-muted);">Total Download Size:</span>
+            <strong style="color:var(--text);" id="modalTotalDownloadSize">78 MB</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
+            <span style="color:var(--text-muted);">Storage Space Saved:</span>
+            <strong style="color:var(--accent-emerald);" id="modalTotalSavingsSize">201 MB Saved</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:11px; border-top:1px dashed #cbd5e1; padding-top:6px; margin-top:6px;">
+            <span style="color:var(--text-muted);">Network Requirement:</span>
+            <span style="color:var(--text); font-weight:600;">One-time Wi-Fi / Mobile Data</span>
+          </div>
+        </div>
+
+        <div style="font-size:11px; color:var(--text-muted); line-height:1.4; margin-bottom:14px;">
+          * Note: Android Speech Services may prompt a standard system confirmation dialog to initialize on-device models.
+        </div>
+      </div>
+
+      <div style="display:flex; gap:8px; padding-top:10px; border-top:1px solid #f1f3f5;">
+        <button type="button" class="btn-outline" style="flex:1;" onclick="closeConfirmModal()">Adjust Selection</button>
+        <button type="button" class="btn-pill" style="flex:1.2; padding:12px; font-size:12px; font-weight:800;" id="btnExecuteDownload" onclick="executeModelDownload()">
+          Start Download
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPEECH MODEL OFFLINE ALERT MODAL -->
+  <div id="modalSpeechModelOffline" class="modal-backdrop hidden">
+    <div class="modal-card" style="text-align:center;">
+      <div style="width:48px; height:48px; border-radius:50%; background:#fef3c7; color:#d97706; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+
+      <div class="modal-title" style="font-size:17px; margin-bottom:6px;">Speech Model Offline</div>
+      <div style="font-size:12px; color:var(--text-muted); line-height:1.5; margin-bottom:14px;" id="modalSpeechOfflineDesc">
+        The offline voice recognition model for <strong id="modalOfflineLangName">Hindi (hi-IN)</strong> is not downloaded on this phone.
+        <br><br>
+        To save app size, LinC lets you choose and download only the models you need instead of the entire 280 MB pack.
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <button type="button" class="btn-pill" style="padding:12px; font-size:13px; font-weight:800;" onclick="goToSelectiveDownloadFromModal()">
+          Choose Models to Download (Saves Space)
+        </button>
+        <button type="button" class="btn-outline" onclick="closeSpeechOfflineModal()">
+          Dismiss
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- JAVASCRIPT CORE LOGIC & NATIVE BRIDGE -->
   <script>
     const $ = id => document.getElementById(id);
     function safeGet(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }
     function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
     let connected = false;
-    let callsign = safeGet('itantra_callsign', 'Rohit');
+    let callsign = safeGet('itantra_callsign', 'Sarthak Patil');
     let selectedPort = 8988;
     const peers = new Map();
     let myAddresses = new Set();
@@ -3075,12 +3292,7 @@
     // Screen Navigation with Fluid Directional Transitions
     let currentViewId = 'viewHome';
     let transitionTimer = null;
-    let pageExitTimer = null;
-    let morphRevealTimer = null;
     let previousLeavingPage = null;
-    let activeMorphAnimation = null;
-    let activeOverlayAnimation = null;
-    let activeTextAnimation = null;
 
     const viewOrder = {
       'viewHome': 0,
@@ -3093,74 +3305,34 @@
     let isMorphingRadar = false;
 
     function cleanupTransition() {
-      // 1. Cancel all pending timers
       if (transitionTimer) {
         clearTimeout(transitionTimer);
         transitionTimer = null;
       }
-      if (pageExitTimer) {
-        clearTimeout(pageExitTimer);
-        pageExitTimer = null;
-      }
-      if (morphRevealTimer) {
-        clearTimeout(morphRevealTimer);
-        morphRevealTimer = null;
-      }
+      const existingOverlay = document.querySelector('.radar-morph-overlay');
+      if (existingOverlay) existingOverlay.remove();
 
-      // 2. Cancel and abort in-flight Web Animations
-      if (activeMorphAnimation) {
-        try { activeMorphAnimation.cancel(); } catch (e) {}
-        activeMorphAnimation = null;
-      }
-      if (activeOverlayAnimation) {
-        try { activeOverlayAnimation.cancel(); } catch (e) {}
-        activeOverlayAnimation = null;
-      }
-      if (activeTextAnimation) {
-        try { activeTextAnimation.cancel(); } catch (e) {}
-        activeTextAnimation = null;
-      }
-
-      // 3. Remove all orphaned morph overlays
-      document.querySelectorAll('.radar-morph-overlay').forEach(el => el.remove());
-
-      // 4. Reset Home page styling and classes
-      const home = $('viewHome');
-      if (home) {
-        home.classList.remove('radar-morph-home-exit', 'radar-morph-outgoing', 'page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs', 'page-enter-right', 'page-enter-left', 'page-enter-specs');
-        home.style.position = '';
-        home.style.top = '';
-        home.style.left = '';
-        home.style.width = '';
-        home.style.pointerEvents = '';
-        home.style.zIndex = '';
-        home.style.transform = '';
+      if ($('viewHome')) {
+        $('viewHome').classList.remove('radar-morph-home-exit', 'radar-morph-outgoing');
+        $('viewHome').style.position = '';
+        $('viewHome').style.top = '';
+        $('viewHome').style.left = '';
+        $('viewHome').style.width = '';
+        $('viewHome').style.pointerEvents = '';
+        $('viewHome').style.zIndex = '';
       }
       if ($('btnGetStarted')) $('btnGetStarted').style.opacity = '';
 
-      // 5. Reset Transceiver page and radar screen
-      const transceiver = $('viewTransceiver');
-      if (transceiver) {
-        transceiver.classList.remove('radar-morph-active', 'radar-morph-reveal', 'radar-morph-incoming', 'page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs', 'page-enter-right', 'page-enter-left', 'page-enter-specs');
-        transceiver.style.position = '';
-        transceiver.style.top = '';
-        transceiver.style.left = '';
-        transceiver.style.width = '';
-        transceiver.style.pointerEvents = '';
-        transceiver.style.zIndex = '';
-        transceiver.style.transform = '';
-        const radarScreen = $('radarScreen');
-        if (radarScreen) {
-          radarScreen.style.transform = '';
-          radarScreen.style.transformOrigin = '';
-          radarScreen.style.willChange = '';
-          radarScreen.style.opacity = '';
-          radarScreen.classList.remove('radar-blooming');
-          if (typeof radarScreen.getAnimations === 'function') {
-            radarScreen.getAnimations().forEach(a => {
-              try { a.cancel(); } catch (e) {}
-            });
-          }
+      if ($('viewTransceiver')) {
+        $('viewTransceiver').classList.remove('radar-morph-active', 'radar-morph-reveal', 'radar-morph-incoming');
+        $('viewTransceiver').style.position = '';
+        $('viewTransceiver').style.zIndex = '';
+        if ($('radarScreen')) {
+          $('radarScreen').style.transform = '';
+          $('radarScreen').style.transformOrigin = '';
+          $('radarScreen').style.willChange = '';
+          $('radarScreen').style.opacity = '';
+          $('radarScreen').classList.remove('radar-blooming');
         }
       }
       isMorphingRadar = false;
@@ -3168,39 +3340,23 @@
       if ($('viewContainer')) {
         $('viewContainer').style.minHeight = '';
       }
-
-      // 6. Reset leaving page
       if (previousLeavingPage) {
-        if (previousLeavingPage.id !== currentViewId) {
-          previousLeavingPage.classList.add('hidden');
-        }
-        previousLeavingPage.classList.remove('page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs', 'page-enter-right', 'page-enter-left', 'page-enter-specs');
+        previousLeavingPage.classList.add('hidden');
+        previousLeavingPage.classList.remove('page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs');
         previousLeavingPage.style.top = '';
         previousLeavingPage = null;
       }
-
-      // 7. Enforce strict visibility: current page is always shown, all other pages hidden
       document.querySelectorAll('.view-page').forEach(page => {
         if (page.id !== currentViewId) {
           page.classList.add('hidden');
-          page.classList.remove('page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs', 'page-enter-right', 'page-enter-left', 'page-enter-specs', 'radar-morph-home-exit', 'radar-morph-active', 'radar-morph-reveal');
-          page.style.position = '';
+          page.classList.remove('page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs', 'page-enter-right', 'page-enter-left', 'page-enter-specs');
           page.style.top = '';
-          page.style.left = '';
-          page.style.width = '';
-          page.style.pointerEvents = '';
-          page.style.zIndex = '';
-          page.style.transform = '';
-        } else {
-          page.classList.remove('hidden');
         }
       });
     }
 
     function animateHomeToRadar() {
-      // Abort any previous transitions cleanly before initiating morph
-      cleanupTransition();
-
+      if (isMorphingRadar) return;
       const btn = $('btnGetStarted');
       const fromPage = $('viewHome');
       const targetPage = $('viewTransceiver');
@@ -3210,6 +3366,7 @@
       }
 
       isMorphingRadar = true;
+      cleanupTransition();
 
       // 1. Instant scroll to top for exact, zero-skew coordinate mapping
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -3286,10 +3443,9 @@
         easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
         fill: 'forwards'
       });
-      activeMorphAnimation = screenAnim;
 
       // 8. Fade out the "Get Started" overlay smoothly as the circle reaches destination
-      const overlayAnim = overlay.animate([
+      overlay.animate([
         { opacity: 1 },
         { opacity: 1, offset: 0.3 },
         { opacity: 0 }
@@ -3298,10 +3454,9 @@
         easing: 'ease-out',
         fill: 'forwards'
       });
-      activeOverlayAnimation = overlayAnim;
 
       if (overlayText) {
-        const textAnim = overlayText.animate([
+        overlayText.animate([
           { opacity: 1 },
           { opacity: 0 }
         ], {
@@ -3309,32 +3464,21 @@
           easing: 'ease-out',
           fill: 'forwards'
         });
-        activeTextAnimation = textAnim;
       }
 
       // 9. At 120ms, fade in the white card background and surrounding controls
-      morphRevealTimer = setTimeout(() => {
-        if (currentViewId === 'viewTransceiver') {
-          targetPage.classList.add('radar-morph-reveal');
-        }
-        morphRevealTimer = null;
+      setTimeout(() => {
+        targetPage.classList.add('radar-morph-reveal');
       }, 120);
 
       // 10. Finish and cleanup
       screenAnim.onfinish = () => {
-        activeMorphAnimation = null;
-        activeOverlayAnimation = null;
-        activeTextAnimation = null;
-
         overlay.remove();
         radarScreen.style.transform = '';
         radarScreen.style.transformOrigin = '';
         radarScreen.style.willChange = '';
 
-        // RACE CONDITION SAFEGUARD: Only hide fromPage if user has NOT navigated back to it!
-        if (currentViewId !== 'viewHome') {
-          fromPage.classList.add('hidden');
-        }
+        fromPage.classList.add('hidden');
         fromPage.classList.remove('radar-morph-home-exit');
         fromPage.style.position = '';
         fromPage.style.top = '';
@@ -3348,17 +3492,11 @@
         targetPage.style.position = '';
         targetPage.style.zIndex = '';
 
-        // Always guarantee active view is visible
-        const cur = $(currentViewId);
-        if (cur) cur.classList.remove('hidden');
-
         isMorphingRadar = false;
 
         // Defer discovery and peer rendering until after the transition to guarantee zero frame drops!
-        if (currentViewId === 'viewTransceiver') {
-          command('discover');
-          renderDiscoveredPeers();
-        }
+        command('discover');
+        renderDiscoveredPeers();
       };
     }
 
@@ -3444,7 +3582,7 @@
         'viewHome': ['', ''],
         'viewTransceiver': ['', ''],
         'viewDownloads': ['Models', 'Neural Voice Models · Offline IndicTTS'],
-        'viewSpecs': ['System Architecture', 'PS-26173 Specifications'],
+        'viewSpecs': ['System Architecture', 'PS-2073 Specifications'],
         'viewMessages': ['Tactical Messages', 'Dispatch Stream']
       };
 
@@ -3477,20 +3615,18 @@
       document.body.scrollTop = 0;
 
       // Hide outgoing page once it finishes exiting (180ms)
-      pageExitTimer = setTimeout(() => {
-        if (previousLeavingPage && previousLeavingPage.id !== currentViewId) {
+      setTimeout(() => {
+        if (previousLeavingPage) {
           previousLeavingPage.classList.add('hidden');
           previousLeavingPage.classList.remove('page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs');
           previousLeavingPage.style.top = '';
           previousLeavingPage = null;
         }
-        pageExitTimer = null;
       }, 190);
 
       // Complete full cascade (380ms)
       transitionTimer = setTimeout(() => {
         targetPage.classList.remove('page-enter-right', 'page-enter-left', 'page-enter-specs');
-        targetPage.classList.remove('hidden');
         transitionTimer = null;
       }, 380);
     }
@@ -3651,7 +3787,443 @@
       }
 
       showToast(`Language set to ${label}. Using AI4Bharat Indic-TTS.`);
+      checkCurrentSpeechModelStatus();
     };
+
+    // --- SELECTIVE MODEL DOWNLOAD & STORAGE MANAGEMENT ---
+    const TOTAL_BUNDLE_SIZE_MB = 279;
+    const MODEL_CATALOG = [
+      // Core Pre-bundled Engines (Zero extra download)
+      { id: 'core-vad', category: 'core', title: 'Silero Voice Activity Detector', tag: 'VAD', size: 2.1, desc: 'Ultra-low latency speech boundary detector (pre-bundled)', bundled: true },
+      { id: 'core-lid', category: 'core', title: 'FastText Language Identifier', tag: 'LID', size: 1.2, desc: 'Compact on-device acoustic language classifier (pre-bundled)', bundled: true },
+
+      // Speech Recognition (STT) Models
+      { id: 'stt-hi', category: 'stt', lang: 'hi', tag: 'hi-IN', title: 'Hindi Speech Recognition (ASR)', size: 28, desc: 'Devanagari acoustic & phonetic model for offline transcription', recommended: true },
+      { id: 'stt-en', category: 'stt', lang: 'en', tag: 'en-IN', title: 'Indian English Speech Recognition', size: 24, desc: 'Indian accented phonetic vocabulary for tactical walkie-talkie', recommended: true },
+      { id: 'stt-mr', category: 'stt', lang: 'mr', tag: 'mr-IN', title: 'Marathi Speech Recognition', size: 26, desc: 'Modi/Devanagari script offline acoustic phonetics engine' },
+      { id: 'stt-gu', category: 'stt', lang: 'gu', tag: 'gu-IN', title: 'Gujarati Speech Recognition', size: 25, desc: 'Offline phonetic recognizer for Gujarati dialects' },
+      { id: 'stt-ta', category: 'stt', lang: 'ta', tag: 'ta-IN', title: 'Tamil Speech Recognition', size: 27, desc: 'Dravidian acoustic model with pure offline phonetics' },
+      { id: 'stt-te', category: 'stt', lang: 'te', tag: 'te-IN', title: 'Telugu Speech Recognition', size: 27, desc: 'Offline Telugu acoustic vocabulary & prosody model' },
+      { id: 'stt-kn', category: 'stt', lang: 'kn', tag: 'kn-IN', title: 'Kannada Speech Recognition', size: 26, desc: 'Karnataka regional dialect speech-to-text pipeline' },
+      { id: 'stt-bn', category: 'stt', lang: 'bn', tag: 'bn-IN', title: 'Bengali Speech Recognition', size: 25, desc: 'Eastern Indic phonetic acoustic engine' },
+
+      // Neural Voice Synthesis (TTS) Models
+      { id: 'tts-hi', category: 'tts', lang: 'hi', tag: 'hi-IN', title: 'Hindi Neural Voice (IndicTTS)', size: 14, desc: 'Devanagari natural speech synthesis for incoming audio', recommended: true },
+      { id: 'tts-en', category: 'tts', lang: 'en', tag: 'en-IN', title: 'Indian English Neural Voice', size: 12, desc: 'Indian accent natural TTS for incoming radio voice', recommended: true },
+      { id: 'tts-mr', category: 'tts', lang: 'mr', tag: 'mr-IN', title: 'Marathi Neural Voice', size: 14, desc: 'High-clarity Marathi neural acoustic synthesizer' },
+      { id: 'tts-gu', category: 'tts', lang: 'gu', tag: 'gu-IN', title: 'Gujarati Neural Voice', size: 13, desc: 'Lightweight on-device acoustic voice pack' },
+      { id: 'tts-ta', category: 'tts', lang: 'ta', tag: 'ta-IN', title: 'Tamil Neural Voice', size: 15, desc: 'Real-time Dravidian neural synthesis pack' },
+      { id: 'tts-te', category: 'tts', lang: 'te', tag: 'te-IN', title: 'Telugu Neural Voice', size: 15, desc: 'Low-latency neural audio synthesis pack' },
+      { id: 'tts-kn', category: 'tts', lang: 'kn', tag: 'kn-IN', title: 'Kannada Neural Voice', size: 14, desc: 'Offline phonetic prosody neural engine' },
+      { id: 'tts-bn', category: 'tts', lang: 'bn', tag: 'bn-IN', title: 'Bengali Neural Voice', size: 14, desc: 'Eastern Indic acoustic voice synthesizer' }
+    ];
+
+    let selectedModelIds = new Set();
+    let installedSttLanguages = new Set();
+    let pendingSttLanguages = new Set();
+    let installedTtsVoices = new Set();
+    let activeDownloadingIds = new Set();
+    let currentOfflineAlertLang = 'hi';
+
+    try {
+      const saved = JSON.parse(localStorage.getItem('linc_selected_models') || '[]');
+      if (Array.isArray(saved) && saved.length > 0) {
+        selectedModelIds = new Set(saved);
+      } else {
+        selectedModelIds = new Set(['stt-hi', 'stt-en', 'tts-hi', 'tts-en']);
+      }
+    } catch(e) {
+      selectedModelIds = new Set(['stt-hi', 'stt-en', 'tts-hi', 'tts-en']);
+    }
+
+    function renderModels() {
+      const coreContainer = $('coreModelsContainer');
+      const sttContainer = $('sttModelsContainer');
+      const ttsContainer = $('ttsModelsContainer');
+      if (!coreContainer || !sttContainer || !ttsContainer) return;
+
+      coreContainer.innerHTML = '';
+      sttContainer.innerHTML = '';
+      ttsContainer.innerHTML = '';
+
+      MODEL_CATALOG.forEach(m => {
+        const isCore = m.category === 'core';
+        const isStt = m.category === 'stt';
+        const isTts = m.category === 'tts';
+
+        let isInstalled = false;
+        if (isCore) {
+          isInstalled = true;
+        } else if (isStt) {
+          isInstalled = installedSttLanguages.has(m.tag.toLowerCase()) || installedSttLanguages.has(m.lang);
+        } else if (isTts) {
+          isInstalled = installedTtsVoices.has(m.tag.toLowerCase()) || installedTtsVoices.has(m.lang);
+        }
+
+        const isDownloading = pendingSttLanguages.has(m.tag.toLowerCase()) || activeDownloadingIds.has(m.id);
+        const isSelected = isCore || isInstalled || selectedModelIds.has(m.id);
+
+        const card = document.createElement('div');
+        let cardClass = 'model-card';
+        if (isInstalled) cardClass += ' installed';
+        else if (isDownloading) cardClass += ' downloading';
+        else if (isSelected) cardClass += ' selected';
+        card.className = cardClass;
+        card.id = 'modelCard-' + m.id;
+
+        let iconSvg = '';
+        if (isCore) {
+          iconSvg = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="15" x2="23" y2="15"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="15" x2="4" y2="15"></line></svg>`;
+        } else if (isStt) {
+          iconSvg = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`;
+        } else {
+          iconSvg = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
+        }
+
+        let checkboxHtml = '';
+        if (isCore || isInstalled) {
+          checkboxHtml = `<div class="model-checkbox installed">✓</div>`;
+        } else {
+          checkboxHtml = `<div class="model-checkbox ${isSelected ? 'checked' : ''}">${isSelected ? '✓' : ''}</div>`;
+        }
+
+        let statusPillHtml = '';
+        if (isCore) {
+          statusPillHtml = `<span class="model-status-pill status-installed">BUNDLED</span>`;
+        } else if (isInstalled) {
+          statusPillHtml = `<span class="model-status-pill status-installed">INSTALLED</span>`;
+        } else if (isDownloading) {
+          statusPillHtml = `<span class="model-status-pill status-downloading">DOWNLOADING</span>`;
+        } else {
+          statusPillHtml = `<span class="model-status-pill status-not-installed">AVAILABLE</span>`;
+        }
+
+        card.innerHTML = `
+          <div class="model-left">
+            ${checkboxHtml}
+            <div class="model-icon">${iconSvg}</div>
+            <div class="model-info">
+              <div class="model-name-row">
+                <span class="model-name">${m.title}</span>
+                <span class="model-tag">${m.tag}</span>
+              </div>
+              <div class="model-sub">${m.desc}</div>
+            </div>
+          </div>
+          <div class="model-right">
+            <span class="model-size-pill">${m.size} MB</span>
+            ${statusPillHtml}
+          </div>
+        `;
+
+        if (!isCore && !isInstalled && !isDownloading) {
+          card.onclick = () => toggleModelSelection(m.id);
+        } else if (isInstalled) {
+          card.onclick = () => showToast(`${m.title} is already active on this phone.`);
+        }
+
+        if (isCore) coreContainer.append(card);
+        else if (isStt) sttContainer.append(card);
+        else ttsContainer.append(card);
+      });
+
+      updateStorageStats();
+    }
+
+    function updateStorageStats() {
+      let selectedMb = 0;
+      let selectedCount = 0;
+
+      MODEL_CATALOG.forEach(m => {
+        if (!m.bundled) {
+          const isInstalled = (m.category === 'stt' && (installedSttLanguages.has(m.tag.toLowerCase()) || installedSttLanguages.has(m.lang))) ||
+                              (m.category === 'tts' && (installedTtsVoices.has(m.tag.toLowerCase()) || installedTtsVoices.has(m.lang)));
+          if (isInstalled || selectedModelIds.has(m.id)) {
+            selectedMb += m.size;
+            selectedCount++;
+          }
+        }
+      });
+
+      const savedMb = Math.max(0, TOTAL_BUNDLE_SIZE_MB - selectedMb);
+      const savedPct = Math.round((savedMb / TOTAL_BUNDLE_SIZE_MB) * 100);
+      const usedPct = Math.min(100, Math.max(10, Math.round((selectedMb / TOTAL_BUNDLE_SIZE_MB) * 100)));
+
+      if ($('statSelectedSize')) $('statSelectedSize').textContent = `${selectedMb} MB`;
+      if ($('barSelectedLabel')) $('barSelectedLabel').textContent = `${selectedMb} MB`;
+      if ($('statSavingsMb')) $('statSavingsMb').textContent = `-${savedMb} MB`;
+      if ($('statSavingsText')) $('statSavingsText').textContent = `Saves ${savedMb} MB phone storage (${savedPct}% reduction)`;
+      if ($('barSavedPercent')) $('barSavedPercent').textContent = `${savedPct}% App Size Saved`;
+      if ($('storageBarFill')) $('storageBarFill').style.width = `${usedPct}%`;
+
+      if ($('stickySelectedCount')) $('stickySelectedCount').textContent = `${selectedCount} Models Selected · ${selectedMb} MB`;
+      if ($('stickySavingsText')) $('stickySavingsText').textContent = `Saves ${savedMb} MB Storage (${savedPct}%)`;
+
+      const dlBtn = $('btnDownloadSelected');
+      if (dlBtn) {
+        const uninstalledSelected = Array.from(selectedModelIds).filter(id => {
+          const m = MODEL_CATALOG.find(x => x.id === id);
+          if (!m || m.bundled) return false;
+          if (m.category === 'stt') return !(installedSttLanguages.has(m.tag.toLowerCase()) || installedSttLanguages.has(m.lang));
+          if (m.category === 'tts') return !(installedTtsVoices.has(m.tag.toLowerCase()) || installedTtsVoices.has(m.lang));
+          return true;
+        });
+
+        if (uninstalledSelected.length === 0) {
+          dlBtn.textContent = 'All Selected Installed ✓';
+          dlBtn.disabled = true;
+          dlBtn.style.opacity = '0.6';
+        } else {
+          let downloadSize = 0;
+          uninstalledSelected.forEach(id => {
+            const m = MODEL_CATALOG.find(x => x.id === id);
+            if (m) downloadSize += m.size;
+          });
+          dlBtn.textContent = `Download Selected (${downloadSize} MB)`;
+          dlBtn.disabled = false;
+          dlBtn.style.opacity = '1';
+        }
+      }
+    }
+
+    window.applyModelPreset = function(preset) {
+      document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+      const activeBtn = $('preset' + (preset === 'recommended' ? 'Recommended' : preset === 'hi-only' ? 'Hindi' : preset === 'en-only' ? 'English' : preset === 'all' ? 'All' : 'Clear'));
+      if (activeBtn) activeBtn.classList.add('active');
+
+      selectedModelIds.clear();
+      if (preset === 'recommended') {
+        selectedModelIds.add('stt-hi');
+        selectedModelIds.add('stt-en');
+        selectedModelIds.add('tts-hi');
+        selectedModelIds.add('tts-en');
+        showToast('Selected Recommended Pack: Hindi + English (Saves ~201 MB)');
+      } else if (preset === 'hi-only') {
+        selectedModelIds.add('stt-hi');
+        selectedModelIds.add('tts-hi');
+        showToast('Selected Hindi Only: 42 MB (Saves ~237 MB)');
+      } else if (preset === 'en-only') {
+        selectedModelIds.add('stt-en');
+        selectedModelIds.add('tts-en');
+        showToast('Selected Indian English Only: 36 MB (Saves ~243 MB)');
+      } else if (preset === 'all') {
+        MODEL_CATALOG.forEach(m => {
+          if (!m.bundled) selectedModelIds.add(m.id);
+        });
+        showToast('Selected Full Indic Pack (279 MB)');
+      } else {
+        showToast('Selection cleared. Select individual models to customize storage.');
+      }
+
+      safeSet('linc_selected_models', JSON.stringify(Array.from(selectedModelIds)));
+      renderModels();
+    };
+
+    window.toggleModelSelection = function(modelId) {
+      if (selectedModelIds.has(modelId)) {
+        selectedModelIds.delete(modelId);
+      } else {
+        selectedModelIds.add(modelId);
+      }
+      document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+      safeSet('linc_selected_models', JSON.stringify(Array.from(selectedModelIds)));
+      renderModels();
+    };
+
+    window.promptConfirmDownload = function() {
+      const modal = $('modalConfirmModelDownload');
+      const listContainer = $('modalSelectedModelsList');
+      if (!modal || !listContainer) return;
+
+      const uninstalledSelected = Array.from(selectedModelIds).filter(id => {
+        const m = MODEL_CATALOG.find(x => x.id === id);
+        if (!m || m.bundled) return false;
+        if (m.category === 'stt') return !(installedSttLanguages.has(m.tag.toLowerCase()) || installedSttLanguages.has(m.lang));
+        if (m.category === 'tts') return !(installedTtsVoices.has(m.tag.toLowerCase()) || installedTtsVoices.has(m.lang));
+        return true;
+      });
+
+      if (uninstalledSelected.length === 0) {
+        showToast('All your selected models are already installed on this phone.');
+        return;
+      }
+
+      listContainer.innerHTML = '';
+      let totalSize = 0;
+
+      uninstalledSelected.forEach(id => {
+        const m = MODEL_CATALOG.find(x => x.id === id);
+        if (!m) return;
+        totalSize += m.size;
+
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; font-size:11.5px;';
+        row.innerHTML = `
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-weight:700; color:var(--text);">${m.title}</span>
+            <span style="font-size:9.5px; background:#f1f5f9; padding:1px 5px; border-radius:4px; color:#64748b;">${m.tag}</span>
+          </div>
+          <span style="font-weight:700; color:var(--text-muted);">${m.size} MB</span>
+        `;
+        listContainer.append(row);
+      });
+
+      const savings = Math.max(0, TOTAL_BUNDLE_SIZE_MB - totalSize);
+      if ($('modalTotalDownloadSize')) $('modalTotalDownloadSize').textContent = `${totalSize} MB`;
+      if ($('modalTotalSavingsSize')) $('modalTotalSavingsSize').textContent = `${savings} MB Saved`;
+      if ($('btnExecuteDownload')) $('btnExecuteDownload').textContent = `Start Download (${totalSize} MB)`;
+
+      modal.classList.remove('hidden');
+    };
+
+    window.closeConfirmModal = function() {
+      $('modalConfirmModelDownload')?.classList.add('hidden');
+    };
+
+    window.executeModelDownload = function() {
+      closeConfirmModal();
+
+      const uninstalledSelected = Array.from(selectedModelIds).filter(id => {
+        const m = MODEL_CATALOG.find(x => x.id === id);
+        if (!m || m.bundled) return false;
+        if (m.category === 'stt') return !(installedSttLanguages.has(m.tag.toLowerCase()) || installedSttLanguages.has(m.lang));
+        if (m.category === 'tts') return !(installedTtsVoices.has(m.tag.toLowerCase()) || installedTtsVoices.has(m.lang));
+        return true;
+      });
+
+      let sttLangs = [];
+      let hasTts = false;
+
+      uninstalledSelected.forEach(id => {
+        const m = MODEL_CATALOG.find(x => x.id === id);
+        if (!m) return;
+        activeDownloadingIds.add(m.id);
+        if (m.category === 'stt') sttLangs.push(m.lang);
+        if (m.category === 'tts') hasTts = true;
+      });
+
+      renderModels();
+
+      if (sttLangs.length > 0) {
+        showToast(`Requesting download for ${sttLangs.length} speech model(s)...`);
+        sttLangs.forEach((lang, idx) => {
+          setTimeout(() => {
+            command('language', { language: lang });
+            command('downloadModel');
+          }, idx * 700);
+        });
+      }
+
+      if (hasTts) {
+        setTimeout(() => {
+          showToast('Selected TTS voices can also be verified in Android TTS settings.');
+        }, 1800);
+      }
+
+      setTimeout(() => {
+        command('capabilities');
+      }, 3500);
+    };
+
+    window.recheckModelStatus = function() {
+      showToast('Checking device speech engine and installed models...');
+      command('capabilities');
+    };
+
+    let hasCheckedModelSupport = false;
+
+    function handleModelSupport(data) {
+      hasCheckedModelSupport = true;
+      if (data.installed && Array.isArray(data.installed)) {
+        installedSttLanguages = new Set(data.installed.map(s => String(s).toLowerCase()));
+      }
+      if (data.pending && Array.isArray(data.pending)) {
+        pendingSttLanguages = new Set(data.pending.map(s => String(s).toLowerCase()));
+      }
+      renderModels();
+      checkCurrentSpeechModelStatus();
+    }
+
+    function handleCapabilities(data) {
+      if (data.offlineTtsVoices && Array.isArray(data.offlineTtsVoices)) {
+        installedTtsVoices = new Set(data.offlineTtsVoices.map(v => {
+          const str = typeof v === 'object' ? (v.locale || '') : String(v);
+          return str.split(' ')[0].toLowerCase();
+        }));
+      }
+      if (data.model) {
+        if ($('modelEngineTag')) $('modelEngineTag').textContent = data.model;
+      }
+      renderModels();
+      checkCurrentSpeechModelStatus();
+    }
+
+    function checkCurrentSpeechModelStatus() {
+      const banner = $('radarModelWarningBanner');
+      const text = $('radarModelWarningText');
+      if (!banner || !text) return;
+
+      const lang = currentLanguage || 'hi';
+      const isHinglish = lang === 'hinglish';
+      let missing = false;
+      let missingLabel = '';
+
+      if (isHinglish) {
+        const hiOk = installedSttLanguages.has('hi-in') || installedSttLanguages.has('hi');
+        const enOk = installedSttLanguages.has('en-in') || installedSttLanguages.has('en');
+        if (!hiOk || !enOk) {
+          missing = true;
+          missingLabel = 'Hindi or Indian English';
+        }
+      } else {
+        const targetTag = (lang === 'hi' ? 'hi-in' : lang === 'en' ? 'en-in' : `${lang}-in`).toLowerCase();
+        if (!installedSttLanguages.has(targetTag) && !installedSttLanguages.has(lang)) {
+          missing = true;
+          missingLabel = langNames[lang] || lang;
+        }
+      }
+
+      if (missing && (hasCheckedModelSupport || installedSttLanguages.size > 0)) {
+        text.textContent = `Offline speech model for ${missingLabel} is not installed.`;
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+
+    window.openSelectiveModelDownload = function(preselectLang) {
+      if (preselectLang) {
+        selectedModelIds.add('stt-' + preselectLang);
+        selectedModelIds.add('tts-' + preselectLang);
+      }
+      switchTab('viewDownloads');
+      renderModels();
+    };
+
+    window.showSpeechModelOfflineModal = function(lang, locale, message) {
+      currentOfflineAlertLang = lang || currentLanguage || 'hi';
+      const modal = $('modalSpeechModelOffline');
+      const nameEl = $('modalOfflineLangName');
+      const descEl = $('modalSpeechOfflineDesc');
+      const langTitle = langNames[currentOfflineAlertLang] || currentOfflineAlertLang;
+      if (nameEl) nameEl.textContent = `${langTitle} (${locale || currentOfflineAlertLang + '-IN'})`;
+      if (descEl && message) {
+        descEl.innerHTML = `Offline voice recognition model for <strong>${langTitle}</strong> is missing on this phone.<br><br><span style="font-size:11px; color:#b45309; background:#fffbeb; padding:5px 9px; border-radius:6px; display:inline-block; margin-bottom:8px;">${message}</span><br>To save app size, LinC lets you choose and download only the models you need instead of the entire 280 MB pack.`;
+      }
+      if (modal) modal.classList.remove('hidden');
+    };
+
+    window.closeSpeechOfflineModal = function() {
+      $('modalSpeechModelOffline')?.classList.add('hidden');
+    };
+
+    window.goToSelectiveDownloadFromModal = function() {
+      closeSpeechOfflineModal();
+      openSelectiveModelDownload(currentOfflineAlertLang);
+    };
+
+    // Render models on startup
+    setTimeout(() => { renderModels(); }, 100);
 
     // Capsule PTT Interaction with Swipe-Right-to-Lock
     const pttBtn = $('pttBtn');
@@ -3667,6 +4239,27 @@
 
     function startPtt() {
       if (isHoldingTalk) return;
+
+      const lang = currentLanguage || 'hi';
+      const isHinglish = lang === 'hinglish';
+      let isMissing = false;
+      if (isHinglish) {
+        const hiOk = installedSttLanguages.has('hi-in') || installedSttLanguages.has('hi');
+        const enOk = installedSttLanguages.has('en-in') || installedSttLanguages.has('en');
+        if (!hiOk || !enOk) isMissing = true;
+      } else {
+        const targetTag = (lang === 'hi' ? 'hi-in' : lang === 'en' ? 'en-in' : `${lang}-in`).toLowerCase();
+        if (!installedSttLanguages.has(targetTag) && !installedSttLanguages.has(lang)) {
+          isMissing = true;
+        }
+      }
+
+      if (hasCheckedModelSupport && isMissing) {
+        window.showSpeechModelOfflineModal(lang, lang + '-IN', `Offline speech recognition model for ${langNames[lang] || lang} is not installed on this phone.`);
+        showToast(`Offline speech model for ${lang.toUpperCase()} missing. Choose & download to save app size.`);
+        return;
+      }
+
       isHoldingTalk = true;
       pttBtn.classList.add('active');
       pttTrack.classList.add('active');
@@ -4234,9 +4827,31 @@
           }
           break;
 
+        case 'capabilities':
+          handleCapabilities(data);
+          break;
+
+        case 'modelSupport':
+          handleModelSupport(data);
+          break;
+
+        case 'speechModelOffline':
+          window.showSpeechModelOfflineModal(data.language, data.locale, data.message);
+          break;
+
         case 'notice':
         case 'error':
           showToast(data.message);
+          const rawMsg = (data.message || '').toLowerCase();
+          if (rawMsg.includes('offline') || rawMsg.includes('speech model') || rawMsg.includes('language model') || rawMsg.includes('not supported') || rawMsg.includes('missing') || data.code === 12 || data.code === 13) {
+            window.showSpeechModelOfflineModal(data.language || currentLanguage, data.locale, data.message);
+            const banner = $('radarModelWarningBanner');
+            const text = $('radarModelWarningText');
+            if (banner && text) {
+              text.textContent = data.message || `Offline speech model is missing for ${currentLanguage.toUpperCase()}.`;
+              banner.classList.remove('hidden');
+            }
+          }
           break;
       }
     };

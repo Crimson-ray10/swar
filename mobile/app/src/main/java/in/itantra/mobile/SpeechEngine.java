@@ -62,45 +62,32 @@ public final class SpeechEngine {
         }
         return intent;
     }
-    private boolean usingOnDeviceOnly=true;
-    private RecognitionListener createListener(){
-        return new RecognitionListener(){
-            public void onReadyForSpeech(Bundle p){event("speech","state","Listening · " + (usingOnDeviceOnly ? "on-device" : "adaptive"));}
+    private boolean prepare(){
+        if(!SpeechRecognizer.isOnDeviceRecognitionAvailable(activity)){event("error","message","This phone has no available on-device recognizer. Voice cannot run offline here. Typed messages still work.");return false;}
+        if(recognizer==null){recognizer=SpeechRecognizer.createOnDeviceSpeechRecognizer(activity);recognizer.setRecognitionListener(new RecognitionListener(){
+            public void onReadyForSpeech(Bundle p){event("speech","state","Listening · on-device");}
             public void onBeginningOfSpeech(){speechStarted=SystemClock.elapsedRealtime();event("speech","state","SPEECH_STARTED");}
-            public void onRmsChanged(float rms){}
-            public void onBufferReceived(byte[] b){}
+            public void onRmsChanged(float rms){}public void onBufferReceived(byte[] b){}
             public void onEndOfSpeech(){event("speech","state","SPEECH_ENDED · recognizing");}
             public void onError(int code){
                 boolean wasListening=listening;listening=false;clearWatchdog();
                 if(!wasListening)return;
-                if(code==SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE){
-                    if(Build.VERSION.SDK_INT>=33){
-                        try{
-                            SpeechRecognizer dl=SpeechRecognizer.createSpeechRecognizer(activity);
-                            dl.triggerModelDownload(intent());
-                        }catch(Exception ignored){}
-                    }
-                    if(usingOnDeviceOnly){
-                        usingOnDeviceOnly=false;
-                        if(recognizer!=null){try{recognizer.destroy();}catch(Exception ignored){}recognizer=null;}
-                        recognizer=SpeechRecognizer.createSpeechRecognizer(activity);
-                        recognizer.setRecognitionListener(createListener());
-                        event("notice","message","Offline pack missing. Using active recognizer and downloading offline pack in background...");
-                        start();
-                        return;
-                    }
-                }
                 String reason=switch(code){
-                    case SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED->"Selected language is not supported by this phone's recognizer.";
-                    case SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE->"Offline language model is not installed. Tap 'Download Offline Language Model' in Models tab.";
+                    case SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED->"Selected language ("+locale()+") is not supported by this phone's offline recognizer.";
+                    case SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE->"Offline speech model is missing for "+locale()+". Select and download it to save app size.";
                     case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS->"Microphone permission is required.";
                     case SpeechRecognizer.ERROR_NO_MATCH->"No speech recognized; try speaking again.";
                     case SpeechRecognizer.ERROR_SPEECH_TIMEOUT->"No speech detected.";
                     case SpeechRecognizer.ERROR_RECOGNIZER_BUSY->"Recognizer busy. Wait and try again.";
-                    default->"Recognition error "+code+".";
+                    default->"On-device recognition error "+code+". No cloud fallback was used.";
                 };
                 event("speech","state","Idle");
-                if(code!=SpeechRecognizer.ERROR_SPEECH_TIMEOUT)event("error","message",reason);
+                if(code!=SpeechRecognizer.ERROR_SPEECH_TIMEOUT){
+                    event("error","message",reason,"code",code,"language",language,"locale",locale());
+                    if(code==SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE||code==SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED){
+                        event("speechModelOffline","language",language,"locale",locale(),"code",code,"message",reason);
+                    }
+                }
                 if(code==SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED||code==SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE||code==SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS||++errors>3)stopConversation();
                 playNext();restart();
             }
@@ -129,63 +116,67 @@ public final class SpeechEngine {
             }
             public void onPartialResults(Bundle b){ArrayList<String> r=b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);if(listening&&r!=null&&!r.isEmpty())event("partial","text",r.get(0));}
             public void onEvent(int type,Bundle b){}
-        };
-    }
-    private boolean prepare(){
-        if(recognizer==null){
-            if(usingOnDeviceOnly && SpeechRecognizer.isOnDeviceRecognitionAvailable(activity)){
-                try {
-                    recognizer=SpeechRecognizer.createOnDeviceSpeechRecognizer(activity);
-                } catch(Exception e) {
-                    usingOnDeviceOnly=false;
-                    recognizer=SpeechRecognizer.createSpeechRecognizer(activity);
-                }
-            } else {
-                usingOnDeviceOnly=false;
-                recognizer=SpeechRecognizer.createSpeechRecognizer(activity);
-            }
-            recognizer.setRecognitionListener(createListener());
-        }
+        });}
         return true;
     }
     public void status(){
-        JSONArray voices=new JSONArray();if(ttsReady&&tts.getVoices()!=null)for(Voice v:tts.getVoices())if(!v.isNetworkConnectionRequired()&&Set.of("hi","en").contains(v.getLocale().getLanguage()))voices.put(v.getLocale().toLanguageTag()+" · "+v.getName());
-        event("capabilities","onDeviceStt",SpeechRecognizer.isOnDeviceRecognitionAvailable(activity),"offlineTtsVoices",voices,"language",language,"model","Android on-device recognizer","vad","Platform speech boundaries","hinglish","Enhanced Hindi + Indian English dual-profile","ttsEngine","AI4Bharat Indic-TTS (FastPitch + HiFi-GAN)");
-        if(Build.VERSION.SDK_INT>=33&&prepare()){
-            try {
-                recognizer.checkRecognitionSupport(intent(),activity.getMainExecutor(),new RecognitionSupportCallback(){
-                    public void onSupportResult(RecognitionSupport support){java.util.List<String> installed=support.getInstalledOnDeviceLanguages();if(installed.contains("en-IN"))englishLocale="en-IN";else for(String tag:installed)if(tag.startsWith("en-")){englishLocale=tag;break;}event("modelSupport","installed",new JSONArray(installed),"pending",new JSONArray(support.getPendingOnDeviceLanguages()),"available",new JSONArray(support.getSupportedOnDeviceLanguages()),"englishLocale",englishLocale);}
-                    public void onError(int e){event("modelSupport","notice","Language support query unavailable ("+e+"); verify with offline speech test.");}
-                });
-            } catch(Exception ignored){}
-        }
-    }
-    public void openSpeechSettings(){
-        Intent[] candidates = new Intent[] {
-            new Intent("android.speech.action.OPEN_OFFLINE_LANGUAGES"),
-            new Intent(Intent.ACTION_MAIN).setComponent(new ComponentName("com.google.android.googlequicksearchbox", "com.google.android.voicesearch.greco3.languagepack.InstallActivity")),
-            new Intent(android.provider.Settings.ACTION_VOICE_INPUT_SETTINGS),
-            new Intent("android.settings.VOICE_INPUT_SETTINGS"),
-            new Intent(android.provider.Settings.ACTION_LOCALE_SETTINGS)
-        };
-        for(Intent it : candidates){
-            it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            if(it.resolveActivity(activity.getPackageManager()) != null){
-                try{activity.startActivity(it);return;}catch(Exception ignored){}
+        JSONArray voices=new JSONArray();
+        if(ttsReady&&tts.getVoices()!=null){
+            for(Voice v:tts.getVoices()){
+                if(!v.isNetworkConnectionRequired()){
+                    String lang=v.getLocale().getLanguage();
+                    if(Set.of("hi","en","mr","gu","ta","te","kn","bn","ml","or").contains(lang)){
+                        voices.put(v.getLocale().toLanguageTag()+" · "+v.getName());
+                    }
+                }
             }
         }
-        try{activity.startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS));}catch(Exception ignored){}
-    }
-    public void downloadModel(){
-        boolean triggered=false;
+        event("capabilities","onDeviceStt",SpeechRecognizer.isOnDeviceRecognitionAvailable(activity),"offlineTtsVoices",voices,"language",language,"locale",locale(),"model","Android on-device recognizer","vad","Platform speech boundaries","hinglish","Enhanced Hindi + Indian English dual-profile","ttsEngine","AI4Bharat Indic-TTS (FastPitch + HiFi-GAN)");
         if(Build.VERSION.SDK_INT>=33&&prepare()){
-            try { recognizer.triggerModelDownload(intent()); triggered=true; } catch(Exception ignored){}
+            Intent checkIntent=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                .putExtra(RecognizerIntent.EXTRA_LANGUAGE,locale())
+                .putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE,activity.getPackageName())
+                .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE,true);
+            checkIntent.putExtra("android.speech.extra.ADDITIONAL_LANGUAGES",new String[]{"hi-IN","en-IN","en-US","mr-IN","gu-IN","ta-IN","te-IN","kn-IN","bn-IN"});
+            try{
+                recognizer.checkRecognitionSupport(checkIntent,activity.getMainExecutor(),new RecognitionSupportCallback(){
+                    public void onSupportResult(RecognitionSupport support){
+                        java.util.List<String> installed=support.getInstalledOnDeviceLanguages();
+                        if(installed.contains("en-IN"))englishLocale="en-IN";
+                        else for(String tag:installed)if(tag.startsWith("en-")){englishLocale=tag;break;}
+                        event("modelSupport","installed",new JSONArray(installed),"pending",new JSONArray(support.getPendingOnDeviceLanguages()),"available",new JSONArray(support.getSupportedOnDeviceLanguages()),"englishLocale",englishLocale);
+                    }
+                    public void onError(int e){event("modelSupport","notice","Language support query unavailable ("+e+"); verify with offline speech test.");}
+                });
+            }catch(Exception e){
+                event("modelSupport","notice","checkRecognitionSupport error: "+e.getMessage());
+            }
         }
-        openSpeechSettings();
-        event("notice","message", triggered ? 
-            "Requested offline model download and opened Speech Settings. Select and download Hindi / English." :
-            "Opened Speech Settings. Select 'Offline speech recognition' and download Hindi / English.");
     }
+    public void downloadSelected(List<String> langTags){
+        if(Build.VERSION.SDK_INT>=33&&prepare()){
+            int count=0;
+            for(String tag:langTags){
+                if(tag!=null&&!tag.isBlank()){
+                    try{
+                        Intent dl=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE,tag)
+                            .putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE,activity.getPackageName())
+                            .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE,true);
+                        recognizer.triggerModelDownload(dl);
+                        count++;
+                    }catch(Exception ex){
+                        android.util.Log.e("LinC_Speech","Failed triggering download for "+tag,ex);
+                    }
+                }
+            }
+            event("notice","message","Submitted download request for "+count+" selected model(s). If prompted by Android, tap Allow.");
+            main.postDelayed(this::status,2000);
+        }else event("error","message","Offline model download is unavailable on this device version.");
+    }
+    public void downloadModel(){if(Build.VERSION.SDK_INT>=33&&prepare()){recognizer.triggerModelDownload(intent());event("notice","message","Requested offline speech model for "+locale()+". This preparation step may need internet and a system dialog.");main.postDelayed(this::status,2000);}else event("error","message","Offline model download is unavailable on this device.");}
     public void start(){
         if(closed||!active||listening)return;
         if(playing){event("notice","message","Wait for received speech to finish, or tap Stop playback before talking.");return;}

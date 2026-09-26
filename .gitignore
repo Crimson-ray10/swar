@@ -77,12 +77,19 @@ Thumbs.db
 mobile/.gradle/
 mobile/.kotlin/
 .kotlin/
+mobile/bin/
+mobile/build/
 mobile/local.properties
 mobile/app/src/main/assets/generated/
 *.apk
 !apps/web/public/*.apk
 *.jks
+*.keystore
+*.jar
 *.mp4
+
+# Local agent artifacts
+.claude/
 
 # Scratch chat dumps
 chat_dump.*
@@ -93,3 +100,4 @@ chat_full.txt
 
 # Local build logs
 *.log
+
