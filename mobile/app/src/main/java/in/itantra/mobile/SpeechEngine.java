@@ -30,11 +30,31 @@ public final class SpeechEngine {
         });
     }
     private void event(String type,Object... values){listener.event(type,LocalTransport.json(values));}
-    public void language(String value){if(Set.of("hi","en","hinglish").contains(value)){stopConversation();cancelCapture();language=value;status();}}
+    private static final Set<String> SUPPORTED_LANGS = Set.of(
+        "hi", "en", "hinglish", "mr", "gu", "ta", "te", "kn", "ml", "bn", "or", "pa"
+    );
+    public void language(String value){
+        if(value != null && SUPPORTED_LANGS.contains(value.toLowerCase())){
+            stopConversation();
+            cancelCapture();
+            language = value.toLowerCase();
+            status();
+        }
+    }
     private String locale(){
-        return switch(language){
+        return switch(language.toLowerCase()){
             case "en" -> englishLocale;
             case "hinglish" -> "en-IN";
+            case "hi" -> "hi-IN";
+            case "mr" -> "mr-IN";
+            case "gu" -> "gu-IN";
+            case "ta" -> "ta-IN";
+            case "te" -> "te-IN";
+            case "kn" -> "kn-IN";
+            case "ml" -> "ml-IN";
+            case "bn" -> "bn-IN";
+            case "or" -> "or-IN";
+            case "pa" -> "pa-IN";
             default -> "hi-IN";
         };
     }
@@ -176,15 +196,40 @@ public final class SpeechEngine {
         }
         try{activity.startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS));}catch(Exception ignored){}
     }
-    public void downloadModel(){
+    public void downloadModel(String targetLang){
+        if(targetLang != null && SUPPORTED_LANGS.contains(targetLang.toLowerCase())){
+            language(targetLang);
+        }
         boolean triggered=false;
         if(Build.VERSION.SDK_INT>=33&&prepare()){
-            try { recognizer.triggerModelDownload(intent()); triggered=true; } catch(Exception ignored){}
+            try { 
+                recognizer.triggerModelDownload(intent()); 
+                triggered=true; 
+            } catch(Exception ignored){}
         }
         openSpeechSettings();
+        String langName = switch(language.toLowerCase()){
+            case "hi" -> "Hindi (hi-IN)";
+            case "en" -> "English (" + englishLocale + ")";
+            case "hinglish" -> "Hindi + English Dual Pack";
+            case "mr" -> "Marathi (mr-IN)";
+            case "gu" -> "Gujarati (gu-IN)";
+            case "ta" -> "Tamil (ta-IN)";
+            case "te" -> "Telugu (te-IN)";
+            case "kn" -> "Kannada (kn-IN)";
+            case "ml" -> "Malayalam (ml-IN)";
+            case "bn" -> "Bengali (bn-IN)";
+            case "or" -> "Odia (or-IN)";
+            case "pa" -> "Punjabi (pa-IN)";
+            default -> language;
+        };
         event("notice","message", triggered ? 
-            "Requested offline model download and opened Speech Settings. Select and download Hindi / English." :
-            "Opened Speech Settings. Select 'Offline speech recognition' and download Hindi / English.");
+            "Requested offline model download for " + langName + " and opened Speech Settings." :
+            "Opened Speech Settings. Select 'Offline speech recognition' and install " + langName + ".");
+        event("modelDownloadTriggered", "language", language, "locale", locale(), "triggered", triggered);
+    }
+    public void downloadModel(){
+        downloadModel(null);
     }
     public void start(){
         if(closed||!active||listening)return;
@@ -208,12 +253,15 @@ public final class SpeechEngine {
         if(!ttsReady){event("error","message","TTS engine is not ready. Read received text.");restart();return;}
         boolean hasDevanagari=message.text().codePoints().anyMatch(cp->Character.UnicodeBlock.of(cp)==Character.UnicodeBlock.DEVANAGARI);
         String target;
-        if("hinglish".equalsIgnoreCase(message.language())){
+        String msgLang = message.language() != null ? message.language().toLowerCase() : "hi";
+        if("hinglish".equals(msgLang)){
             target = hasDevanagari ? "hi" : "en";
-        }else if("en".equalsIgnoreCase(message.language())){
+        }else if("en".equals(msgLang)){
             target = "en";
-        }else if("hi".equalsIgnoreCase(message.language())){
+        }else if("hi".equals(msgLang)){
             target = "hi";
+        }else if(SUPPORTED_LANGS.contains(msgLang)){
+            target = msgLang;
         }else{
             target = hasDevanagari ? "hi" : "en";
         }

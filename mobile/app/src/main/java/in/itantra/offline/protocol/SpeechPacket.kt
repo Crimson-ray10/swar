@@ -6,8 +6,14 @@ import java.util.UUID
 
 enum class MessageType { PARTIAL, FINAL, ACK, FLOOR_REQUEST, FLOOR_GRANT, FLOOR_RELEASE, HEARTBEAT, CAPABILITIES }
 enum class Language(val tag: String) {
-    HI("hi"), EN("en"), OR("or"), BN("bn"), TA("ta"), TE("te"), MR("mr"), HINGLISH("hi-en");
-    companion object { fun fromTag(tag: String) = entries.firstOrNull { it.tag == tag } ?: error("Unsupported language: $tag") }
+    HI("hi"), EN("en"), OR("or"), BN("bn"), TA("ta"), TE("te"), MR("mr"), HINGLISH("hi-en"),
+    GU("gu"), KN("kn"), ML("ml"), PA("pa");
+    companion object {
+        fun fromTag(tag: String): Language = entries.firstOrNull { 
+            it.tag.equals(tag, ignoreCase = true) || 
+            (it == HINGLISH && (tag.equals("hinglish", ignoreCase = true) || tag.equals("hi-en", ignoreCase = true)))
+        } ?: HI
+    }
 }
 
 /** Offsets count whitespace-delimited words, never UTF-16 bytes. FINAL carries the complete transcript. */
