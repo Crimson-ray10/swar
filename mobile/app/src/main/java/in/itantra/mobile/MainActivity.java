@@ -14,6 +14,8 @@ import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
+import android.animation.ArgbEvaluator;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.util.TypedValue;
@@ -75,7 +77,7 @@ public final class MainActivity extends Activity {
                 speech.status();
                 
                 // Fetch exact rect of the web H1 text to overlay perfectly
-                web.evaluateJavascript("(() => { const el = document.querySelector('.hero-brand-title'); if(!el) return '0,0,0,0'; const rect = el.getBoundingClientRect(); return rect.left + ',' + rect.top + ',' + rect.width + ',' + rect.height; })()", value -> {
+                web.evaluateJavascript("(() => { const el = document.querySelector('.hero-brand-title'); if(!el) return '0,0,0,0'; el.style.opacity = '0'; const rect = el.getBoundingClientRect(); return rect.left + ',' + rect.top + ',' + rect.width + ',' + rect.height; })()", value -> {
                     if(splash == null || splash.getParent() == null) return;
                     try {
                         String clean = value.replace("\"", "");
@@ -117,8 +119,11 @@ public final class MainActivity extends Activity {
     private void startSplashAnimation(float finalX, float finalY, float fontSizePx) {
         float screenWidth = getResources().getDisplayMetrics().widthPixels;
         float screenHeight = getResources().getDisplayMetrics().heightPixels;
-        float startX = screenWidth / 2f;
-        float startY = screenHeight / 2f;
+        View parentView = (View) splash.getParent();
+        int padLeft = parentView != null ? parentView.getPaddingLeft() : 0;
+        int padTop = parentView != null ? parentView.getPaddingTop() : 0;
+        float startX = (screenWidth / 2f) - padLeft;
+        float startY = (screenHeight / 2f) - padTop;
         String[] texts = {"ಲಿಂಕ್.", "ਲਿੰਕ.", "लिंक.", "லிங்க்.", "లింక్.", "লিংক.", "LinC."};
         // 3 above, 3 below
         float[] targetYsDp = {-240f, -160f, -80f, 80f, 160f, 240f};
@@ -239,15 +244,26 @@ public final class MainActivity extends Activity {
         p4_tX.setDuration(700);
         p4_tY.setDuration(700);
         
-        ObjectAnimator mainFadeOut = ObjectAnimator.ofFloat(mainTv, "alpha", 1f, 0f);
-        ObjectAnimator bgFadeOut = ObjectAnimator.ofFloat(splash, "alpha", 1f, 0f);
-        mainFadeOut.setDuration(450);
-        bgFadeOut.setDuration(450);
-        mainFadeOut.setStartDelay(250); // Start fading only after coming back down a little bit
-        bgFadeOut.setStartDelay(250);
+        // Background black dissolves to transparent to reveal web home page
+        ValueAnimator bgFadeOut = ValueAnimator.ofObject(new ArgbEvaluator(), 0xFF000000, 0x00000000);
+        bgFadeOut.setDuration(600);
+        bgFadeOut.addUpdateListener(a -> {
+            if (splash != null) splash.setBackgroundColor((int) a.getAnimatedValue());
+        });
+        
+        // Morph text color of "LinC" from White -> #111827 to contrast against revealed white background
+        ValueAnimator colorMorph = ValueAnimator.ofObject(new ArgbEvaluator(), 0xFFFFFFFF, 0xFF111827);
+        colorMorph.setDuration(550);
+        colorMorph.addUpdateListener(a -> {
+            int c = (int) a.getAnimatedValue();
+            SpannableString s = new SpannableString("LinC.");
+            s.setSpan(new ForegroundColorSpan(c), 0, 4, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            s.setSpan(new ForegroundColorSpan(0xFF10B981), 4, 5, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            mainTv.setText(s);
+        });
         
         AnimatorSet outroPart2 = new AnimatorSet();
-        outroPart2.playTogether(p4_sX_down, p4_sY_down, p4_tX, p4_tY, mainFadeOut, bgFadeOut);
+        outroPart2.playTogether(p4_sX_down, p4_sY_down, p4_tX, p4_tY, bgFadeOut, colorMorph);
         outroPart2.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
         
         // Orchestrate all phases
@@ -262,7 +278,12 @@ public final class MainActivity extends Activity {
         fullSequence.playSequentially(intro, outro);
         fullSequence.addListener(new AnimatorListenerAdapter() {
             @Override public void onAnimationEnd(Animator animation) {
-                ((FrameLayout)splash.getParent()).removeView(splash);
+                if (web != null) {
+                    web.evaluateJavascript("const el = document.querySelector('.hero-brand-title'); if(el) el.style.opacity = '1';", null);
+                }
+                if (splash != null && splash.getParent() != null) {
+                    ((FrameLayout)splash.getParent()).removeView(splash);
+                }
             }
         });
         fullSequence.start();

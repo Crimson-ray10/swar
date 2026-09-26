@@ -2093,7 +2093,7 @@
 
       <!-- Home Footer Terms & Compliance Notice -->
       <footer class="home-compliance-footer">
-        <div class="compliance-footer-title">PS-2073 Mandate Compliance</div>
+        <div class="compliance-footer-title">PS-26173 Mandate Compliance</div>
         <p class="compliance-footer-text">
           100% Offline · Zero Cloud Dependencies · Open Source TorchScript [BitStream] + AI4Bharat IndicTTS Audio
           synthesis · Direct IP/ZeroConf P2P Mesh (Meets all SIH2026 specifications).
@@ -2731,7 +2731,7 @@
       <!-- Top Section Header -->
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; padding:0 2px;">
         <div>
-          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">PS-2073 Specifications</div>
+          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">PS-26173 Specifications</div>
         </div>
         <span class="header-pill pill-neutral">SIH2026</span>
       </div>
@@ -3076,7 +3076,12 @@
     // Screen Navigation with Fluid Directional Transitions
     let currentViewId = 'viewHome';
     let transitionTimer = null;
+    let pageExitTimer = null;
+    let morphRevealTimer = null;
     let previousLeavingPage = null;
+    let activeMorphAnimation = null;
+    let activeOverlayAnimation = null;
+    let activeTextAnimation = null;
 
     const viewOrder = {
       'viewHome': 0,
@@ -3089,34 +3094,74 @@
     let isMorphingRadar = false;
 
     function cleanupTransition() {
+      // 1. Cancel all pending timers
       if (transitionTimer) {
         clearTimeout(transitionTimer);
         transitionTimer = null;
       }
-      const existingOverlay = document.querySelector('.radar-morph-overlay');
-      if (existingOverlay) existingOverlay.remove();
+      if (pageExitTimer) {
+        clearTimeout(pageExitTimer);
+        pageExitTimer = null;
+      }
+      if (morphRevealTimer) {
+        clearTimeout(morphRevealTimer);
+        morphRevealTimer = null;
+      }
 
-      if ($('viewHome')) {
-        $('viewHome').classList.remove('radar-morph-home-exit', 'radar-morph-outgoing');
-        $('viewHome').style.position = '';
-        $('viewHome').style.top = '';
-        $('viewHome').style.left = '';
-        $('viewHome').style.width = '';
-        $('viewHome').style.pointerEvents = '';
-        $('viewHome').style.zIndex = '';
+      // 2. Cancel and abort in-flight Web Animations
+      if (activeMorphAnimation) {
+        try { activeMorphAnimation.cancel(); } catch (e) {}
+        activeMorphAnimation = null;
+      }
+      if (activeOverlayAnimation) {
+        try { activeOverlayAnimation.cancel(); } catch (e) {}
+        activeOverlayAnimation = null;
+      }
+      if (activeTextAnimation) {
+        try { activeTextAnimation.cancel(); } catch (e) {}
+        activeTextAnimation = null;
+      }
+
+      // 3. Remove all orphaned morph overlays
+      document.querySelectorAll('.radar-morph-overlay').forEach(el => el.remove());
+
+      // 4. Reset Home page styling and classes
+      const home = $('viewHome');
+      if (home) {
+        home.classList.remove('radar-morph-home-exit', 'radar-morph-outgoing', 'page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs', 'page-enter-right', 'page-enter-left', 'page-enter-specs');
+        home.style.position = '';
+        home.style.top = '';
+        home.style.left = '';
+        home.style.width = '';
+        home.style.pointerEvents = '';
+        home.style.zIndex = '';
+        home.style.transform = '';
       }
       if ($('btnGetStarted')) $('btnGetStarted').style.opacity = '';
 
-      if ($('viewTransceiver')) {
-        $('viewTransceiver').classList.remove('radar-morph-active', 'radar-morph-reveal', 'radar-morph-incoming');
-        $('viewTransceiver').style.position = '';
-        $('viewTransceiver').style.zIndex = '';
-        if ($('radarScreen')) {
-          $('radarScreen').style.transform = '';
-          $('radarScreen').style.transformOrigin = '';
-          $('radarScreen').style.willChange = '';
-          $('radarScreen').style.opacity = '';
-          $('radarScreen').classList.remove('radar-blooming');
+      // 5. Reset Transceiver page and radar screen
+      const transceiver = $('viewTransceiver');
+      if (transceiver) {
+        transceiver.classList.remove('radar-morph-active', 'radar-morph-reveal', 'radar-morph-incoming', 'page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs', 'page-enter-right', 'page-enter-left', 'page-enter-specs');
+        transceiver.style.position = '';
+        transceiver.style.top = '';
+        transceiver.style.left = '';
+        transceiver.style.width = '';
+        transceiver.style.pointerEvents = '';
+        transceiver.style.zIndex = '';
+        transceiver.style.transform = '';
+        const radarScreen = $('radarScreen');
+        if (radarScreen) {
+          radarScreen.style.transform = '';
+          radarScreen.style.transformOrigin = '';
+          radarScreen.style.willChange = '';
+          radarScreen.style.opacity = '';
+          radarScreen.classList.remove('radar-blooming');
+          if (typeof radarScreen.getAnimations === 'function') {
+            radarScreen.getAnimations().forEach(a => {
+              try { a.cancel(); } catch (e) {}
+            });
+          }
         }
       }
       isMorphingRadar = false;
@@ -3124,23 +3169,39 @@
       if ($('viewContainer')) {
         $('viewContainer').style.minHeight = '';
       }
+
+      // 6. Reset leaving page
       if (previousLeavingPage) {
-        previousLeavingPage.classList.add('hidden');
-        previousLeavingPage.classList.remove('page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs');
+        if (previousLeavingPage.id !== currentViewId) {
+          previousLeavingPage.classList.add('hidden');
+        }
+        previousLeavingPage.classList.remove('page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs', 'page-enter-right', 'page-enter-left', 'page-enter-specs');
         previousLeavingPage.style.top = '';
         previousLeavingPage = null;
       }
+
+      // 7. Enforce strict visibility: current page is always shown, all other pages hidden
       document.querySelectorAll('.view-page').forEach(page => {
         if (page.id !== currentViewId) {
           page.classList.add('hidden');
-          page.classList.remove('page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs', 'page-enter-right', 'page-enter-left', 'page-enter-specs');
+          page.classList.remove('page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs', 'page-enter-right', 'page-enter-left', 'page-enter-specs', 'radar-morph-home-exit', 'radar-morph-active', 'radar-morph-reveal');
+          page.style.position = '';
           page.style.top = '';
+          page.style.left = '';
+          page.style.width = '';
+          page.style.pointerEvents = '';
+          page.style.zIndex = '';
+          page.style.transform = '';
+        } else {
+          page.classList.remove('hidden');
         }
       });
     }
 
     function animateHomeToRadar() {
-      if (isMorphingRadar) return;
+      // Abort any previous transitions cleanly before initiating morph
+      cleanupTransition();
+
       const btn = $('btnGetStarted');
       const fromPage = $('viewHome');
       const targetPage = $('viewTransceiver');
@@ -3150,7 +3211,6 @@
       }
 
       isMorphingRadar = true;
-      cleanupTransition();
 
       // 1. Instant scroll to top for exact, zero-skew coordinate mapping
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -3227,9 +3287,10 @@
         easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
         fill: 'forwards'
       });
+      activeMorphAnimation = screenAnim;
 
       // 8. Fade out the "Get Started" overlay smoothly as the circle reaches destination
-      overlay.animate([
+      const overlayAnim = overlay.animate([
         { opacity: 1 },
         { opacity: 1, offset: 0.3 },
         { opacity: 0 }
@@ -3238,9 +3299,10 @@
         easing: 'ease-out',
         fill: 'forwards'
       });
+      activeOverlayAnimation = overlayAnim;
 
       if (overlayText) {
-        overlayText.animate([
+        const textAnim = overlayText.animate([
           { opacity: 1 },
           { opacity: 0 }
         ], {
@@ -3248,21 +3310,32 @@
           easing: 'ease-out',
           fill: 'forwards'
         });
+        activeTextAnimation = textAnim;
       }
 
       // 9. At 120ms, fade in the white card background and surrounding controls
-      setTimeout(() => {
-        targetPage.classList.add('radar-morph-reveal');
+      morphRevealTimer = setTimeout(() => {
+        if (currentViewId === 'viewTransceiver') {
+          targetPage.classList.add('radar-morph-reveal');
+        }
+        morphRevealTimer = null;
       }, 120);
 
       // 10. Finish and cleanup
       screenAnim.onfinish = () => {
+        activeMorphAnimation = null;
+        activeOverlayAnimation = null;
+        activeTextAnimation = null;
+
         overlay.remove();
         radarScreen.style.transform = '';
         radarScreen.style.transformOrigin = '';
         radarScreen.style.willChange = '';
 
-        fromPage.classList.add('hidden');
+        // RACE CONDITION SAFEGUARD: Only hide fromPage if user has NOT navigated back to it!
+        if (currentViewId !== 'viewHome') {
+          fromPage.classList.add('hidden');
+        }
         fromPage.classList.remove('radar-morph-home-exit');
         fromPage.style.position = '';
         fromPage.style.top = '';
@@ -3276,11 +3349,17 @@
         targetPage.style.position = '';
         targetPage.style.zIndex = '';
 
+        // Always guarantee active view is visible
+        const cur = $(currentViewId);
+        if (cur) cur.classList.remove('hidden');
+
         isMorphingRadar = false;
 
         // Defer discovery and peer rendering until after the transition to guarantee zero frame drops!
-        command('discover');
-        renderDiscoveredPeers();
+        if (currentViewId === 'viewTransceiver') {
+          command('discover');
+          renderDiscoveredPeers();
+        }
       };
     }
 
@@ -3366,7 +3445,7 @@
         'viewHome': ['', ''],
         'viewTransceiver': ['', ''],
         'viewDownloads': ['Models', 'Neural Voice Models · Offline IndicTTS'],
-        'viewSpecs': ['System Architecture', 'PS-2073 Specifications'],
+        'viewSpecs': ['System Architecture', 'PS-26173 Specifications'],
         'viewMessages': ['Tactical Messages', 'Dispatch Stream']
       };
 
@@ -3399,18 +3478,20 @@
       document.body.scrollTop = 0;
 
       // Hide outgoing page once it finishes exiting (180ms)
-      setTimeout(() => {
-        if (previousLeavingPage) {
+      pageExitTimer = setTimeout(() => {
+        if (previousLeavingPage && previousLeavingPage.id !== currentViewId) {
           previousLeavingPage.classList.add('hidden');
           previousLeavingPage.classList.remove('page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs');
           previousLeavingPage.style.top = '';
           previousLeavingPage = null;
         }
+        pageExitTimer = null;
       }, 190);
 
       // Complete full cascade (380ms)
       transitionTimer = setTimeout(() => {
         targetPage.classList.remove('page-enter-right', 'page-enter-left', 'page-enter-specs');
+        targetPage.classList.remove('hidden');
         transitionTimer = null;
       }, 380);
     }
