@@ -75,6 +75,8 @@ Thumbs.db
 
 # Android local outputs
 mobile/.gradle/
+mobile/.kotlin/
+.kotlin/
 mobile/local.properties
 mobile/app/src/main/assets/generated/
 *.apk

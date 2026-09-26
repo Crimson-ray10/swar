@@ -1319,192 +1319,6 @@
       cursor: pointer;
     }
 
-    /* Hero Operator Badge */
-    .hero-operator-badge {
-      margin-top: 14px;
-      padding: 7px 16px;
-      background: rgba(255, 255, 255, 0.95);
-      border: 1.5px solid #e2e8f0;
-      border-radius: 999px;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: var(--text);
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .hero-operator-badge:hover,
-    .hero-operator-badge:active {
-      transform: translateY(-1px);
-      border-color: #10b981;
-      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.2);
-    }
-    .hero-operator-badge .badge-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: #10b981;
-      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
-      animation: pulse-dot 2s infinite;
-    }
-    @keyframes pulse-dot {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.3); opacity: 0.7; }
-    }
-
-    /* Onboarding Login & Language Setup Modal */
-    .onboarding-card {
-      background: #ffffff;
-      border-radius: 26px;
-      padding: 22px 20px;
-      width: 100%;
-      max-width: 420px;
-      max-height: 90vh;
-      overflow-y: auto;
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
-      border: 1px solid #e2e8f0;
-      animation: modal-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-      display: flex;
-      flex-direction: column;
-    }
-    .onboarding-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 10px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 1.1px;
-      color: #059669;
-      background: #ecfdf5;
-      border: 1px solid #a7f3d0;
-      padding: 3px 8px;
-      border-radius: 6px;
-      margin-bottom: 6px;
-      align-self: flex-start;
-    }
-    .onboarding-avatar-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      margin: 4px 0 16px;
-    }
-    .onboarding-avatar {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: #000000;
-      color: #ffffff;
-      font-weight: 800;
-      font-size: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 2.5px solid #10b981;
-      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
-      transition: transform 0.2s ease;
-    }
-    .onboarding-node-tag {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text-muted);
-      margin-top: 6px;
-      font-family: monospace;
-      letter-spacing: 0.2px;
-    }
-    .onboarding-lang-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin: 8px 0 14px;
-    }
-    .onboarding-lang-card {
-      position: relative;
-      padding: 10px 12px;
-      border: 1.5px solid #e2e8f0;
-      border-radius: 14px;
-      background: #f8fafc;
-      cursor: pointer;
-      text-align: left;
-      transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-    }
-    .onboarding-lang-card:hover {
-      border-color: #cbd5e1;
-      background: #ffffff;
-    }
-    .onboarding-lang-card:active {
-      transform: scale(0.97);
-    }
-    .onboarding-lang-card.selected {
-      background: #ecfdf5;
-      border-color: #10b981;
-      box-shadow: 0 3px 12px rgba(16, 185, 129, 0.18);
-    }
-    .onboarding-lang-card .card-lang-name {
-      font-size: 13.5px;
-      font-weight: 800;
-      color: var(--text);
-      line-height: 1.2;
-    }
-    .onboarding-lang-card.selected .card-lang-name {
-      color: #065f46;
-    }
-    .onboarding-lang-card .card-lang-code {
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--text-muted);
-      margin-top: 2px;
-    }
-    .onboarding-lang-card .card-lang-badge {
-      display: none;
-      position: absolute;
-      top: 6px;
-      right: 6px;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: #10b981;
-      color: #ffffff;
-      align-items: center;
-      justify-content: center;
-      font-size: 10px;
-      font-weight: 900;
-    }
-    .onboarding-lang-card.selected .card-lang-badge {
-      display: flex;
-    }
-    .onboarding-download-card {
-      background: #f0fdf4;
-      border: 1px solid #bbf7d0;
-      border-radius: 12px;
-      padding: 10px 12px;
-      margin-bottom: 14px;
-      font-size: 11.5px;
-      color: #166534;
-      line-height: 1.4;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .download-pulse-spinner {
-      width: 18px;
-      height: 18px;
-      border: 2.5px solid rgba(16, 185, 129, 0.25);
-      border-top-color: #10b981;
-      border-radius: 50%;
-      animation: spin-pulse 0.8s linear infinite;
-      flex-shrink: 0;
-    }
-    @keyframes spin-pulse {
-      to { transform: rotate(360deg); }
-    }
-
     /* SHAREit-Style Radar Scanner Styles */
     .radar-card {
       background: #ffffff;
@@ -2275,13 +2089,6 @@
         <button class="btn-circle-action" id="btnGetStarted" aria-label="Get Started">
           <span>Get<br>Started</span>
         </button>
-        <button type="button" class="hero-operator-badge" id="btnHeroOperatorBadge" aria-label="Configure Operator Identity and Offline Language">
-          <span class="badge-dot"></span>
-          <span>Operator: <b id="heroCallsignText">Rohit</b></span>
-          <span style="opacity:0.35; margin:0 3px;">•</span>
-          <span id="heroLangText" style="color:var(--accent-emerald); font-weight:700;">हिन्दी (hi-IN)</span>
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:3px; opacity:0.6;"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
       </div>
 
       <!-- Home Footer Terms & Compliance Notice -->
@@ -3050,131 +2857,6 @@
     </button>
   </nav>
 
-  <!-- OPERATOR LOGIN & LANGUAGE MODEL SETUP MODAL -->
-  <div id="onboardingModal" class="modal-backdrop hidden">
-    <div class="onboarding-card">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-        <div>
-          <span class="onboarding-badge">
-            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-            LinC Offline Profile
-          </span>
-          <div class="modal-title" style="font-size:18px; margin-top:2px;">Operator Setup</div>
-        </div>
-        <button class="modal-close" id="onboardingCloseBtn" aria-label="Close">✕</button>
-      </div>
-
-      <p style="font-size:12px; color:var(--text-muted); line-height:1.45; margin:6px 0 14px;">
-        Enter your operator callsign and preferred offline regional language. Saving will automatically prepare and download that language model to your device.
-      </p>
-
-      <!-- Live Dynamic Avatar Circle -->
-      <div class="onboarding-avatar-wrap">
-        <div class="onboarding-avatar" id="onboardingAvatar">RO</div>
-        <div class="onboarding-node-tag" id="onboardingNodeTag">Node: LinC. - RO1</div>
-      </div>
-
-      <!-- Callsign / User Name Input -->
-      <div class="input-group">
-        <label class="input-label" for="onboardingCallsignInput">OPERATOR CALLSIGN / NAME</label>
-        <input class="input-text" id="onboardingCallsignInput" value="Rohit" placeholder="e.g. Rohit, Alpha-1, Squad Lead" maxlength="24">
-        <div style="font-size:10.5px; color:var(--text-muted); margin-top:4px;">
-          Broadcasted to nearby mesh phones in zero-connectivity field operations.
-        </div>
-      </div>
-
-      <!-- Language Selection Section -->
-      <div style="margin-top:4px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-          <label class="input-label" style="margin-bottom:0;">PREFERRED OFFLINE LANGUAGE</label>
-          <span style="font-size:10px; font-weight:700; color:var(--accent-emerald);">AI4Bharat + Neural TTS</span>
-        </div>
-        <div class="onboarding-lang-grid" id="onboardingLangGrid">
-          <button type="button" class="onboarding-lang-card selected" data-lang="hi" data-name="हिन्दी" data-sub="Hindi · hi-IN">
-            <span class="card-lang-name">हिन्दी</span>
-            <span class="card-lang-code">Hindi · hi-IN</span>
-            <span class="card-lang-badge">✓</span>
-          </button>
-          <button type="button" class="onboarding-lang-card" data-lang="en" data-name="English" data-sub="English · en-IN">
-            <span class="card-lang-name">English</span>
-            <span class="card-lang-code">Indian English · en-IN</span>
-            <span class="card-lang-badge">✓</span>
-          </button>
-          <button type="button" class="onboarding-lang-card" data-lang="hinglish" data-name="Hinglish" data-sub="Dual ASR · hi+en">
-            <span class="card-lang-name">Hinglish</span>
-            <span class="card-lang-code">Dual ASR Engine</span>
-            <span class="card-lang-badge">✓</span>
-          </button>
-          <button type="button" class="onboarding-lang-card" data-lang="mr" data-name="मराठी" data-sub="Marathi · mr-IN">
-            <span class="card-lang-name">मराठी</span>
-            <span class="card-lang-code">Marathi · mr-IN</span>
-            <span class="card-lang-badge">✓</span>
-          </button>
-          <button type="button" class="onboarding-lang-card" data-lang="bn" data-name="বাংলা" data-sub="Bengali · bn-IN">
-            <span class="card-lang-name">বাংলা</span>
-            <span class="card-lang-code">Bengali · bn-IN</span>
-            <span class="card-lang-badge">✓</span>
-          </button>
-          <button type="button" class="onboarding-lang-card" data-lang="ta" data-name="தமிழ்" data-sub="Tamil · ta-IN">
-            <span class="card-lang-name">தமிழ்</span>
-            <span class="card-lang-code">Tamil · ta-IN</span>
-            <span class="card-lang-badge">✓</span>
-          </button>
-          <button type="button" class="onboarding-lang-card" data-lang="te" data-name="తెలుగు" data-sub="Telugu · te-IN">
-            <span class="card-lang-name">తెలుగు</span>
-            <span class="card-lang-code">Telugu · te-IN</span>
-            <span class="card-lang-badge">✓</span>
-          </button>
-          <button type="button" class="onboarding-lang-card" data-lang="gu" data-name="ગુજરાતી" data-sub="Gujarati · gu-IN">
-            <span class="card-lang-name">ગુજરાતી</span>
-            <span class="card-lang-code">Gujarati · gu-IN</span>
-            <span class="card-lang-badge">✓</span>
-          </button>
-          <button type="button" class="onboarding-lang-card" data-lang="kn" data-name="ಕನ್ನಡ" data-sub="Kannada · kn-IN">
-            <span class="card-lang-name">ಕನ್ನಡ</span>
-            <span class="card-lang-code">Kannada · kn-IN</span>
-            <span class="card-lang-badge">✓</span>
-          </button>
-          <button type="button" class="onboarding-lang-card" data-lang="ml" data-name="മലയാളം" data-sub="Malayalam · ml-IN">
-            <span class="card-lang-name">മലയാളം</span>
-            <span class="card-lang-code">Malayalam · ml-IN</span>
-            <span class="card-lang-badge">✓</span>
-          </button>
-          <button type="button" class="onboarding-lang-card" data-lang="pa" data-name="ਪੰਜਾਬੀ" data-sub="Punjabi · pa-IN">
-            <span class="card-lang-name">ਪੰਜਾਬੀ</span>
-            <span class="card-lang-code">Punjabi · pa-IN</span>
-            <span class="card-lang-badge">✓</span>
-          </button>
-          <button type="button" class="onboarding-lang-card" data-lang="or" data-name="ଓଡ଼ିଆ" data-sub="Odia · or-IN">
-            <span class="card-lang-name">ଓଡ଼ିଆ</span>
-            <span class="card-lang-code">Odia · or-IN</span>
-            <span class="card-lang-badge">✓</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Live Model Download Notice Card -->
-      <div class="onboarding-download-card" id="onboardingDownloadNotice">
-        <div class="download-pulse-spinner" id="onboardingSpinner" style="display:none;"></div>
-        <svg id="onboardingDownloadIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#059669" stroke-width="2" style="flex-shrink:0;">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/>
-          <line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
-        <span id="onboardingStatusMsg">
-          Saving profile triggers the offline voice model package download for your device.
-        </span>
-      </div>
-
-      <button class="btn-pill full-width" id="btnCompleteOnboarding" style="background:#000000; color:#ffffff; padding:14px; font-weight:800; font-size:14px; border-radius:14px; box-shadow:0 4px 14px rgba(0,0,0,0.25);">
-        <span id="btnCompleteOnboardingLabel">Save &amp; Download Hindi Model</span>
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block; vertical-align:middle; margin-left:4px;">
-          <polyline points="9 18 15 12 9 6"/>
-        </svg>
-      </button>
-    </div>
-  </div>
-
   <!-- NODE IDENTITY & HARDWARE MODAL (Screen 4) -->
   <div id="nodeIdentityModal" class="modal-backdrop hidden">
     <div class="modal-card">
@@ -3193,18 +2875,6 @@
       <div class="input-group">
         <label class="input-label" for="inputCallsign">Callsign / User Name</label>
         <input class="input-text" id="inputCallsign" value="Rohit">
-      </div>
-
-      <!-- Preferred Offline Language Quick Action -->
-      <div class="input-group">
-        <label class="input-label">Preferred Offline Language</label>
-        <button type="button" class="btn-outline full-width" id="btnModalChangeLang" style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; text-align:left; background:#f8fafc; border-radius:12px;">
-          <div>
-            <div style="font-weight:700; color:var(--text); font-size:13px;" id="modalLangTitle">Hindi (हिन्दी)</div>
-            <div style="font-size:10.5px; color:var(--text-muted); margin-top:1px;" id="modalLangSub">Active Neural Voice Pack · hi-IN</div>
-          </div>
-          <span class="header-pill pill-emerald" style="font-size:10px;">Change / Download</span>
-        </button>
       </div>
 
       <!-- Device Specifications Table -->
@@ -3363,36 +3033,18 @@
     const $ = id => document.getElementById(id);
     function safeGet(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }
     function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
-
-    const langNames = {
-      hi: 'Hindi (हिन्दी · hi-IN)',
-      en: 'English (Indian English · en-IN)',
-      mr: 'Marathi (मराठी · mr-IN)',
-      hinglish: 'Hinglish (Dual ASR + Indic-TTS)',
-      gu: 'Gujarati (ગુજરાતી · gu-IN)',
-      ta: 'Tamil (தமிழ் · ta-IN)',
-      te: 'Telugu (తెలుగు · te-IN)',
-      kn: 'Kannada (ಕನ್ನಡ · kn-IN)',
-      ml: 'Malayalam (മലയാളം · ml-IN)',
-      bn: 'Bengali (বাংলা · bn-IN)',
-      or: 'Odia (ଓଡ଼ିଆ · or-IN)',
-      pa: 'Punjabi (ਪੰਜਾਬੀ · pa-IN)'
-    };
-
     let connected = false;
     let callsign = safeGet('itantra_callsign', 'Rohit');
-    let preferredLanguage = safeGet('itantra_language', 'hi');
-    let isOnboarded = safeGet('itantra_onboarded', 'false') === 'true';
     let selectedPort = 8988;
     const peers = new Map();
     let myAddresses = new Set();
 
-    function getInitials(name) {
-      return (name || 'Rohit').trim().split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'SA';
-    }
+    // Initialize stored callsign
+    $('inputCallsign').value = callsign;
+    updateCallsignDisplays();
 
     function updateCallsignDisplays() {
-      const initials = getInitials(callsign);
+      const initials = callsign.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'SA';
       $('avatarBtn').textContent = initials;
       $('modalAvatar').textContent = initials;
       $('specNodeId').textContent = 'LinC. - ' + initials + '1';
@@ -3401,30 +3053,7 @@
       if ($('radarMyLabel')) {
         $('radarMyLabel').textContent = callsign;
       }
-      if ($('heroCallsignText')) {
-        $('heroCallsignText').textContent = callsign;
-      }
-      if ($('heroLangText')) {
-        const info = langNames[preferredLanguage] || preferredLanguage;
-        $('heroLangText').textContent = info.split(' (')[0] + ' (' + preferredLanguage + ')';
-      }
-      if ($('modalLangTitle') && langNames[preferredLanguage]) {
-        $('modalLangTitle').textContent = langNames[preferredLanguage].split(' (')[0];
-      }
-      if ($('modalLangSub')) {
-        $('modalLangSub').textContent = 'Active Neural Voice Pack · ' + preferredLanguage;
-      }
-      if ($('onboardingAvatar')) {
-        $('onboardingAvatar').textContent = initials;
-      }
-      if ($('onboardingNodeTag')) {
-        $('onboardingNodeTag').textContent = 'Node: LinC. - ' + initials + '1';
-      }
     }
-
-    // Initialize stored callsign
-    $('inputCallsign').value = callsign;
-    updateCallsignDisplays();
 
     // Native Bridge Wrapper
     function command(action, data = {}) {
@@ -3895,13 +3524,7 @@
       getStartedBtn.addEventListener('pointercancel', () => {
         getStartedBtn.style.transform = '';
       }, { passive: true });
-      getStartedBtn.onclick = () => {
-        if (!isOnboarded) {
-          openOnboardingModal(true);
-        } else {
-          switchTab('viewTransceiver');
-        }
-      };
+      getStartedBtn.onclick = () => switchTab('viewTransceiver');
     }
     if ($('linkSpecs')) {
       $('linkSpecs').onclick = () => switchTab('viewSpecs');
@@ -3927,118 +3550,6 @@
       $('nodeIdentityModal').classList.add('hidden');
     };
 
-    // Operator Onboarding & Language Selection Logic
-    let onboardingSelectedLang = preferredLanguage || 'hi';
-
-    function selectOnboardingLanguage(lang) {
-      onboardingSelectedLang = lang;
-      document.querySelectorAll('.onboarding-lang-card').forEach(card => {
-        const isMatch = card.getAttribute('data-lang') === lang;
-        card.classList.toggle('selected', isMatch);
-      });
-      const langName = (langNames[lang] || lang).split(' (')[0];
-      if ($('btnCompleteOnboardingLabel')) {
-        $('btnCompleteOnboardingLabel').textContent = `Save & Download ${langName} Model`;
-      }
-      if ($('onboardingStatusMsg')) {
-        $('onboardingStatusMsg').textContent = `Downloads ${langName} offline speech pack and configures zero-connectivity mesh talk.`;
-      }
-    }
-
-    function openOnboardingModal(isFirstLaunch = false) {
-      if ($('onboardingCallsignInput')) {
-        $('onboardingCallsignInput').value = callsign;
-      }
-      selectOnboardingLanguage(preferredLanguage || 'hi');
-      updateCallsignDisplays();
-      if ($('onboardingCloseBtn')) {
-        $('onboardingCloseBtn').style.display = isFirstLaunch ? 'none' : 'block';
-      }
-      if ($('onboardingSpinner')) $('onboardingSpinner').style.display = 'none';
-      if ($('onboardingDownloadIcon')) $('onboardingDownloadIcon').style.display = 'block';
-      $('onboardingModal').classList.remove('hidden');
-    }
-
-    function closeOnboardingModal() {
-      $('onboardingModal').classList.add('hidden');
-    }
-
-    document.querySelectorAll('.onboarding-lang-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const lang = card.getAttribute('data-lang');
-        if (lang) selectOnboardingLanguage(lang);
-      });
-    });
-
-    if ($('onboardingCallsignInput')) {
-      $('onboardingCallsignInput').addEventListener('input', (e) => {
-        const val = e.target.value.trim() || 'Rohit';
-        const init = getInitials(val);
-        if ($('onboardingAvatar')) $('onboardingAvatar').textContent = init;
-        if ($('onboardingNodeTag')) $('onboardingNodeTag').textContent = 'Node: LinC. - ' + init + '1';
-      });
-    }
-
-    if ($('btnHeroOperatorBadge')) {
-      $('btnHeroOperatorBadge').onclick = () => openOnboardingModal(false);
-    }
-    if ($('onboardingCloseBtn')) {
-      $('onboardingCloseBtn').onclick = () => closeOnboardingModal();
-    }
-    if ($('btnModalChangeLang')) {
-      $('btnModalChangeLang').onclick = () => {
-        $('nodeIdentityModal').classList.add('hidden');
-        openOnboardingModal(false);
-      };
-    }
-
-    if ($('btnCompleteOnboarding')) {
-      $('btnCompleteOnboarding').onclick = () => {
-        const inputVal = ($('onboardingCallsignInput') ? $('onboardingCallsignInput').value.trim() : '') || 'Rohit';
-        callsign = inputVal;
-        preferredLanguage = onboardingSelectedLang;
-        isOnboarded = true;
-
-        safeSet('itantra_callsign', callsign);
-        safeSet('itantra_language', preferredLanguage);
-        safeSet('itantra_onboarded', 'true');
-        $('inputCallsign').value = callsign;
-        updateCallsignDisplays();
-
-        // 1. Broadcast callsign to transport
-        command('callsign', { callsign: callsign });
-
-        // 2. Set language in native backend & radar UI
-        setRadarLanguage(preferredLanguage);
-
-        // 3. Trigger offline model download for that specific language
-        command('downloadModel', { language: preferredLanguage });
-
-        // Visual download feedback inside modal
-        if ($('onboardingSpinner')) $('onboardingSpinner').style.display = 'block';
-        if ($('onboardingDownloadIcon')) $('onboardingDownloadIcon').style.display = 'none';
-        const langLabel = (langNames[preferredLanguage] || preferredLanguage).split(' (')[0];
-        if ($('onboardingStatusMsg')) {
-          $('onboardingStatusMsg').textContent = `Initiating on-device download for ${langLabel}... Configured for zero-connectivity mesh.`;
-        }
-
-        setTimeout(() => {
-          closeOnboardingModal();
-          switchTab('viewTransceiver');
-          showToast(`Profile saved as ${callsign}. Preparing ${langLabel} offline voice model.`);
-        }, 700);
-      };
-    }
-
-    // Auto-prompt onboarding on first launch if not yet configured
-    if (!isOnboarded) {
-      setTimeout(() => {
-        if (!isOnboarded) {
-          openOnboardingModal(true);
-        }
-      }, 700);
-    }
-
     // Host Beacon & Search Peers Toggles
     $('toggleHost').onchange = (e) => {
       if (e.target.checked) {
@@ -4059,8 +3570,23 @@
     };
 
     // Central Language & Radar State
-    let currentLanguage = preferredLanguage || 'hi';
+    let currentLanguage = 'hi';
     let selectedDropdownLang = 'mr';
+
+    const langNames = {
+      hi: 'Hindi (हिन्दी · hi-IN)',
+      en: 'English (Indian English · en-IN)',
+      mr: 'Marathi (मराठी · mr-IN)',
+      hinglish: 'Hinglish (Dual ASR + Indic-TTS)',
+      gu: 'Gujarati (ગુજરાતી · gu-IN)',
+      ta: 'Tamil (தமிழ் · ta-IN)',
+      te: 'Telugu (తెలుగు · te-IN)',
+      kn: 'Kannada (ಕನ್ನಡ · kn-IN)',
+      ml: 'Malayalam (മലയാളം · ml-IN)',
+      bn: 'Bengali (বাংলা · bn-IN)',
+      or: 'Odia (ଓଡ଼ିଆ · or-IN)',
+      pa: 'Punjabi (ਪੰਜਾਬੀ · pa-IN)'
+    };
 
     window.toggleLanguageDropdown = function (e) {
       if (e) e.stopPropagation();
@@ -4103,9 +3629,6 @@
 
     window.setRadarLanguage = function (lang) {
       currentLanguage = lang;
-      preferredLanguage = lang;
-      safeSet('itantra_language', lang);
-      updateCallsignDisplays();
 
       // Update active pill highlight
       const hiBtn = $('radarLangHi');
@@ -4114,18 +3637,7 @@
 
       if (hiBtn) hiBtn.classList.toggle('active', lang === 'hi');
       if (enBtn) enBtn.classList.toggle('active', lang === 'en');
-      if (ddBtn) {
-        ddBtn.classList.toggle('active', lang !== 'hi' && lang !== 'en');
-        if (lang !== 'hi' && lang !== 'en') {
-          selectedDropdownLang = lang;
-          const ddPrimary = $('radarLangDropdownPrimary');
-          const ddCode = $('radarLangDropdownCode');
-          const info = langNames[lang] || lang;
-          if (ddPrimary) ddPrimary.textContent = info.split(' (')[0];
-          if (ddCode) ddCode.textContent = lang + '-IN';
-          ddBtn.setAttribute('data-lang', lang);
-        }
-      }
+      if (ddBtn) ddBtn.classList.toggle('active', lang !== 'hi' && lang !== 'en');
 
       command('language', { language: lang });
 
@@ -4720,10 +4232,6 @@
               el.textContent = (data[key] === undefined || data[key] < 0) ? '—' : Number(data[key]).toLocaleString();
             }
           }
-          break;
-
-        case 'modelDownloadTriggered':
-          showToast(`Offline language model for ${data.language || 'selected language'} is downloading.`);
           break;
 
         case 'notice':

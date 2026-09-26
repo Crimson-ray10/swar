@@ -367,7 +367,7 @@ public final class MainActivity extends Activity {
                 }
                 case "bitrate" -> transport.bitrate(data.optInt("bps",2000));
                 case "capabilities" -> speech.status();
-                case "downloadModel" -> speech.downloadModel(data.optString("language", null));
+                case "downloadModel" -> speech.downloadModel();
                 case "speechSettings" -> speech.openSpeechSettings();
                 case "ttsSettings" -> startActivity(new Intent("com.android.settings.TTS_SETTINGS"));
                 case "wifiSettings" -> startActivity(new Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS));
