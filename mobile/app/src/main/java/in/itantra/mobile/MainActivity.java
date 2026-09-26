@@ -28,6 +28,7 @@ import android.text.Spanned;
 public final class MainActivity extends Activity {
     static volatile java.util.function.BiConsumer<String,JSONObject> testObserver;
     private WebView web;private LocalTransport transport;private SpeechEngine speech;private boolean loaded=false;
+    private OfflineBridge offlineBridge;
     private FrameLayout splash;
     private Typeface gravitas;
     
@@ -113,6 +114,11 @@ public final class MainActivity extends Activity {
             public void event(String type,JSONObject data){MainActivity.this.event(type,data);}
             public void transcript(String text,String language){transport.sendText(text,language);}
         });
+        try {
+            offlineBridge = new OfflineBridge(this, (type, data) -> event(type, data));
+        } catch (Exception e) {
+            android.util.Log.e("MainActivity", "Failed to init OfflineBridge", e);
+        }
         web.loadUrl("https://app.itantra.local/");
     }
     
@@ -295,19 +301,70 @@ public final class MainActivity extends Activity {
             JSONObject data=new JSONObject(encoded);
             switch(action){
                 case "host" -> transport.host();
-                case "discover" -> transport.discover();
-                case "connect" -> transport.connect(data.optString("address"),data.optInt("port",8988),data.optString("pin"),data.optString("callsign"));
-                case "respondConnection" -> transport.respondRequest(data.optBoolean("accept",false));
-                case "cancelRequest" -> transport.cancelRequest();
+                case "discover" -> {
+                    transport.discover();
+                    if (offlineBridge != null) offlineBridge.startDiscovery();
+                }
+                case "connect" -> {
+                    transport.connect(data.optString("address"),data.optInt("port",8988),data.optString("pin"),data.optString("callsign"));
+                    if (offlineBridge != null) offlineBridge.connect(data.optString("address"));
+                }
+                case "respondConnection" -> {
+                    transport.respondRequest(data.optBoolean("accept",false));
+                    if (offlineBridge != null) offlineBridge.respondRequest(data.optBoolean("accept",false));
+                }
+                case "cancelRequest" -> {
+                    transport.cancelRequest();
+                    if (offlineBridge != null) offlineBridge.cancelRequest();
+                }
                 case "callsign" -> transport.callsign(data.optString("callsign"));
-                case "disconnect" -> {speech.pause();speech.resume();transport.disconnect();}
-                case "send" -> transport.sendText(data.optString("text"),data.optString("language","hi"));
-                case "start" -> {if(transport.isConnected())speech.start();else event("error",LocalTransport.json("message","Connect to the other phone before speaking."));}
-                case "release" -> speech.release();
-                case "cancel" -> speech.cancelCapture();
-                case "conversation" -> {boolean enabled=data.optBoolean("enabled");if(!enabled||transport.isConnected())speech.conversation(enabled);else event("error",LocalTransport.json("message","Connect before starting conversation."));}
+                case "disconnect" -> {
+                    speech.pause();
+                    speech.resume();
+                    transport.disconnect();
+                    if (offlineBridge != null) offlineBridge.disconnect();
+                }
+                case "send" -> {
+                    transport.sendText(data.optString("text"),data.optString("language","hi"));
+                    if (offlineBridge != null) offlineBridge.sendText(data.optString("text"), data.optString("language","hi"));
+                }
+                case "start" -> {
+                    if (offlineBridge != null && offlineBridge.isConnected()) {
+                        offlineBridge.startPtt();
+                    } else if (transport.isConnected()) {
+                        speech.start();
+                    } else if (offlineBridge != null) {
+                        offlineBridge.startPtt();
+                    } else {
+                        event("error",LocalTransport.json("message","Connect to the other phone before speaking."));
+                    }
+                }
+                case "release" -> {
+                    if (offlineBridge != null) offlineBridge.releasePtt();
+                    speech.release();
+                }
+                case "cancel" -> {
+                    if (offlineBridge != null) offlineBridge.releasePtt();
+                    speech.cancelCapture();
+                }
+                case "conversation" -> {
+                    boolean enabled=data.optBoolean("enabled");
+                    if (offlineBridge != null && offlineBridge.isConnected()) {
+                        offlineBridge.setConversation(enabled);
+                    } else if(!enabled||transport.isConnected()) {
+                        speech.conversation(enabled);
+                        if (offlineBridge != null) offlineBridge.setConversation(enabled);
+                    } else if (offlineBridge != null) {
+                        offlineBridge.setConversation(enabled);
+                    } else {
+                        event("error",LocalTransport.json("message","Connect before starting conversation."));
+                    }
+                }
                 case "stopPlayback" -> speech.stopPlayback();
-                case "language" -> speech.language(data.optString("language","hi"));
+                case "language" -> {
+                    speech.language(data.optString("language","hi"));
+                    if (offlineBridge != null) offlineBridge.setLanguage(data.optString("language","hi"));
+                }
                 case "bitrate" -> transport.bitrate(data.optInt("bps",2000));
                 case "capabilities" -> speech.status();
                 case "downloadModel" -> speech.downloadModel();
@@ -319,5 +376,12 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onPause(){super.onPause();if(speech!=null)speech.pause();}
     @Override protected void onResume(){super.onResume();if(speech!=null)speech.resume();}
-    @Override protected void onDestroy(){loaded=false;if(speech!=null)speech.close();if(transport!=null)transport.close();if(web!=null){web.removeJavascriptInterface("iTantra");web.destroy();web=null;}super.onDestroy();}
+    @Override protected void onDestroy(){
+        loaded=false;
+        if(offlineBridge!=null){offlineBridge.close();offlineBridge=null;}
+        if(speech!=null)speech.close();
+        if(transport!=null)transport.close();
+        if(web!=null){web.removeJavascriptInterface("iTantra");web.destroy();web=null;}
+        super.onDestroy();
+    }
 }
