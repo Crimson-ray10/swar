@@ -12,6 +12,7 @@ KOTLINC = os.path.join(USER_HOME, ".kotlinc", "kotlinc", "bin", "kotlinc.bat")
 BUNDLETOOL = os.path.join(USER_HOME, r".gradle\caches\modules-2\files-2.1\com.android.tools.build\bundletool\1.18.3\8d7bee8e57a4158a872ed99190a60a498c2adc8d\bundletool-1.18.3.jar")
 APKSIG_JAR = os.path.join(USER_HOME, r".gradle\caches\modules-2\files-2.1\com.android.tools.build\apksig\9.0.0\2881101f6a9d0baf6a341926ef0ff08c98a5d13b\apksig-9.0.0.jar")
 ADB = os.path.join(os.environ.get("LOCALAPPDATA", ""), r"Android\platform-tools\adb.exe")
+UNITY_ADB = r"C:\Program Files\Unity\Hub\Editor\6000.6.0f1\Editor\Data\PlaybackEngines\AndroidPlayer\SDK\platform-tools\adb.exe"
 
 def run(cmd, env=None, cwd=ROOT):
     e = os.environ.copy()
@@ -137,7 +138,7 @@ def build():
             print(f"Copy note: {e}")
 
     # 7. Install to all connected devices
-    adb_bin = shutil.which("adb") or ADB
+    adb_bin = shutil.which("adb") or (ADB if os.path.exists(ADB) else None) or (UNITY_ADB if os.path.exists(UNITY_ADB) else "adb")
     devices = []
     try:
         proc = subprocess.run([adb_bin, "devices"], capture_output=True, text=True)

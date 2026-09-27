@@ -25,10 +25,12 @@ import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
@@ -132,6 +134,7 @@ class SpeechEngine(
 
         asyncPool.execute {
             bootstrapPrebundledPacks()
+            restoreBackupsAndPatchAll()
             val defTag = resolveTag(language)
             try {
                 if (resolvePackDir(defTag) != null) {
@@ -404,6 +407,17 @@ class SpeechEngine(
                 }
             }
             tmpZip.delete()
+            val modelFile = File(destDir, "stt/indicconformer_int8.onnx")
+            if (modelFile.exists()) {
+                val tokensFile = File(destDir, "stt/tokens.txt")
+                if (!tokensFile.exists()) {
+                    val vocabJson = File(destDir, "stt/vocab.json")
+                    if (vocabJson.exists()) {
+                        generateTokensFromVocab(vocabJson, tokensFile)
+                    }
+                }
+                ensureModelMetadata(modelFile, destDir)
+            }
             return true
         } catch (t: Throwable) {
             Log.e(TAG, "Exception downloading pack $tag", t)
@@ -454,6 +468,11 @@ class SpeechEngine(
             var ns: NoiseSuppressor? = null
             try {
                 ensureRecognizer(tag)
+                if (recognizer == null) {
+                    Log.w(TAG, "Recognizer not available for $tag, aborting audio capture")
+                    event("error", "message", "Voice recognizer could not be initialized for $tag.")
+                    return@Thread
+                }
 
                 val sampleRate = 16000
                 val minBuf = AudioRecord.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
@@ -728,6 +747,16 @@ class SpeechEngine(
             throw IllegalStateException("Tokens file not found: ${tokensFile.absolutePath}")
         }
 
+        // Ensure ONNX metadata has required fields before Sherpa-ONNX C++ initializes
+        ensureModelMetadata(modelFile, packDir)
+
+        // Safety gate: verify vocab_size exists before passing to Sherpa-ONNX to prevent native exit(-1)
+        if (!hasMetadataKey(modelFile, "vocab_size")) {
+            Log.e(TAG, "Cannot load recognizer: model metadata missing vocab_size in ${modelFile.absolutePath}")
+            event("error", "message", "Voice model for $tag is incompatible (missing vocab_size).")
+            return
+        }
+
         val featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80)
         val nemoConfig = OfflineNemoEncDecCtcModelConfig(model = modelFile.absolutePath)
         val modelConfig = OfflineModelConfig(
@@ -746,6 +775,156 @@ class SpeechEngine(
         recognizer = OfflineRecognizer(null, recConfig)
         loadedRecognizerTag = tag
         Log.i(TAG, "Sherpa-ONNX IndicConformer initialized for $tag from ${modelFile.absolutePath}")
+    }
+
+    private fun restoreBackupsAndPatchAll() {
+        try {
+            val bak = File(packsDir, "hi-IN.bak")
+            val target = File(packsDir, "hi-IN")
+            if (bak.exists() && !target.exists()) {
+                if (bak.renameTo(target)) {
+                    Log.i(TAG, "Restored hi-IN from hi-IN.bak")
+                }
+            }
+
+            packsDir.listFiles()?.forEach { dir ->
+                if (dir.isDirectory) {
+                    val onnx = File(dir, "stt/indicconformer_int8.onnx")
+                    if (onnx.exists()) {
+                        val tokensFile = File(dir, "stt/tokens.txt")
+                        if (!tokensFile.exists()) {
+                            val vocabJson = File(dir, "stt/vocab.json")
+                            if (vocabJson.exists()) {
+                                generateTokensFromVocab(vocabJson, tokensFile)
+                            }
+                        }
+                        ensureModelMetadata(onnx, dir)
+                    }
+                }
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "restoreBackupsAndPatchAll notice: ${t.message}")
+        }
+    }
+
+    private fun ensureModelMetadata(modelFile: File, packDir: File): Boolean {
+        if (!modelFile.exists() || !modelFile.canWrite()) return false
+        try {
+            if (hasMetadataKey(modelFile, "vocab_size")) {
+                return true
+            }
+
+            val tokensFile = File(packDir, "stt/tokens.txt")
+            val vocabJson = File(packDir, "stt/vocab.json")
+            var vocabSize = 5633
+            if (tokensFile.exists()) {
+                val lines = tokensFile.readLines(StandardCharsets.UTF_8).filter { it.isNotBlank() }
+                if (lines.isNotEmpty()) {
+                    vocabSize = lines.size
+                }
+            } else if (vocabJson.exists()) {
+                val arr = JSONArray(vocabJson.readText(StandardCharsets.UTF_8))
+                vocabSize = arr.length() + 1
+            }
+
+            Log.i(TAG, "Embedding missing metadata in ONNX model: ${modelFile.name} (vocab_size=$vocabSize, subsampling_factor=4, normalize_type=per_feature)")
+
+            val patch = buildMetadataPatch(
+                "vocab_size" to vocabSize.toString(),
+                "subsampling_factor" to "4",
+                "normalize_type" to "per_feature"
+            )
+
+            FileOutputStream(modelFile, true).use { fos ->
+                fos.write(patch)
+                fos.flush()
+            }
+
+            Log.i(TAG, "Successfully patched ONNX model metadata for ${modelFile.absolutePath}")
+            return true
+        } catch (t: Throwable) {
+            Log.e(TAG, "Failed to patch ONNX metadata for ${modelFile.absolutePath}", t)
+            return false
+        }
+    }
+
+    private fun hasMetadataKey(modelFile: File, key: String): Boolean {
+        val target = key.toByteArray(StandardCharsets.UTF_8)
+        val length = modelFile.length()
+        if (length < target.size) return false
+
+        try {
+            RandomAccessFile(modelFile, "r").use { raf ->
+                val tailSize = minOf(length, 8192L).toInt()
+                val tailBuf = ByteArray(tailSize)
+                raf.seek(length - tailSize)
+                raf.readFully(tailBuf)
+                if (containsSubarray(tailBuf, target)) return true
+
+                val headSize = minOf(length, 65536L).toInt()
+                val headBuf = ByteArray(headSize)
+                raf.seek(0)
+                raf.readFully(headBuf)
+                if (containsSubarray(headBuf, target)) return true
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "Error checking metadata in ${modelFile.name}: ${t.message}")
+        }
+        return false
+    }
+
+    private fun containsSubarray(haystack: ByteArray, needle: ByteArray): Boolean {
+        if (needle.isEmpty() || haystack.size < needle.size) return false
+        val max = haystack.size - needle.size
+        for (i in 0..max) {
+            var found = true
+            for (j in needle.indices) {
+                if (haystack[i + j] != needle[j]) {
+                    found = false
+                    break
+                }
+            }
+            if (found) return true
+        }
+        return false
+    }
+
+    private fun encodeVarint(n: Int): ByteArray {
+        var v = n
+        val out = ByteArrayOutputStream()
+        while (v > 0x7F) {
+            out.write((v and 0x7F) or 0x80)
+            v = v ushr 7
+        }
+        out.write(v)
+        return out.toByteArray()
+    }
+
+    private fun makeMetaProp(key: String, value: String): ByteArray {
+        val kBytes = key.toByteArray(StandardCharsets.UTF_8)
+        val vBytes = value.toByteArray(StandardCharsets.UTF_8)
+        val payload = ByteArrayOutputStream()
+        payload.write(0x0A)
+        payload.write(encodeVarint(kBytes.size))
+        payload.write(kBytes)
+        payload.write(0x12)
+        payload.write(encodeVarint(vBytes.size))
+        payload.write(vBytes)
+
+        val entry = payload.toByteArray()
+        val out = ByteArrayOutputStream()
+        out.write(0x72)
+        out.write(encodeVarint(entry.size))
+        out.write(entry)
+        return out.toByteArray()
+    }
+
+    private fun buildMetadataPatch(vararg props: Pair<String, String>): ByteArray {
+        val bos = ByteArrayOutputStream()
+        for ((k, v) in props) {
+            bos.write(makeMetaProp(k, v))
+        }
+        return bos.toByteArray()
     }
 
     private fun generateTokensFromVocab(vocabJson: File, tokensTxt: File) {

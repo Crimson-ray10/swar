@@ -39,7 +39,7 @@ import java.util.function.BiConsumer
 class MainActivity : Activity() {
 
     companion object {
-        @JvmStatic
+        @JvmField
         @Volatile
         var testObserver: BiConsumer<String, JSONObject>? = null
     }
