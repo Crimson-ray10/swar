@@ -4,3 +4,4 @@
 .kotlin/
 .cxx/
 .externalNativeBuild/
+.gradle/
