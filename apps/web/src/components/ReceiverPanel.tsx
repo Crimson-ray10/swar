@@ -314,14 +314,14 @@ export const ReceiverPanel: React.FC<ReceiverPanelProps> = ({
 
         {/* Warnings Banner */}
         {warnings.length > 0 && (
-          <div style={{ padding: '14px 18px', borderRadius: '14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fbbf24', fontSize: '12px', fontWeight: 600 }}>
-              <ShieldAlert size={14} />
+          <div style={{ padding: '14px 18px', borderRadius: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#94a3b8', fontSize: '12px', fontWeight: 600 }}>
+              <ShieldAlert size={14} color="#10b981" />
               <span>Receiver Protocol Notices</span>
             </div>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
               {warnings.map((w, idx) => (
-                <li key={idx} style={{ fontSize: '12px', color: '#fef3c7', paddingLeft: '8px', lineHeight: 1.4 }}>
+                <li key={idx} style={{ fontSize: '12px', color: '#e2e8f0', paddingLeft: '8px', lineHeight: 1.4 }}>
                   • {w}
                 </li>
               ))}

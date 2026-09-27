@@ -7,10 +7,30 @@ import android.view.WindowManager;
 import android.content.*;
 import org.json.*;
 import java.io.*;
+import android.view.View;
+import android.widget.FrameLayout;
+import android.widget.TextView;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
+import android.animation.ArgbEvaluator;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.util.TypedValue;
+import android.view.animation.OvershootInterpolator;
+import android.view.animation.DecelerateInterpolator;
+import android.text.SpannableString;
+import android.text.style.ForegroundColorSpan;
+import android.text.Spanned;
 
 public final class MainActivity extends Activity {
     static volatile java.util.function.BiConsumer<String,JSONObject> testObserver;
     private WebView web;private LocalTransport transport;private SpeechEngine speech;private boolean loaded=false;
+    private FrameLayout splash;
+    private Typeface gravitas;
+
     @Override public void onCreate(Bundle state){
         super.onCreate(state);getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         getWindow().setStatusBarColor(0xffffffff);
@@ -23,9 +43,23 @@ public final class MainActivity extends Activity {
             }
             decor.setSystemUiVisibility(flags);
         }
+
+        try {
+            gravitas = Typeface.createFromAsset(getAssets(), "GravitasOne.ttf");
+        } catch(Exception e) {
+            gravitas = Typeface.create("serif", Typeface.BOLD);
+        }
+
         web=new WebView(this);
-        android.widget.FrameLayout root=new android.widget.FrameLayout(this);
-        root.addView(web,new android.widget.FrameLayout.LayoutParams(-1,-1));setContentView(root);
+        final FrameLayout root=new FrameLayout(this);
+        root.addView(web,new FrameLayout.LayoutParams(-1,-1));
+
+        splash = new FrameLayout(this);
+        splash.setBackgroundColor(0xFF000000);
+        splash.setElevation(100f);
+        root.addView(splash, new FrameLayout.LayoutParams(-1,-1));
+
+        setContentView(root);
         root.setOnApplyWindowInsetsListener((view,insets)->{android.graphics.Insets bars=insets.getInsets(android.view.WindowInsets.Type.systemBars()|android.view.WindowInsets.Type.ime());view.setPadding(bars.left,bars.top,bars.right,bars.bottom);return insets;});
         web.setBackgroundColor(0xffffffff);
         web.getSettings().setJavaScriptEnabled(true);web.getSettings().setDomStorageEnabled(true);web.getSettings().setAllowFileAccess(false);web.getSettings().setAllowContentAccess(false);web.getSettings().setBlockNetworkLoads(true);
@@ -36,7 +70,38 @@ public final class MainActivity extends Activity {
                 if("https://app.itantra.local/".equals(request.getUrl().toString()))try{return new WebResourceResponse("text/html","UTF-8",getAssets().open("index.html"));}catch(IOException ignored){}
                 return new WebResourceResponse("text/plain","UTF-8",new ByteArrayInputStream(new byte[0]));
             }
-            @Override public void onPageFinished(WebView v,String url){loaded=true;event("device",LocalTransport.json("name",android.os.Build.MODEL,"android",android.os.Build.VERSION.RELEASE));speech.status();}
+            @Override public void onPageFinished(WebView v,String url){
+                loaded=true;
+                event("device",LocalTransport.json("name",android.os.Build.MODEL,"android",android.os.Build.VERSION.RELEASE));
+                speech.status();
+
+                // Fetch exact rect of the web H1 text to overlay perfectly
+                web.evaluateJavascript("(() => { const el = document.querySelector('.hero-brand-title'); if(!el) return '0,0,0,0'; el.style.opacity = '0'; const rect = el.getBoundingClientRect(); return rect.left + ',' + rect.top + ',' + rect.width + ',' + rect.height; })()", value -> {
+                    if(splash == null || splash.getParent() == null) return;
+                    try {
+                        String clean = value.replace("\"", "");
+                        String[] parts = clean.split(",");
+                        if(parts.length == 4) {
+                            float density = getResources().getDisplayMetrics().density;
+                            float cssLeft = Float.parseFloat(parts[0]);
+                            float cssTop = Float.parseFloat(parts[1]);
+                            float cssWidth = Float.parseFloat(parts[2]);
+                            float cssHeight = Float.parseFloat(parts[3]);
+
+                            float targetCenterX = (cssLeft + cssWidth / 2f) * density;
+                            float targetCenterY = (cssTop + cssHeight / 2f) * density;
+
+                            startSplashAnimation(targetCenterX, targetCenterY, cssHeight * density);
+                        } else {
+                            float density = getResources().getDisplayMetrics().density;
+                            startSplashAnimation(getResources().getDisplayMetrics().widthPixels / 2f, 300f * density, 56f * density);
+                        }
+                    } catch(Exception e) {
+                        float density = getResources().getDisplayMetrics().density;
+                        startSplashAnimation(getResources().getDisplayMetrics().widthPixels / 2f, 300f * density, 56f * density);
+                    }
+                });
+            }
         });
         transport=new LocalTransport(this,new LocalTransport.Listener(){
             public void event(String type,JSONObject data){MainActivity.this.event(type,data);}
@@ -48,6 +113,175 @@ public final class MainActivity extends Activity {
         });
         web.loadUrl("https://app.itantra.local/");
     }
+
+    private void startSplashAnimation(float finalX, float finalY, float fontSizePx) {
+        float screenWidth = getResources().getDisplayMetrics().widthPixels;
+        float screenHeight = getResources().getDisplayMetrics().heightPixels;
+        View parentView = (View) splash.getParent();
+        int padLeft = parentView != null ? parentView.getPaddingLeft() : 0;
+        int padTop = parentView != null ? parentView.getPaddingTop() : 0;
+        float startX = (screenWidth / 2f) - padLeft;
+        float startY = (screenHeight / 2f) - padTop;
+        String[] texts = {"ಲಿಂಕ್.", "ਲਿੰਕ.", "लिंक.", "லிங்க்.", "లింక్.", "লিংক.", "LinC."};
+        // 3 above, 3 below
+        float[] targetYsDp = {-240f, -160f, -80f, 80f, 160f, 240f};
+        float[] targetXsDp = {-35f, 55f, -45f, 35f, -30f, 50f};
+        float[] rotations = {-8f, 5f, -10f, 4f, -6f, 8f};
+
+        float density = getResources().getDisplayMetrics().density;
+        final TextView[] textViews = new TextView[texts.length];
+
+        for(int i = 0; i < texts.length; i++) {
+            TextView tv;
+            if(i == texts.length - 1) { // Main English
+                tv = new TextView(this);
+                tv.setTextColor(0xFFFFFFFF);
+                SpannableString span = new SpannableString(texts[i]);
+                span.setSpan(new ForegroundColorSpan(0xFF10B981), span.length() - 1, span.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                tv.setText(span);
+            } else {
+                tv = new TextView(this) {
+                    @Override protected void onDraw(android.graphics.Canvas canvas) {
+                        android.content.res.ColorStateList states = getTextColors();
+                        getPaint().setStyle(android.graphics.Paint.Style.STROKE);
+                        getPaint().setStrokeWidth(5);
+                        setTextColor(0xFFFFFFFF);
+                        super.onDraw(canvas);
+                        getPaint().setStyle(android.graphics.Paint.Style.FILL);
+                        setTextColor(0xFF000000);
+                        super.onDraw(canvas);
+                        setTextColor(states);
+                    }
+                };
+                tv.setText(texts[i]);
+            }
+
+            // Match the physical web font size as close as possible
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSizePx);
+            tv.setTypeface(gravitas);
+            tv.setGravity(android.view.Gravity.CENTER);
+            tv.setIncludeFontPadding(false);
+
+            tv.setAlpha(0f);
+            tv.setScaleX(0.5f);
+            tv.setScaleY(0.5f);
+
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2);
+            splash.addView(tv, lp);
+
+            // Measure to center exactly at startX, startY
+            tv.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+            tv.setTranslationX(startX - (tv.getMeasuredWidth() / 2f));
+            tv.setTranslationY(startY - (tv.getMeasuredHeight() / 2f));
+
+            textViews[i] = tv;
+        }
+
+        // --- PHASE 1: Main pops in ---
+        TextView mainTv = textViews[6];
+        mainTv.setAlpha(1f);
+        mainTv.setScaleX(0.9f);
+        mainTv.setScaleY(0.9f);
+
+        ObjectAnimator p1_sX = ObjectAnimator.ofFloat(mainTv, "scaleX", 0.9f, 1.1f, 1.0f);
+        ObjectAnimator p1_sY = ObjectAnimator.ofFloat(mainTv, "scaleY", 0.9f, 1.1f, 1.0f);
+        AnimatorSet pop = new AnimatorSet();
+        pop.playTogether(p1_sX, p1_sY);
+        pop.setDuration(350);
+        pop.setInterpolator(new OvershootInterpolator(1.2f));
+
+        // --- PHASE 2: Translations burst out ---
+        AnimatorSet burst = new AnimatorSet();
+        java.util.ArrayList<Animator> burstAnims = new java.util.ArrayList<>();
+        for(int i = 0; i < 6; i++) {
+            TextView tv = textViews[i];
+            burstAnims.add(ObjectAnimator.ofFloat(tv, "alpha", 0f, 1f));
+            burstAnims.add(ObjectAnimator.ofFloat(tv, "scaleX", 0.5f, 1.15f));
+            burstAnims.add(ObjectAnimator.ofFloat(tv, "scaleY", 0.5f, 1.15f));
+            float baseX = startX - (tv.getMeasuredWidth() / 2f);
+            float baseY = startY - (tv.getMeasuredHeight() / 2f);
+            burstAnims.add(ObjectAnimator.ofFloat(tv, "translationY", baseY, baseY + targetYsDp[i] * density));
+            burstAnims.add(ObjectAnimator.ofFloat(tv, "translationX", baseX, baseX + targetXsDp[i] * density));
+            burstAnims.add(ObjectAnimator.ofFloat(tv, "rotation", 0f, rotations[i]));
+        }
+        burst.playTogether(burstAnims);
+        burst.setDuration(600);
+        burst.setInterpolator(new DecelerateInterpolator());
+
+        // --- PHASE 3: Scale Up (Pop starts) & Translations fade out ---
+        ObjectAnimator p3_sX_up = ObjectAnimator.ofFloat(mainTv, "scaleX", 1.0f, 1.25f);
+        ObjectAnimator p3_sY_up = ObjectAnimator.ofFloat(mainTv, "scaleY", 1.0f, 1.25f);
+
+        AnimatorSet fadeTrans = new AnimatorSet();
+        java.util.ArrayList<Animator> fades = new java.util.ArrayList<>();
+        for(int i = 0; i < 6; i++){
+            fades.add(ObjectAnimator.ofFloat(textViews[i], "alpha", 1f, 0f));
+        }
+        fadeTrans.playTogether(fades);
+
+        AnimatorSet outroPart1 = new AnimatorSet();
+        outroPart1.playTogether(p3_sX_up, p3_sY_up, fadeTrans);
+        outroPart1.setDuration(350);
+        outroPart1.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
+
+        // --- PHASE 4: Scale Down & Translate & Delayed Fade out (Transition) ---
+        ObjectAnimator p4_sX_down = ObjectAnimator.ofFloat(mainTv, "scaleX", 1.25f, 1.0f);
+        ObjectAnimator p4_sY_down = ObjectAnimator.ofFloat(mainTv, "scaleY", 1.25f, 1.0f);
+        p4_sX_down.setDuration(550);
+        p4_sY_down.setDuration(550);
+
+        float currentTransX = startX - (mainTv.getMeasuredWidth() / 2f);
+        float currentTransY = startY - (mainTv.getMeasuredHeight() / 2f);
+        float endTransX = finalX - (mainTv.getMeasuredWidth() / 2f);
+        float endTransY = finalY - (mainTv.getMeasuredHeight() / 2f);
+
+        ObjectAnimator p4_tX = ObjectAnimator.ofFloat(mainTv, "translationX", currentTransX, endTransX);
+        ObjectAnimator p4_tY = ObjectAnimator.ofFloat(mainTv, "translationY", currentTransY, endTransY);
+        p4_tX.setDuration(550);
+        p4_tY.setDuration(550);
+
+        ValueAnimator bgFadeOut = ValueAnimator.ofObject(new ArgbEvaluator(), 0xFF000000, 0x00000000);
+        bgFadeOut.setDuration(480);
+        bgFadeOut.addUpdateListener(a -> {
+            if (splash != null) splash.setBackgroundColor((int) a.getAnimatedValue());
+        });
+
+        ValueAnimator colorMorph = ValueAnimator.ofObject(new ArgbEvaluator(), 0xFFFFFFFF, 0xFF111827);
+        colorMorph.setDuration(450);
+        colorMorph.addUpdateListener(a -> {
+            int c = (int) a.getAnimatedValue();
+            SpannableString s = new SpannableString("LinC.");
+            s.setSpan(new ForegroundColorSpan(c), 0, 4, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            s.setSpan(new ForegroundColorSpan(0xFF10B981), 4, 5, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            mainTv.setText(s);
+        });
+
+        AnimatorSet outroPart2 = new AnimatorSet();
+        outroPart2.playTogether(p4_sX_down, p4_sY_down, p4_tX, p4_tY, bgFadeOut, colorMorph);
+        outroPart2.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
+
+        AnimatorSet fullSequence = new AnimatorSet();
+        AnimatorSet intro = new AnimatorSet();
+        intro.playSequentially(pop, burst);
+
+        AnimatorSet outro = new AnimatorSet();
+        outro.playSequentially(outroPart1, outroPart2);
+        outro.setStartDelay(300);
+
+        fullSequence.playSequentially(intro, outro);
+        fullSequence.addListener(new AnimatorListenerAdapter() {
+            @Override public void onAnimationEnd(Animator animation) {
+                if (web != null) {
+                    web.evaluateJavascript("const el = document.querySelector('.hero-brand-title'); if(el) el.style.opacity = '1';", null);
+                }
+                if (splash != null && splash.getParent() != null) {
+                    ((FrameLayout)splash.getParent()).removeView(splash);
+                }
+            }
+        });
+        fullSequence.start();
+    }
+
     private void event(String type,JSONObject data){
         android.util.Log.d("LinC",type+": "+data.toString());
         if(testObserver!=null)testObserver.accept(type,data);

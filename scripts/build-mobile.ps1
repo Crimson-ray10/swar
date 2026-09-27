@@ -20,8 +20,8 @@ try {
     $apk = Join-Path $projectRoot 'mobile\app\build\outputs\apk\debug\app-debug.apk'
     Write-Output "APK: $apk"
     if ($Install) {
-        if ($Device) { & "$taskSdk\platform-tools\adb.exe" -s $Device install -r $apk }
-        else { & "$taskSdk\platform-tools\adb.exe" install -r $apk }
+        if ($Device) { & "$taskSdk\platform-tools\adb.exe" -s $Device install -r -d $apk }
+        else { & "$taskSdk\platform-tools\adb.exe" install -r -d $apk }
         if ($LASTEXITCODE -ne 0) { throw 'APK installation failed; connect and authorize the phone.' }
     }
 } finally { Pop-Location }

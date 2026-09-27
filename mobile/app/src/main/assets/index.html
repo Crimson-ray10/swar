@@ -1495,6 +1495,97 @@
       display: block;
     }
 
+    /* Radar Model Warning / Offline Indicator Box */
+    .radar-model-warning-card {
+      margin-top: 10px;
+      padding: 10px 13px;
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      box-sizing: border-box;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+      animation: bannerSlideFade 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .radar-model-warning-card.hidden {
+      display: none !important;
+    }
+
+    @keyframes bannerSlideFade {
+      0% {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.99);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .radar-warning-icon-box {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .radar-warning-content {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .radar-warning-msg {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .radar-warning-hint {
+      font-size: 10px;
+      font-weight: 500;
+      color: #64748b;
+      letter-spacing: 0.1px;
+    }
+
+    .radar-warning-btn {
+      padding: 7px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+      background: #0f172a;
+      color: #ffffff;
+      border: none;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.14);
+      transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s ease;
+    }
+
+    .radar-warning-btn:active {
+      transform: scale(0.96);
+      background: #1e293b;
+    }
+
     .radar-wrapper {
       position: relative;
       width: 100%;
@@ -2338,7 +2429,7 @@
         </svg>
         <span>Specs</span>
       </button>
-      <button class="header-avatar" id="avatarBtn" aria-label="Node Identity">SP</button>
+      <button class="header-avatar" id="avatarBtn" aria-label="Node Identity">RO</button>
     </div>
   </header>
 
@@ -2363,7 +2454,7 @@
 
       <!-- Home Footer Terms & Compliance Notice -->
       <footer class="home-compliance-footer">
-        <div class="compliance-footer-title">PS-2073 Mandate Compliance</div>
+        <div class="compliance-footer-title">PS-26173 Mandate Compliance</div>
         <p class="compliance-footer-text">
           100% Offline · Zero Cloud Dependencies · Open Source TorchScript [BitStream] + AI4Bharat IndicTTS Audio
           synthesis · Direct IP/ZeroConf P2P Mesh (Meets all SIH2026 specifications).
@@ -2553,20 +2644,30 @@
                 <span class="item-check">✓</span>
               </button>
             </div>
-            <!-- Speech Model Offline Warning Banner -->
-            <div id="radarModelWarningBanner" class="hidden" style="margin-top:10px; padding:10px 12px; background:#fffbeb; border:1px solid #fde68a; border-radius:12px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
-              <div style="display:flex; align-items:center; gap:8px; font-size:11px; color:#92400e; font-weight:600; line-height:1.35;">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0;">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="8" x2="12" y2="12"></line>
-                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </div>
+
+          <!-- Speech Model Offline Warning Banner -->
+          <div id="radarModelWarningBanner" class="radar-model-warning-card hidden">
+            <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
+              <div class="radar-warning-icon-box" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
                 </svg>
-                <span id="radarModelWarningText">Offline speech model is missing for selected language.</span>
               </div>
-              <button type="button" class="btn-pill" style="padding:6px 12px; font-size:10.5px; font-weight:700; white-space:nowrap; background:#d97706; color:#ffffff; flex-shrink:0;" onclick="openSelectiveModelDownload()">
-                Choose &amp; Download
-              </button>
+              <div class="radar-warning-content">
+                <div class="radar-warning-msg" id="radarModelWarningText">Offline speech model is missing for selected language.</div>
+                <div class="radar-warning-hint">Tap download to enable offline voice recognition</div>
+              </div>
             </div>
+            <button type="button" class="radar-warning-btn" onclick="openSelectiveModelDownload(currentLanguage)">
+              <span>Download</span>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M5 12h14"></path>
+                <path d="M12 5l7 7-7 7"></path>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -2871,7 +2972,7 @@
       <!-- Top Section Header -->
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; padding:0 2px;">
         <div>
-          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">PS-2073 Specifications</div>
+          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">PS-26173 Specifications</div>
         </div>
         <span class="header-pill pill-neutral">SIH2026</span>
       </div>
@@ -2942,9 +3043,8 @@
       <div class="card" style="padding:14px; margin-bottom:12px; background:#ffffff;">
         <div style="display:flex; align-items:center; justify-content:space-between;">
           <div>
-            <div style="font-size:13px; font-weight:800;" id="specsNodeTitle">Node: LinC. - SA1</div>
-            <div style="font-size:10.5px; color:var(--text-muted); margin-top:2px;" id="specsNodeSub">Callsign: Sarthak
-              Patil · Mesh: Wi-Fi Direct / 8785</div>
+            <div style="font-size:13px; font-weight:800;" id="specsNodeTitle">Node: LinC. - RO1</div>
+            <div style="font-size:10.5px; color:var(--text-muted); margin-top:2px;" id="specsNodeSub">Callsign: Rohit · Mesh: Wi-Fi Direct / 8785</div>
           </div>
           <span class="header-pill pill-emerald">ACTIVE NODE</span>
         </div>
@@ -3010,13 +3110,13 @@
       <!-- Avatar Circle in Center -->
       <div style="display:flex; justify-content:center; margin:10px 0 16px;">
         <div class="header-avatar" style="width:64px; height:64px; font-size:20px; border-width:2px;" id="modalAvatar">
-          SA</div>
+          RO</div>
       </div>
 
       <!-- Callsign / User Name Input -->
       <div class="input-group">
         <label class="input-label" for="inputCallsign">Callsign / User Name</label>
-        <input class="input-text" id="inputCallsign" value="Sarthak Patil">
+        <input class="input-text" id="inputCallsign" value="Rohit">
       </div>
 
       <!-- Device Specifications Table -->
@@ -3032,7 +3132,7 @@
         </tr>
         <tr>
           <td class="specs-key">Node ID</td>
-          <td class="specs-val" id="specNodeId">LinC. - SA1</td>
+          <td class="specs-val" id="specNodeId">LinC. - RO1</td>
         </tr>
         <tr>
           <td class="specs-key">Android OS</td>
@@ -3070,7 +3170,7 @@
       <div style="font-size:17px; font-weight:800; color:var(--text); margin-top:12px;" id="reqPeerName">OnePlus 11R
       </div>
       <div style="display:flex; justify-content:center; gap:6px; margin:6px 0 12px; flex-wrap:wrap;">
-        <span class="header-pill pill-neutral" id="reqCallsignBadge">Callsign: Sarthak Patil</span>
+        <span class="header-pill pill-neutral" id="reqCallsignBadge">Callsign: Rohit</span>
         <span class="header-pill pill-emerald" id="reqAddressBadge">10.33.63.111</span>
       </div>
 
@@ -3219,26 +3319,26 @@
   <!-- SPEECH MODEL OFFLINE ALERT MODAL -->
   <div id="modalSpeechModelOffline" class="modal-backdrop hidden">
     <div class="modal-card" style="text-align:center;">
-      <div style="width:48px; height:48px; border-radius:50%; background:#fef3c7; color:#d97706; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="8" x2="12" y2="12"></line>
-          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      <div style="width:52px; height:52px; border-radius:16px; background:#f8fafc; border:1px solid #e2e8f0; color:#0f172a; display:flex; align-items:center; justify-content:center; margin:0 auto 14px; box-shadow:0 2px 6px rgba(15,23,42,0.04);">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
         </svg>
       </div>
 
-      <div class="modal-title" style="font-size:17px; margin-bottom:6px;">Speech Model Offline</div>
-      <div style="font-size:12px; color:var(--text-muted); line-height:1.5; margin-bottom:14px;" id="modalSpeechOfflineDesc">
-        The offline voice recognition model for <strong id="modalOfflineLangName">Hindi (hi-IN)</strong> is not downloaded on this phone.
+      <div class="modal-title" style="font-size:17px; font-weight:700; color:#0f172a; margin-bottom:6px;">Speech Model Offline</div>
+      <div style="font-size:12px; color:var(--text-muted); line-height:1.5; margin-bottom:16px;" id="modalSpeechOfflineDesc">
+        The offline voice recognition model for <strong id="modalOfflineLangName" style="color:#0f172a;">Hindi (hi-IN)</strong> is not downloaded on this phone.
         <br><br>
-        To save app size, LinC lets you choose and download only the models you need instead of the entire 280 MB pack.
+        To keep LinC lightweight, voice models are downloaded selectively per language instead of the entire 280 MB pack.
       </div>
 
       <div style="display:flex; flex-direction:column; gap:8px;">
-        <button type="button" class="btn-pill" style="padding:12px; font-size:13px; font-weight:800;" onclick="goToSelectiveDownloadFromModal()">
-          Choose Models to Download (Saves Space)
+        <button type="button" class="btn-pill" style="padding:12px; font-size:13px; font-weight:700; background:#0f172a; color:#ffffff; border-radius:9999px; box-shadow:0 4px 12px rgba(15,23,42,0.15);" onclick="goToSelectiveDownloadFromModal()">
+          Choose &amp; Download Models
         </button>
-        <button type="button" class="btn-outline" onclick="closeSpeechOfflineModal()">
+        <button type="button" class="btn-outline" style="border-radius:9999px;" onclick="closeSpeechOfflineModal()">
           Dismiss
         </button>
       </div>
@@ -3251,7 +3351,11 @@
     function safeGet(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }
     function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
     let connected = false;
-    let callsign = safeGet('itantra_callsign', 'Sarthak Patil');
+    let callsign = safeGet('itantra_callsign', 'Rohit');
+    if (callsign === 'Sarthak Patil') {
+      callsign = 'Rohit';
+      safeSet('itantra_callsign', callsign);
+    }
     let selectedPort = 8988;
     const peers = new Map();
     let myAddresses = new Set();
@@ -3261,12 +3365,17 @@
     updateCallsignDisplays();
 
     function updateCallsignDisplays() {
-      const initials = callsign.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'SA';
+      const initials = callsign.includes(' ')
+        ? callsign.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+        : (callsign.slice(0, 2).toUpperCase() || 'RO');
       $('avatarBtn').textContent = initials;
       $('modalAvatar').textContent = initials;
       $('specNodeId').textContent = 'LinC. - ' + initials + '1';
       $('specsNodeTitle').textContent = 'Node: LinC. - ' + initials + '1';
       $('specsNodeSub').textContent = 'Callsign: ' + callsign + ' · Mesh: Wi-Fi Direct / 8785';
+      if ($('reqCallsignBadge')) {
+        $('reqCallsignBadge').textContent = 'Callsign: ' + callsign;
+      }
       if ($('radarMyLabel')) {
         $('radarMyLabel').textContent = callsign;
       }
@@ -3292,7 +3401,12 @@
     // Screen Navigation with Fluid Directional Transitions
     let currentViewId = 'viewHome';
     let transitionTimer = null;
+    let pageExitTimer = null;
+    let morphRevealTimer = null;
     let previousLeavingPage = null;
+    let activeMorphAnimation = null;
+    let activeOverlayAnimation = null;
+    let activeTextAnimation = null;
 
     const viewOrder = {
       'viewHome': 0,
@@ -3305,28 +3419,56 @@
     let isMorphingRadar = false;
 
     function cleanupTransition() {
+      // 1. Cancel all pending timers
       if (transitionTimer) {
         clearTimeout(transitionTimer);
         transitionTimer = null;
       }
-      const existingOverlay = document.querySelector('.radar-morph-overlay');
-      if (existingOverlay) existingOverlay.remove();
+      if (pageExitTimer) {
+        clearTimeout(pageExitTimer);
+        pageExitTimer = null;
+      }
+      if (morphRevealTimer) {
+        clearTimeout(morphRevealTimer);
+        morphRevealTimer = null;
+      }
 
-      if ($('viewHome')) {
-        $('viewHome').classList.remove('radar-morph-home-exit', 'radar-morph-outgoing');
-        $('viewHome').style.position = '';
-        $('viewHome').style.top = '';
-        $('viewHome').style.left = '';
-        $('viewHome').style.width = '';
-        $('viewHome').style.pointerEvents = '';
-        $('viewHome').style.zIndex = '';
+      // 2. Cancel and abort in-flight Web Animations
+      if (activeMorphAnimation) {
+        try { activeMorphAnimation.cancel(); } catch (e) {}
+        activeMorphAnimation = null;
+      }
+      if (activeOverlayAnimation) {
+        try { activeOverlayAnimation.cancel(); } catch (e) {}
+        activeOverlayAnimation = null;
+      }
+      if (activeTextAnimation) {
+        try { activeTextAnimation.cancel(); } catch (e) {}
+        activeTextAnimation = null;
+      }
+
+      // 3. Remove all orphaned morph overlays
+      document.querySelectorAll('.radar-morph-overlay').forEach(el => el.remove());
+
+      // 4. Reset Home page styling and classes
+      const home = $('viewHome');
+      if (home) {
+        home.classList.remove('radar-morph-home-exit', 'radar-morph-outgoing', 'page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs', 'page-enter-right', 'page-enter-left', 'page-enter-specs');
+        home.style.position = '';
+        home.style.top = '';
+        home.style.left = '';
+        home.style.width = '';
+        home.style.pointerEvents = '';
+        home.style.zIndex = '';
       }
       if ($('btnGetStarted')) $('btnGetStarted').style.opacity = '';
 
-      if ($('viewTransceiver')) {
-        $('viewTransceiver').classList.remove('radar-morph-active', 'radar-morph-reveal', 'radar-morph-incoming');
-        $('viewTransceiver').style.position = '';
-        $('viewTransceiver').style.zIndex = '';
+      // 5. Reset Transceiver page styling and classes
+      const trans = $('viewTransceiver');
+      if (trans) {
+        trans.classList.remove('radar-morph-active', 'radar-morph-reveal', 'radar-morph-incoming', 'page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs', 'page-enter-right', 'page-enter-left', 'page-enter-specs');
+        trans.style.position = '';
+        trans.style.zIndex = '';
         if ($('radarScreen')) {
           $('radarScreen').style.transform = '';
           $('radarScreen').style.transformOrigin = '';
@@ -3340,17 +3482,24 @@
       if ($('viewContainer')) {
         $('viewContainer').style.minHeight = '';
       }
+
+      // 6. Clean up outgoing pages and enforce active page visibility
       if (previousLeavingPage) {
-        previousLeavingPage.classList.add('hidden');
+        if (previousLeavingPage.id !== currentViewId) {
+          previousLeavingPage.classList.add('hidden');
+        }
         previousLeavingPage.classList.remove('page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs');
         previousLeavingPage.style.top = '';
         previousLeavingPage = null;
       }
+
       document.querySelectorAll('.view-page').forEach(page => {
         if (page.id !== currentViewId) {
           page.classList.add('hidden');
           page.classList.remove('page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs', 'page-enter-right', 'page-enter-left', 'page-enter-specs');
           page.style.top = '';
+        } else {
+          page.classList.remove('hidden', 'page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs');
         }
       });
     }
@@ -3365,8 +3514,10 @@
         return;
       }
 
-      isMorphingRadar = true;
+      // CRITICAL: Cleanup any in-flight transitions before starting morph
       cleanupTransition();
+
+      isMorphingRadar = true;
 
       // 1. Instant scroll to top for exact, zero-skew coordinate mapping
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -3443,9 +3594,10 @@
         easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
         fill: 'forwards'
       });
+      activeMorphAnimation = screenAnim;
 
       // 8. Fade out the "Get Started" overlay smoothly as the circle reaches destination
-      overlay.animate([
+      const overlayAnim = overlay.animate([
         { opacity: 1 },
         { opacity: 1, offset: 0.3 },
         { opacity: 0 }
@@ -3454,9 +3606,10 @@
         easing: 'ease-out',
         fill: 'forwards'
       });
+      activeOverlayAnimation = overlayAnim;
 
       if (overlayText) {
-        overlayText.animate([
+        const textAnim = overlayText.animate([
           { opacity: 1 },
           { opacity: 0 }
         ], {
@@ -3464,21 +3617,32 @@
           easing: 'ease-out',
           fill: 'forwards'
         });
+        activeTextAnimation = textAnim;
       }
 
       // 9. At 120ms, fade in the white card background and surrounding controls
-      setTimeout(() => {
-        targetPage.classList.add('radar-morph-reveal');
+      morphRevealTimer = setTimeout(() => {
+        if (currentViewId === 'viewTransceiver') {
+          targetPage.classList.add('radar-morph-reveal');
+        }
+        morphRevealTimer = null;
       }, 120);
 
       // 10. Finish and cleanup
       screenAnim.onfinish = () => {
+        activeMorphAnimation = null;
+        activeOverlayAnimation = null;
+        activeTextAnimation = null;
+
         overlay.remove();
         radarScreen.style.transform = '';
         radarScreen.style.transformOrigin = '';
         radarScreen.style.willChange = '';
 
-        fromPage.classList.add('hidden');
+        // RACE CONDITION SAFEGUARD: Only hide fromPage if user has NOT navigated back to it!
+        if (currentViewId !== 'viewHome') {
+          fromPage.classList.add('hidden');
+        }
         fromPage.classList.remove('radar-morph-home-exit');
         fromPage.style.position = '';
         fromPage.style.top = '';
@@ -3492,11 +3656,17 @@
         targetPage.style.position = '';
         targetPage.style.zIndex = '';
 
+        // Always guarantee active view is visible
+        const cur = $(currentViewId);
+        if (cur) cur.classList.remove('hidden');
+
         isMorphingRadar = false;
 
         // Defer discovery and peer rendering until after the transition to guarantee zero frame drops!
-        command('discover');
-        renderDiscoveredPeers();
+        if (currentViewId === 'viewTransceiver') {
+          command('discover');
+          renderDiscoveredPeers();
+        }
       };
     }
 
@@ -3582,7 +3752,7 @@
         'viewHome': ['', ''],
         'viewTransceiver': ['', ''],
         'viewDownloads': ['Models', 'Neural Voice Models · Offline IndicTTS'],
-        'viewSpecs': ['System Architecture', 'PS-2073 Specifications'],
+        'viewSpecs': ['System Architecture', 'PS-26173 Specifications'],
         'viewMessages': ['Tactical Messages', 'Dispatch Stream']
       };
 
@@ -3615,21 +3785,24 @@
       document.body.scrollTop = 0;
 
       // Hide outgoing page once it finishes exiting (180ms)
-      setTimeout(() => {
-        if (previousLeavingPage) {
+      pageExitTimer = setTimeout(() => {
+        if (previousLeavingPage && previousLeavingPage.id !== currentViewId) {
           previousLeavingPage.classList.add('hidden');
           previousLeavingPage.classList.remove('page-exit', 'page-exit-left', 'page-exit-right', 'page-exit-specs');
           previousLeavingPage.style.top = '';
           previousLeavingPage = null;
         }
+        pageExitTimer = null;
       }, 190);
 
       // Complete full cascade (380ms)
       transitionTimer = setTimeout(() => {
         targetPage.classList.remove('page-enter-right', 'page-enter-left', 'page-enter-specs');
+        targetPage.classList.remove('hidden');
         transitionTimer = null;
       }, 380);
     }
+
 
     document.querySelectorAll('.nav-item').forEach(btn => {
       btn.onclick = () => switchTab(btn.dataset.view);
@@ -4208,7 +4381,7 @@
       const langTitle = langNames[currentOfflineAlertLang] || currentOfflineAlertLang;
       if (nameEl) nameEl.textContent = `${langTitle} (${locale || currentOfflineAlertLang + '-IN'})`;
       if (descEl && message) {
-        descEl.innerHTML = `Offline voice recognition model for <strong>${langTitle}</strong> is missing on this phone.<br><br><span style="font-size:11px; color:#b45309; background:#fffbeb; padding:5px 9px; border-radius:6px; display:inline-block; margin-bottom:8px;">${message}</span><br>To save app size, LinC lets you choose and download only the models you need instead of the entire 280 MB pack.`;
+        descEl.innerHTML = `Offline voice recognition model for <strong style="color:#0f172a;">${langTitle}</strong> is missing on this phone.<br><br><span style="font-size:11px; font-weight:600; color:#334155; background:#f8fafc; border:1px solid #e2e8f0; padding:6px 10px; border-radius:8px; display:inline-block; margin-bottom:10px;">${message}</span><br>To keep LinC lightweight, voice models are downloaded selectively per language instead of the entire 280 MB pack.`;
       }
       if (modal) modal.classList.remove('hidden');
     };
