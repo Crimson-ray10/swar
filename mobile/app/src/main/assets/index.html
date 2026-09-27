@@ -4443,6 +4443,7 @@
 
     function stopPtt() {
       if (!isHoldingTalk && !isPttLocked) return;
+      const wasLocked = isPttLocked;
       isHoldingTalk = false;
       isPttLocked = false;
       isDragging = false;
@@ -4457,6 +4458,9 @@
       if ($('pttMainLabel')) $('pttMainLabel').textContent = 'PUSH TO TALK';
       $('pttStatusLabel').textContent = 'Hold to broadcast · Swipe right to lock hands-free';
       $('pttStatusLabel').style.color = 'var(--text-muted)';
+      if (wasLocked) {
+        command('lock', { locked: false });
+      }
       command('release');
     }
 
@@ -4477,6 +4481,7 @@
       if (navigator.vibrate) {
         try { navigator.vibrate([30, 50, 30]); } catch (e) { }
       }
+      command('lock', { locked: true });
     }
 
     function unlockPtt() {
@@ -4597,13 +4602,13 @@
     };
 
     function showIncomingRequest(data) {
-      const pName = data.name || data.peer || 'Nearby Device';
-      const pCallsign = data.callsign || pName;
+      const pCallsign = data.callsign || data.peer || 'Nearby Device';
+      const pDeviceModel = data.name || 'Android Device';
       const initials = pCallsign.replace(/^(iTantra|LinC\.)-?/, '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'PH';
 
       $('reqAvatar').textContent = initials;
-      $('reqPeerName').textContent = pName;
-      $('reqCallsignBadge').textContent = 'Callsign: ' + pCallsign;
+      $('reqPeerName').textContent = pCallsign;
+      $('reqCallsignBadge').textContent = (pDeviceModel !== pCallsign ? pDeviceModel : 'Callsign: ' + pCallsign);
       $('reqAddressBadge').textContent = (data.address || 'Local LAN') + (data.port ? ` · Port ${data.port}` : '');
       $('incomingRequestModal').classList.remove('hidden');
 
@@ -4973,7 +4978,12 @@
           break;
 
         case 'speech':
-          $('pttStatusLabel').textContent = data.state;
+          if (isPttLocked && (data.state === 'Idle' || data.state === 'Microphone released · finalizing')) {
+            $('pttStatusLabel').textContent = 'Listening · Hands-free broadcast locked';
+            $('pttStatusLabel').style.color = '#059669';
+          } else {
+            $('pttStatusLabel').textContent = data.state;
+          }
           break;
 
         case 'partial':

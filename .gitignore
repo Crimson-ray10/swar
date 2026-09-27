@@ -102,3 +102,7 @@ chat_full.txt
 # Local build logs
 *.log
 
+# Scratch build cache & downloads
+scratch/
+models_cache/
+*.bak
