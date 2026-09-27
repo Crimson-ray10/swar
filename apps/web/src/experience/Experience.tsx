@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
@@ -367,6 +367,7 @@ function MobileAppSection() {
   const { ref, visible } = useInView<HTMLElement>();
   const [isPaused, setIsPaused] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const motionEnabled = useContext(MotionContext);
 
   // Duplicate for seamless infinite side-to-side marquee
   const marqueeItems = [...appScreenshots, ...appScreenshots];
@@ -419,7 +420,7 @@ function MobileAppSection() {
       </div>
 
       <div
-        className={`infinite-marquee-container ${isPaused || selectedIdx !== null ? 'is-paused' : ''}`}
+        className={`infinite-marquee-container ${!motionEnabled || isPaused || selectedIdx !== null ? 'is-paused' : ''}`}
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
         onTouchStart={() => setIsPaused(true)}
@@ -546,9 +547,21 @@ function MobileAppSection() {
           <span>AI4BHARAT INDICCONFORMER</span>
         </div>
         <div className="marquee-cta-row">
-          <p>
-            Hover or touch to pause · Click any card to inspect native 1080p high-res. All screens captured live on Google Pixel 9a test device.
-          </p>
+          <div className="marquee-controls-group">
+            <button
+              type="button"
+              className="marquee-pause-toggle"
+              onClick={() => setIsPaused(!isPaused)}
+              aria-label={isPaused ? 'Resume screenshot carousel' : 'Pause screenshot carousel'}
+              aria-pressed={isPaused}
+            >
+              {isPaused ? <Play size={12} /> : <Pause size={12} />}
+              <span>{isPaused ? 'RESUME CAROUSEL' : 'PAUSE CAROUSEL'}</span>
+            </button>
+            <p>
+              Hover, touch or toggle to pause · Click any card to inspect native 1080p high-res. All screens captured live on Google Pixel 9a test device.
+            </p>
+          </div>
           <a
             href={DEFAULT_APK_DOWNLOAD_URL}
             className="button button-primary download-pill-btn"
