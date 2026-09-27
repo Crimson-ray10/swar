@@ -5,10 +5,13 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
   Menu,
   Pause,
   Play,
-  X
+  X,
+  ZoomIn
 } from 'lucide-react';
 import { DEFAULT_APK_DOWNLOAD_URL } from '../config';
 import { BrandMark, MotionContext, useInView, WaveBars } from './primitives';
@@ -296,68 +299,100 @@ function TechnologySection() {
 const appScreenshots = [
   {
     title: 'Offline Radar Mesh',
-    subtitle: 'Autonomous discovery of peer phones within 100m range',
+    subtitle: 'Zero-hop autonomous radar discovery of peer nodes within 100m',
     tag: 'RADAR DISCOVERY',
-    src: '/screenshots/radar_oneplus_perfect.png',
-    device: 'OnePlus 11 · Wi-Fi P2P'
+    src: '/screenshots/pixel9a_radar_discovery_540w.png',
+    fullSrc: '/screenshots/pixel9a_radar_discovery.png',
+    device: 'Pixel 9a · Wi-Fi P2P'
   },
   {
     title: 'Voice Transceiver & PTT',
-    subtitle: 'Instant half-duplex speech capture with audio waveform visualizer',
+    subtitle: 'Half-duplex speech capture with swipe-lock & Indic neural pipeline',
     tag: 'TRANSCEIVER',
-    src: '/screenshots/oneplus_transceiver_ready.png',
-    device: 'OnePlus 11 · Transceiver'
+    src: '/screenshots/pixel9a_transceiver_540w.png',
+    fullSrc: '/screenshots/pixel9a_transceiver.png',
+    device: 'Pixel 9a · Half-Duplex'
   },
   {
-    title: 'Walkie-Talkie Channel',
-    subtitle: 'Push-to-talk tactical audio with fast tokenization',
-    tag: 'HALF-DUPLEX',
-    src: '/screenshots/pixel_walkie.png',
-    device: 'Pixel 7 · Walkie Mode'
+    title: 'Peer Authorization Handshake',
+    subtitle: 'Mutual challenge modal with sonar beacon & 30s security countdown',
+    tag: 'MUTUAL AUTH',
+    src: '/screenshots/pixel9a_connection_auth_540w.png',
+    fullSrc: '/screenshots/pixel9a_connection_auth.png',
+    device: 'Pixel 9a · Handshake'
   },
   {
-    title: 'Incoming Voice Alert',
-    subtitle: 'Auto-synthesized Indic speech notification from 50-byte packet',
-    tag: 'AUTO-SYNTHESIS',
-    src: '/screenshots/oneplus_incoming_real.png',
-    device: 'OnePlus 11 · Incoming Alert'
+    title: 'Direct P2P Link Channel',
+    subtitle: 'Peer link request stream initiated to target node over Wi-Fi LAN',
+    tag: 'P2P SOCKET',
+    src: '/screenshots/pixel9a_outgoing_link_540w.png',
+    fullSrc: '/screenshots/pixel9a_outgoing_link.png',
+    device: 'Pixel 9a · Direct Link'
   },
   {
-    title: 'P2P Direct Link Active',
-    subtitle: 'Direct hardware connection established without internet or routers',
-    tag: 'CONNECTED',
-    src: '/screenshots/pixel_connected.png',
-    device: 'Pixel 7 · Direct Link'
+    title: 'On-Device Neural Engines',
+    subtitle: 'IndicConformer STT & IndicTTS voice models cached offline',
+    tag: 'NEURAL SPEECH',
+    src: '/screenshots/pixel9a_neural_models_540w.png',
+    fullSrc: '/screenshots/pixel9a_neural_models.png',
+    device: 'Pixel 9a · Offline AI'
   },
   {
-    title: 'Telemetry & Mesh Diagnostics',
-    subtitle: 'Real-time RSSI signal levels, CRC-16 stats, and battery monitor',
+    title: 'Tactical Mesh Dispatch',
+    subtitle: 'Zero-internet transliterated text & audio dispatch across nodes',
+    tag: 'TACTICAL DISPATCH',
+    src: '/screenshots/pixel9a_tactical_dispatch_540w.png',
+    fullSrc: '/screenshots/pixel9a_tactical_dispatch.png',
+    device: 'Pixel 9a · Mesh Dispatch'
+  },
+  {
+    title: 'System Specs & Telemetry',
+    subtitle: 'Real-time ITP frame counters, RAM usage & radio protocol stats',
     tag: 'TELEMETRY',
-    src: '/screenshots/oneplus_dashboard_tab.png',
-    device: 'OnePlus 11 · Diagnostics'
+    src: '/screenshots/pixel9a_specs_telemetry_540w.png',
+    fullSrc: '/screenshots/pixel9a_specs_telemetry.png',
+    device: 'Pixel 9a · Telemetry'
   },
   {
-    title: 'Encrypted Message Logs',
-    subtitle: 'Store-and-forward voice archives saved during radio dead zones',
-    tag: 'OFFLINE LOGS',
-    src: '/screenshots/pixel_messages_tab.png',
-    device: 'Pixel 7 · Voice Archives'
-  },
-  {
-    title: 'Delivery Confirmation ACK',
-    subtitle: 'Instant delivery confirmation frame received over local mesh',
-    tag: 'ITP/1 FRAMING',
-    src: '/screenshots/oneplus_sent_msg.png',
-    device: 'OnePlus 11 · Sent Status'
+    title: 'Hardware Node Identity',
+    subtitle: 'Callsign configuration, socket bindings & TCP port 8785 listeners',
+    tag: 'NODE IDENTITY',
+    src: '/screenshots/pixel9a_node_identity_540w.png',
+    fullSrc: '/screenshots/pixel9a_node_identity.png',
+    device: 'Pixel 9a · Node Profile'
   }
 ];
 
 function MobileAppSection() {
   const { ref, visible } = useInView<HTMLElement>();
   const [isPaused, setIsPaused] = useState(false);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
   // Duplicate for seamless infinite side-to-side marquee
   const marqueeItems = [...appScreenshots, ...appScreenshots];
+
+  const activeModalItem = selectedIdx !== null ? appScreenshots[selectedIdx] : null;
+
+  const handleNext = () => {
+    if (selectedIdx === null) return;
+    setSelectedIdx((selectedIdx + 1) % appScreenshots.length);
+  };
+
+  const handlePrev = () => {
+    if (selectedIdx === null) return;
+    setSelectedIdx((selectedIdx - 1 + appScreenshots.length) % appScreenshots.length);
+  };
+
+  useEffect(() => {
+    if (selectedIdx === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedIdx(null);
+      if (e.key === 'ArrowRight') handleNext();
+      if (e.key === 'ArrowLeft') handlePrev();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedIdx]);
 
   return (
     <section
@@ -384,7 +419,7 @@ function MobileAppSection() {
       </div>
 
       <div
-        className={`infinite-marquee-container ${isPaused ? 'is-paused' : ''}`}
+        className={`infinite-marquee-container ${isPaused || selectedIdx !== null ? 'is-paused' : ''}`}
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
         onTouchStart={() => setIsPaused(true)}
@@ -392,7 +427,19 @@ function MobileAppSection() {
       >
         <div className="marquee-track">
           {marqueeItems.map((item, index) => (
-            <div key={`${item.title}-${index}`} className="mobile-mockup-card">
+            <div
+              key={`${item.title}-${index}`}
+              className="mobile-mockup-card"
+              onClick={() => setSelectedIdx(index % appScreenshots.length)}
+              role="button"
+              tabIndex={0}
+              aria-label={`Inspect ${item.title} snapshot`}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  setSelectedIdx(index % appScreenshots.length);
+                }
+              }}
+            >
               <div className="phone-bezel">
                 <div className="phone-screen">
                   <div className="phone-notch">
@@ -400,10 +447,18 @@ function MobileAppSection() {
                   </div>
                   <img
                     src={item.src}
+                    srcSet={`${item.src} 1x, ${item.fullSrc} 2x`}
                     alt={item.title}
                     loading="lazy"
                     className="phone-img"
+                    width={540}
+                    height={1212}
                   />
+                  <div className="phone-hover-overlay">
+                    <span className="expand-pill">
+                      <ZoomIn size={13} /> Click to Inspect High-Res
+                    </span>
+                  </div>
                 </div>
               </div>
               <div className="mockup-meta">
@@ -419,6 +474,69 @@ function MobileAppSection() {
         </div>
       </div>
 
+      {activeModalItem && (
+        <div
+          className="screenshot-lightbox-backdrop"
+          onClick={() => setSelectedIdx(null)}
+        >
+          <div
+            className="screenshot-lightbox-dialog"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="lightbox-close-btn"
+              onClick={() => setSelectedIdx(null)}
+              aria-label="Close high-res preview"
+            >
+              <X size={20} />
+            </button>
+
+            <button
+              className="lightbox-nav-btn lightbox-prev-btn"
+              onClick={handlePrev}
+              aria-label="Previous snapshot"
+            >
+              <ChevronLeft size={24} />
+            </button>
+
+            <div className="lightbox-phone-wrapper">
+              <div className="phone-bezel lightbox-phone-bezel">
+                <div className="phone-screen">
+                  <div className="phone-notch">
+                    <span className="notch-camera" />
+                  </div>
+                  <img
+                    src={activeModalItem.fullSrc}
+                    alt={activeModalItem.title}
+                    className="lightbox-phone-img"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <button
+              className="lightbox-nav-btn lightbox-next-btn"
+              onClick={handleNext}
+              aria-label="Next snapshot"
+            >
+              <ChevronRight size={24} />
+            </button>
+
+            <div className="lightbox-meta">
+              <div className="mockup-topline">
+                <span className="mockup-tag">{activeModalItem.tag}</span>
+                <span className="mockup-device">{activeModalItem.device}</span>
+              </div>
+              <h3>{activeModalItem.title}</h3>
+              <p>{activeModalItem.subtitle}</p>
+              <span className="lightbox-counter">
+                {((selectedIdx ?? 0) + 1)} / {appScreenshots.length} · Live Pixel 9a Native 1080p
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="marquee-footer">
         <div className="metadata-tags">
           <span>WI-FI DIRECT P2P</span>
@@ -429,7 +547,7 @@ function MobileAppSection() {
         </div>
         <div className="marquee-cta-row">
           <p>
-            Hover or touch to pause. All screens captured live on OnePlus 11 and Pixel 7 test devices.
+            Hover or touch to pause · Click any card to inspect native 1080p high-res. All screens captured live on Google Pixel 9a test device.
           </p>
           <a
             href={DEFAULT_APK_DOWNLOAD_URL}

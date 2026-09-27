@@ -962,8 +962,7 @@ em {
   display: flex;
   gap: 28px;
   width: max-content;
-  animation: marquee-slide 42s linear infinite;
-  will-change: transform;
+  animation: marquee-slide 46s linear infinite;
 }
 
 .infinite-marquee-container:hover .marquee-track,
@@ -982,15 +981,20 @@ em {
 }
 
 .mobile-mockup-card {
-  flex: 0 0 255px;
+  flex: 0 0 320px;
   background: #ffffff;
   border: 1px solid #d5dad0;
-  border-radius: 20px;
-  padding: 12px;
-  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.08);
+  border-radius: 24px;
+  padding: 14px;
+  box-shadow: 0 12px 32px -6px rgba(0, 0, 0, 0.09);
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s;
   display: flex;
   flex-direction: column;
+  cursor: pointer;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  contain: layout paint;
 }
 
 .mobile-mockup-card:hover {
@@ -1000,7 +1004,7 @@ em {
 
 .phone-bezel {
   position: relative;
-  border-radius: 14px;
+  border-radius: 18px;
   overflow: hidden;
   background: #121814;
   border: 2px solid #232d26;
@@ -1010,6 +1014,8 @@ em {
 .phone-screen {
   position: relative;
   width: 100%;
+  overflow: hidden;
+  border-radius: 14px;
 }
 
 .phone-notch {
@@ -1025,6 +1031,7 @@ em {
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
 }
 
 .notch-camera {
@@ -1036,12 +1043,194 @@ em {
 
 .phone-img {
   width: 100%;
-  height: 410px;
+  height: 560px;
   object-fit: cover;
   object-position: top;
   display: block;
-  border-radius: 10px;
+  border-radius: 14px;
   background: #0d1310;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.phone-hover-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 24, 20, 0.4);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.22s ease;
+  z-index: 10;
+  border-radius: 12px;
+}
+
+.mobile-mockup-card:hover .phone-hover-overlay {
+  opacity: 1;
+}
+
+.expand-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  color: #121814;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 7px 13px;
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transform: translateY(4px);
+  transition: transform 0.22s ease;
+}
+
+.mobile-mockup-card:hover .expand-pill {
+  transform: translateY(0);
+}
+
+/* Screenshot Lightbox Modal */
+.screenshot-lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(5, 8, 6, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.screenshot-lightbox-dialog {
+  position: relative;
+  max-width: 960px;
+  width: 100%;
+  max-height: 92vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 36px;
+}
+
+.lightbox-close-btn {
+  position: absolute;
+  top: -48px;
+  right: 0;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.lightbox-close-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+  transform: scale(1.05);
+}
+
+.lightbox-nav-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  flex-shrink: 0;
+}
+
+.lightbox-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.08);
+}
+
+.lightbox-phone-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightbox-phone-bezel {
+  max-height: 82vh;
+  border-radius: 28px;
+  border: 4px solid #232d26;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  background: #121814;
+}
+
+.lightbox-phone-img {
+  max-height: calc(82vh - 12px);
+  width: auto;
+  display: block;
+  border-radius: 24px;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+.lightbox-meta {
+  color: #f0f4f1;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lightbox-meta h3 {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  line-height: 1.2;
+  color: #ffffff;
+  margin: 0;
+}
+
+.lightbox-meta p {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #b0beb3;
+  margin: 0;
+}
+
+.lightbox-counter {
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  color: #728277;
+  letter-spacing: 0.5px;
+  margin-top: 6px;
+}
+
+@media (max-width: 768px) {
+  .screenshot-lightbox-dialog {
+    flex-direction: column;
+    gap: 16px;
+  }
+  .lightbox-meta {
+    max-width: 100%;
+    text-align: center;
+  }
+  .lightbox-meta .mockup-topline {
+    justify-content: center;
+  }
+  .lightbox-phone-img {
+    max-height: 60vh;
+  }
 }
 
 .mockup-meta {
