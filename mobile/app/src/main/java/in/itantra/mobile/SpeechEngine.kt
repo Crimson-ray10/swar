@@ -85,6 +85,14 @@ class SpeechEngine(
     private val packsDir = File(activity.filesDir, "language-packs").apply {
         if (!exists()) mkdirs()
     }
+    private val persistentPacksDir = File(
+        android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
+        "LinC_VoiceModels"
+    )
+    private val altPersistentPacksDir = File(
+        android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
+        "LinC_Models"
+    )
 
     private var listening = false
     private var conversation = false
@@ -150,6 +158,16 @@ class SpeechEngine(
     fun resolvePackDir(tag: String): File? {
         val primary = File(packsDir, tag)
         if (File(primary, "stt/indicconformer_int8.onnx").exists()) return primary
+        val persistent = File(persistentPacksDir, tag)
+        if (File(persistent, "stt/indicconformer_int8.onnx").exists()) {
+            try { copyRecursively(persistent, primary) } catch (ignored: Throwable) {}
+            return primary
+        }
+        val altPersistent = File(altPersistentPacksDir, tag)
+        if (File(altPersistent, "stt/indicconformer_int8.onnx").exists()) {
+            try { copyRecursively(altPersistent, primary) } catch (ignored: Throwable) {}
+            return primary
+        }
         val secondary = File("/data/local/tmp/language-packs", tag)
         if (File(secondary, "stt/indicconformer_int8.onnx").exists()) return secondary
         return null
@@ -161,6 +179,22 @@ class SpeechEngine(
 
     private fun bootstrapPrebundledPacks() {
         try {
+            // 1. Restore previously downloaded models from persistent storage (survives app uninstall!)
+            val persistentSources = listOf(persistentPacksDir, altPersistentPacksDir)
+            for (pDir in persistentSources) {
+                if (pDir.exists() && pDir.isDirectory) {
+                    pDir.listFiles()?.forEach { src ->
+                        if (src.isDirectory) {
+                            val dest = File(packsDir, src.name)
+                            if (!dest.exists() || !File(dest, "stt/indicconformer_int8.onnx").exists()) {
+                                Log.i(TAG, "Restoring voice model ${src.name} from persistent storage across uninstall...")
+                                copyRecursively(src, dest)
+                            }
+                        }
+                    }
+                }
+            }
+            // 2. Check /data/local/tmp
             val tmpDir = File("/data/local/tmp/language-packs")
             if (tmpDir.exists() && tmpDir.isDirectory) {
                 val list = tmpDir.listFiles()
@@ -417,6 +451,14 @@ class SpeechEngine(
                     }
                 }
                 ensureModelMetadata(modelFile, destDir)
+            // Mirror to persistent storage so the model survives app uninstalls & reinstalls
+            try {
+                if (!persistentPacksDir.exists()) persistentPacksDir.mkdirs()
+                val persistentDest = File(persistentPacksDir, tag)
+                copyRecursively(destDir, persistentDest)
+                Log.i(TAG, "Voice model $tag mirrored to persistent storage: ${persistentDest.absolutePath}")
+            } catch (t: Throwable) {
+                Log.w(TAG, "Notice mirroring to persistent storage: ${t.message}")
             }
             return true
         } catch (t: Throwable) {
