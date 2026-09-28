@@ -5,4 +5,5 @@
 .cxx/
 .externalNativeBuild/
 .gradle/
+# Local Android Studio environment
 local.properties
