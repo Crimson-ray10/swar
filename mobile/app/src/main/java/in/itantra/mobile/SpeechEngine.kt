@@ -451,6 +451,7 @@ class SpeechEngine(
                     }
                 }
                 ensureModelMetadata(modelFile, destDir)
+            }
             // Mirror to persistent storage so the model survives app uninstalls & reinstalls
             try {
                 if (!persistentPacksDir.exists()) persistentPacksDir.mkdirs()
