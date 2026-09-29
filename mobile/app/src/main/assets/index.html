@@ -1357,9 +1357,9 @@
       font-size: 9px;
       font-weight: 700;
       font-family: monospace;
-      color: var(--emerald-text);
-      background: var(--emerald-light);
-      border: 1px solid var(--emerald-border);
+      color: #475569;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
       border-radius: 999px;
       padding: 1.5px 7px;
       letter-spacing: 0.2px;
@@ -2072,51 +2072,153 @@
       flex-shrink: 0;
     }
 
-    /* Selective Model Downloader & Storage Management Styles */
+    /* Selective Model Downloader & Storage Management Styles (Redesigned) */
+    .models-screen-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding: 0 2px;
+    }
+
+    .models-screen-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.3px;
+    }
+
+    .models-screen-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    .models-storage-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+
+    .storage-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .storage-stat-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .storage-stat-num {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.3px;
+    }
+
+    .storage-stat-sub {
+      font-size: 11px;
+      color: #64748b;
+      font-weight: 500;
+    }
+
     .savings-badge {
       display: inline-flex;
-      flex-direction: column;
-      align-items: flex-end;
-      padding: 6px 12px;
-      border-radius: 12px;
-      background: #ecfdf5;
-      border: 1px solid #a7f3d0;
-      color: #059669;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      color: #0f172a;
+      font-size: 10px;
+      font-weight: 700;
       flex-shrink: 0;
+    }
+
+    .savings-badge-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #0f172a;
+      display: inline-block;
     }
 
     .storage-bar-track {
       width: 100%;
-      height: 8px;
+      height: 4px;
       border-radius: 999px;
-      background: #e2e8f0;
+      background: #f1f5f9;
       overflow: hidden;
       display: flex;
     }
 
     .storage-bar-fill {
       height: 100%;
-      background: #111827;
+      background: #0f172a;
       border-radius: 999px;
       transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
+    .presets-container {
+      margin-bottom: 14px;
+    }
+
+    .presets-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      padding: 0 2px;
+    }
+
+    .presets-eyebrow {
+      font-size: 10.5px;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .presets-hint {
+      font-size: 10px;
+      color: var(--text-light);
+      font-weight: 500;
+    }
+
     .presets-row {
       display: flex;
-      flex-wrap: wrap;
       gap: 6px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+
+    .presets-row::-webkit-scrollbar {
+      display: none;
     }
 
     .preset-btn {
-      padding: 6px 12px;
+      padding: 6px 13px;
       border-radius: 999px;
       border: 1px solid var(--border);
       background: #ffffff;
-      color: var(--text);
+      color: #475569;
       font-size: 11px;
       font-weight: 600;
+      white-space: nowrap;
       cursor: pointer;
       transition: all 0.15s ease;
+      flex-shrink: 0;
     }
 
     .preset-btn:active {
@@ -2127,13 +2229,70 @@
       background: #111827;
       color: #ffffff;
       border-color: #111827;
+      box-shadow: 0 2px 6px rgba(17, 24, 39, 0.12);
+    }
+
+    .preset-btn.preset-clear {
+      color: #94a3b8;
+    }
+
+    .preset-btn.preset-clear:hover,
+    .preset-btn.preset-clear:active {
+      color: #ef4444;
+      border-color: #fca5a5;
+    }
+
+    /* Category Filter Segmented Control */
+    .models-category-filter {
+      display: flex;
+      background: #f1f5f9;
+      padding: 3px;
+      border-radius: 12px;
+      margin-bottom: 14px;
+      gap: 2px;
+    }
+
+    .cat-filter-btn {
+      flex: 1;
+      padding: 7px 4px;
+      font-size: 10.5px;
+      font-weight: 600;
+      text-align: center;
+      border-radius: 9px;
+      border: none;
+      background: transparent;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .cat-filter-btn .filter-count {
+      font-size: 9.5px;
+      font-weight: 700;
+      opacity: 0.75;
+    }
+
+    .cat-filter-btn.active {
+      background: #ffffff;
+      color: var(--text);
+      font-weight: 700;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .models-group-section {
+      transition: opacity 0.2s ease;
     }
 
     .model-category-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin: 14px 2px 8px;
+      margin: 12px 2px 8px;
     }
 
     .cat-title {
@@ -2143,6 +2302,12 @@
       letter-spacing: -0.2px;
     }
 
+    .cat-desc {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
     .cat-pill {
       font-size: 9.5px;
       font-weight: 700;
@@ -2150,6 +2315,7 @@
       color: #64748b;
       padding: 2px 8px;
       border-radius: 999px;
+      flex-shrink: 0;
     }
 
     .models-list {
@@ -2158,22 +2324,24 @@
       gap: 8px;
     }
 
+    /* Individual Model Card */
     .model-card {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 14px;
+      padding: 11px 13px;
       background: #ffffff;
-      border: 1.5px solid var(--border);
+      border: 1px solid var(--border);
       border-radius: 14px;
       cursor: pointer;
-      transition: all 0.15s ease;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+      transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
       user-select: none;
+      position: relative;
     }
 
     .model-card:active {
-      transform: scale(0.99);
+      transform: scale(0.985);
     }
 
     .model-card.selected {
@@ -2182,13 +2350,14 @@
     }
 
     .model-card.installed {
-      border-color: #a7f3d0;
-      background: #fcfdfd;
+      border-color: #e2e8f0;
+      background: #ffffff;
     }
 
     .model-card.downloading {
-      border-color: #93c5fd;
-      background: #eff6ff;
+      border-color: #0f172a;
+      background: #ffffff;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
     }
 
     .model-left {
@@ -2199,41 +2368,97 @@
       min-width: 0;
     }
 
-    .model-checkbox {
-      width: 20px;
-      height: 20px;
-      border-radius: 6px;
-      border: 1.5px solid #cbd5e1;
-      background: #ffffff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: all 0.15s ease;
-    }
-
-    .model-checkbox.checked {
-      background: #111827;
-      border-color: #111827;
-      color: #ffffff;
-    }
-
-    .model-checkbox.installed {
-      background: var(--accent-emerald);
-      border-color: var(--accent-emerald);
-      color: #ffffff;
-    }
-
-    .model-icon {
-      width: 32px;
-      height: 32px;
+    /* Model Pack Icon Box & Circular Progress Ring */
+    .model-icon-box {
+      position: relative;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
-      background: #f1f5f9;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
       display: flex;
       align-items: center;
       justify-content: center;
       color: #475569;
       flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+
+    .model-card.installed .model-icon-box {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+      color: #0f172a;
+    }
+
+    .model-card.downloading .model-icon-box {
+      background: #f8fafc;
+      border-color: transparent;
+      color: #0f172a;
+    }
+
+    .model-icon-glyph {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+    }
+
+    /* SVG Progress Ring overlaid on the icon */
+    .model-progress-ring {
+      position: absolute;
+      inset: -2px;
+      width: 44px;
+      height: 44px;
+      transform: rotate(-90deg);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .model-progress-ring circle.ring-track {
+      fill: none;
+      stroke: #e2e8f0;
+      stroke-width: 2.5;
+    }
+
+    .model-progress-ring circle.ring-fill {
+      fill: none;
+      stroke: #0f172a;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-dasharray: 113.1;
+      stroke-dashoffset: 113.1;
+      transition: stroke-dashoffset 0.25s linear;
+    }
+
+    .model-progress-ring.indeterminate {
+      animation: modelRingSpin 1.2s linear infinite;
+    }
+
+    .model-progress-ring.indeterminate circle.ring-fill {
+      stroke-dasharray: 38 75.1;
+      stroke-dashoffset: 0;
+    }
+
+    @keyframes modelRingSpin {
+      0% { transform: rotate(-90deg); }
+      100% { transform: rotate(270deg); }
+    }
+
+    .model-icon-check-badge {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #0f172a;
+      border: 1.5px solid #ffffff;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
+      z-index: 3;
     }
 
     .model-info {
@@ -2241,15 +2466,15 @@
       min-width: 0;
     }
 
-    .model-name-row {
+    .model-title-row {
       display: flex;
       align-items: center;
       gap: 6px;
       flex-wrap: wrap;
     }
 
-    .model-name {
-      font-size: 12px;
+    .model-title {
+      font-size: 12.5px;
       font-weight: 700;
       color: var(--text);
       white-space: nowrap;
@@ -2260,19 +2485,37 @@
     .model-tag {
       font-size: 9.5px;
       font-weight: 700;
-      padding: 1px 6px;
+      padding: 1px 5px;
       border-radius: 4px;
       background: #f1f5f9;
       color: #64748b;
+      font-family: var(--font-sans);
     }
 
-    .model-sub {
-      font-size: 10px;
+    .model-rec-pill {
+      font-size: 8.5px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .model-desc {
+      font-size: 10.5px;
       color: var(--text-muted);
       margin-top: 2px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .model-size {
+      font-weight: 600;
+      color: #475569;
     }
 
     .model-right {
@@ -2283,63 +2526,249 @@
       margin-left: 8px;
     }
 
-    .model-size-pill {
-      font-size: 10.5px;
-      font-weight: 700;
-      color: var(--text-muted);
-    }
-
-    .model-status-pill {
+    /* Badges & Actions */
+    .model-badge {
       font-size: 9.5px;
       font-weight: 800;
       padding: 3px 8px;
       border-radius: 6px;
       text-transform: uppercase;
       letter-spacing: 0.3px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
-    .status-installed {
-      background: #ecfdf5;
-      color: #059669;
-      border: 1px solid #a7f3d0;
-    }
-
-    .status-not-installed {
+    .badge-bundled {
       background: #f1f5f9;
       color: #64748b;
       border: 1px solid #e2e8f0;
     }
 
-    .status-downloading {
-      background: #eff6ff;
-      color: #2563eb;
-      border: 1px solid #bfdbfe;
-      animation: pulse-soft 1.5s infinite;
+    .badge-installed {
+      background: #f1f5f9;
+      color: #0f172a;
+      border: 1px solid #e2e8f0;
     }
 
-    @keyframes pulse-soft {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
+    .badge-downloading {
+      background: #0f172a;
+      color: #ffffff;
+      border: 1px solid #0f172a;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum";
+      font-weight: 700;
     }
 
+    .badge-pulse-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #ffffff;
+      animation: pulse-soft 1s infinite;
+    }
+
+    .model-action-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1.5px solid #cbd5e1;
+      background: #ffffff;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .model-action-btn:hover {
+      border-color: #111827;
+      color: #111827;
+    }
+
+    .model-action-btn.selected {
+      background: #111827;
+      border-color: #111827;
+      color: #ffffff;
+    }
+
+    .model-action-btn.download {
+      border-color: #94a3b8;
+      color: #0f172a;
+    }
+
+    .model-action-btn.download:active {
+      transform: scale(0.9);
+      background: #f1f5f9;
+    }
+
+    /* Diagnostics & System Settings Card */
+    .models-system-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      margin-top: 18px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .system-card-title {
+      font-size: 10.5px;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 10px;
+      padding: 0 2px;
+    }
+
+    .system-card-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .system-card-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 6px;
+      border: none;
+      border-bottom: 1px solid #f1f3f5;
+      background: transparent;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      border-radius: 8px;
+    }
+
+    .system-card-item:last-child {
+      border-bottom: none;
+    }
+
+    .system-card-item:active {
+      background: #f8fafc;
+    }
+
+    .system-item-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .system-item-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #475569;
+      flex-shrink: 0;
+    }
+
+    .system-item-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .system-item-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .system-item-desc {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .system-item-chevron {
+      color: #94a3b8;
+      flex-shrink: 0;
+    }
+
+    /* Sticky Bottom Action Bar */
     .sticky-download-bar {
       position: sticky;
-      bottom: 0;
+      bottom: 8px;
       left: 0;
       right: 0;
       margin-top: 18px;
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 18px;
+      padding: 10px 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
       z-index: 40;
+    }
+
+    .sticky-download-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .sticky-count-title {
+      font-size: 12.5px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .sticky-savings-sub {
+      font-size: 11px;
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .sticky-download-btn {
+      padding: 9px 18px;
+      font-size: 12px;
+      font-weight: 800;
+      border-radius: 999px;
+      background: #111827;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(17, 24, 39, 0.2);
+    }
+
+    /* Backward compatibility aliases */
+    .model-icon {
+      width: 32px;
+      height: 32px;
+    }
+    .model-name {
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .model-sub {
+      font-size: 10px;
+    }
+    .model-status-pill {
+      font-size: 9.5px;
+    }
+    .status-installed {
+      background: #f1f5f9;
+      color: #0f172a;
+      border: 1px solid #e2e8f0;
+    }
+    .status-not-installed {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+    .status-downloading {
+      background: #eff6ff;
+      color: #2563eb;
     }
 
     /* Device List Items */
@@ -2408,7 +2837,7 @@
     <div class="header-left-slot" id="headerLeftSlot">
       <div id="connectionPill" class="header-pill pill-neutral">STANDBY</div>
       <div class="header-brand" id="headerBrand" style="display:none;">
-        <div class="header-title" id="pageHeaderTitle">LinC<span style="color:#10b981">.</span></div>
+        <div class="header-title" id="pageHeaderTitle">LinC<span style="color:#0f172a">.</span></div>
         <div class="header-subtitle" id="pageHeaderSubtitle"></div>
       </div>
     </div>
@@ -2468,7 +2897,7 @@
       <div style="display:flex; align-items:center; justify-content:flex-end; margin-bottom:14px; padding:0 2px;">
         <span id="scanStatusText" style="display:none;"></span>
         <div style="display:flex; gap:6px;">
-          <span class="header-pill pill-emerald" id="rssiBadge">Rssi: -71</span>
+          <span class="header-pill pill-neutral" id="rssiBadge">Rssi: -71</span>
         </div>
       </div>
 
@@ -2843,125 +3272,162 @@
     <!-- 3. NEURAL MODELS / SELECTIVE DOWNLOADS SCREEN (Screen 1) -->
     <section id="viewDownloads" class="view-page hidden">
       <!-- Top Section Header -->
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; padding:0 2px;">
+      <div class="models-screen-header">
         <div>
-          <div style="font-size:16px; font-weight:800; color:var(--text); letter-spacing:-0.3px;">Model &amp; Storage Manager</div>
-          <div style="font-size:11px; color:var(--text-muted); font-weight:500; margin-top:2px;">
-            Choose only the models you need to save device storage.
+          <div class="models-screen-title">Speech &amp; Voice Models</div>
+          <div class="models-screen-subtitle">
+            Tactical on-device speech packs for 100% offline communication.
           </div>
         </div>
         <span class="header-pill pill-neutral" id="modelEngineTag">On-Device AI</span>
       </div>
 
-      <!-- Storage Optimization & Savings Calculator Card -->
-      <div class="card" style="padding:16px; margin-bottom:14px; position:relative; overflow:hidden;">
-        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
-          <div style="flex:1;">
-            <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.8px; font-weight:800; color:var(--text-muted); margin-bottom:4px;">App Storage Optimization</div>
-            <div style="display:flex; align-items:baseline; gap:8px;">
-              <span style="font-size:24px; font-weight:900; color:var(--text);" id="statSelectedSize">78 MB</span>
-              <span style="font-size:12px; color:var(--text-muted);">selected for download</span>
-            </div>
-            <div style="font-size:11px; color:var(--emerald-text); font-weight:700; margin-top:4px; display:flex; align-items:center; gap:5px;">
-              <span style="width:7px; height:7px; border-radius:50%; background:var(--accent-emerald); display:inline-block;"></span>
-              <span id="statSavingsText">Saves 201 MB phone storage (72% reduction)</span>
-            </div>
+      <!-- Storage Allocation & Optimization Card -->
+      <div class="models-storage-card">
+        <div class="storage-card-header">
+          <div class="storage-stat-row">
+            <span class="storage-stat-num" id="statSelectedSize">78 MB</span>
+            <span class="storage-stat-sub" id="statSavingsText">installed · Saves 201 MB (72%)</span>
           </div>
           <div class="savings-badge" id="statSavingsBadge">
-            <span style="font-size:10px; font-weight:700; text-transform:uppercase;">Storage Saved</span>
-            <span style="font-size:16px; font-weight:900;" id="statSavingsMb">-201 MB</span>
+            <span class="savings-badge-dot"></span>
+            <span id="barSavedPercent">72% Saved</span>
           </div>
         </div>
-
-        <!-- Storage Bar Visualizer -->
-        <div style="margin-top:14px;">
-          <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted); margin-bottom:5px; font-weight:600;">
-            <span>Selected Models: <strong id="barSelectedLabel" style="color:var(--text);">78 MB</strong></span>
-            <span>Total Bundle: <strong>279 MB</strong></span>
-          </div>
-          <div class="storage-bar-track">
-            <div class="storage-bar-fill" id="storageBarFill" style="width: 28%;"></div>
-          </div>
-          <div style="display:flex; justify-content:space-between; font-size:9.5px; color:var(--text-light); margin-top:4px;">
-            <span>Core + Selected Languages</span>
-            <span id="barSavedPercent">72% App Size Saved</span>
-          </div>
-        </div>
-
-        <div style="margin-top:12px; padding:9px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; font-size:11px; color:#475569; line-height:1.45;">
-          💡 <strong>Storage tip:</strong> Downloading only selected models avoids bloating the app. You can add or remove language models anytime.
+        <div class="storage-bar-track">
+          <div class="storage-bar-fill" id="storageBarFill" style="width: 28%;"></div>
         </div>
       </div>
 
-      <!-- Quick Preset Buttons -->
-      <div style="margin-bottom:14px;">
-        <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Quick Presets</div>
+      <!-- Quick Preset Selection -->
+      <div class="presets-container">
+        <div class="presets-header">
+          <span class="presets-eyebrow">Quick Presets</span>
+          <span class="presets-hint">Pre-configured language bundles</span>
+        </div>
         <div class="presets-row">
           <button type="button" class="preset-btn active" id="presetRecommended" onclick="applyModelPreset('recommended')">
-            ⭐ Recommended (Hi + En)
+            Recommended (Hi + En)
           </button>
           <button type="button" class="preset-btn" id="presetHindi" onclick="applyModelPreset('hi-only')">
-            🇮🇳 Hindi Only (42 MB)
+            Hindi Only (269 MB)
           </button>
           <button type="button" class="preset-btn" id="presetEnglish" onclick="applyModelPreset('en-only')">
-            🇬🇧 English Only (36 MB)
+            English Only (155 MB)
           </button>
           <button type="button" class="preset-btn" id="presetAll" onclick="applyModelPreset('all')">
-            All Indic (279 MB)
+            All Indic (2.0 GB)
           </button>
-          <button type="button" class="preset-btn" id="presetClear" onclick="applyModelPreset('clear')">
-            Clear
+          <button type="button" class="preset-btn preset-clear" id="presetClear" onclick="applyModelPreset('clear')">
+            Reset
           </button>
         </div>
       </div>
 
-      <!-- 1. Core Pre-Bundled Engines -->
-      <div class="model-category-header">
-        <span class="cat-title">1. Core Runtime Engines</span>
-        <span class="cat-pill">0 MB Extra Download</span>
-      </div>
-      <div id="coreModelsContainer" class="models-list"></div>
-
-      <!-- 2. Speech Recognition (STT) Models -->
-      <div class="model-category-header" style="margin-top:16px;">
-        <span class="cat-title">2. Speech-to-Text Recognition (STT)</span>
-        <span class="cat-pill">Choose for Speaking</span>
-      </div>
-      <div style="font-size:10.5px; color:var(--text-muted); margin-bottom:8px; padding:0 2px;">
-        Converts microphone audio to text completely offline on this phone.
-      </div>
-      <div id="sttModelsContainer" class="models-list"></div>
-
-      <!-- 3. Neural Voice Synthesis (TTS) Models -->
-      <div class="model-category-header" style="margin-top:16px;">
-        <span class="cat-title">3. Neural Voice Synthesis (TTS)</span>
-        <span class="cat-pill">Choose for Listening</span>
-      </div>
-      <div style="font-size:10.5px; color:var(--text-muted); margin-bottom:8px; padding:0 2px;">
-        Synthesizes incoming tactical mesh messages into natural voice speech.
-      </div>
-      <div id="ttsModelsContainer" class="models-list"></div>
-
-      <!-- Diagnostics & System Integration Buttons -->
-      <div class="models-diagnostics" style="margin-top:20px; display:flex; flex-direction:column; gap:8px;">
-        <button type="button" class="btn-outline full-width" onclick="recheckModelStatus()">
-          🔄 Recheck Installed Phone Models
+      <!-- Category Filter Tabs (Segmented Control) -->
+      <div class="models-category-filter">
+        <button type="button" class="cat-filter-btn active" data-category="all" onclick="filterModelCategory('all')">
+          All Models <span class="filter-count">18</span>
         </button>
-        <button type="button" class="btn-outline full-width" onclick="command('speechSettings')">
-          ⚙️ Open Android Speech Recognition Settings
+        <button type="button" class="cat-filter-btn" data-category="stt" onclick="filterModelCategory('stt')">
+          Recognition (STT) <span class="filter-count">8</span>
         </button>
-        <button type="button" class="btn-outline full-width" onclick="command('ttsSettings')">
-          🔊 Open Android TTS Voice Settings
+        <button type="button" class="cat-filter-btn" data-category="tts" onclick="filterModelCategory('tts')">
+          Neural Voice (TTS) <span class="filter-count">8</span>
         </button>
+        <button type="button" class="cat-filter-btn" data-category="core" onclick="filterModelCategory('core')">
+          Runtime Core <span class="filter-count">2</span>
+        </button>
+      </div>
+
+      <!-- 1. Speech Recognition (STT) Models -->
+      <div id="sectionSttModels" class="models-group-section">
+        <div class="model-category-header">
+          <div>
+            <div class="cat-title">Speech-to-Text Recognition (STT)</div>
+            <div class="cat-desc">Acoustic &amp; phonetic vocabulary for on-device mic transcription.</div>
+          </div>
+          <span class="cat-pill">Voice Input</span>
+        </div>
+        <div id="sttModelsContainer" class="models-list"></div>
+      </div>
+
+      <!-- 2. Neural Voice Synthesis (TTS) Models -->
+      <div id="sectionTtsModels" class="models-group-section" style="margin-top:16px;">
+        <div class="model-category-header">
+          <div>
+            <div class="cat-title">Neural Voice Synthesis (TTS)</div>
+            <div class="cat-desc">Natural on-device audio speech playback for incoming radio talk.</div>
+          </div>
+          <span class="cat-pill">Voice Output</span>
+        </div>
+        <div id="ttsModelsContainer" class="models-list"></div>
+      </div>
+
+      <!-- 3. Core Pre-Bundled Engines -->
+      <div id="sectionCoreModels" class="models-group-section" style="margin-top:16px;">
+        <div class="model-category-header">
+          <div>
+            <div class="cat-title">Core Runtime Engines</div>
+            <div class="cat-desc">Silero VAD &amp; FastText LID classifiers built directly into the app.</div>
+          </div>
+          <span class="cat-pill">0 MB Download</span>
+        </div>
+        <div id="coreModelsContainer" class="models-list"></div>
+      </div>
+
+      <!-- Diagnostics & System Integration Section -->
+      <div class="models-system-card">
+        <div class="system-card-title">System Speech Integration</div>
+        <div class="system-card-list">
+          <button type="button" class="system-card-item" onclick="recheckModelStatus()">
+            <div class="system-item-left">
+              <div class="system-item-icon">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+              </div>
+              <div class="system-item-text">
+                <div class="system-item-title">Verify Installed Phone Models</div>
+                <div class="system-item-desc">Rescan device storage directory and active ONNX caches</div>
+              </div>
+            </div>
+            <svg class="system-item-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+
+          <button type="button" class="system-card-item" onclick="command('speechSettings')">
+            <div class="system-item-left">
+              <div class="system-item-icon">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              </div>
+              <div class="system-item-text">
+                <div class="system-item-title">Android Speech Recognition Settings</div>
+                <div class="system-item-desc">System default input and voice engine</div>
+              </div>
+            </div>
+            <svg class="system-item-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+
+          <button type="button" class="system-card-item" onclick="command('ttsSettings')">
+            <div class="system-item-left">
+              <div class="system-item-icon">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+              </div>
+              <div class="system-item-text">
+                <div class="system-item-title">Android Text-to-Speech (TTS) Settings</div>
+                <div class="system-item-desc">Voice synthesizer and pitch settings</div>
+              </div>
+            </div>
+            <svg class="system-item-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+        </div>
       </div>
 
       <!-- Sticky Download Action Bar at bottom -->
       <div class="sticky-download-bar" id="stickyDownloadBar">
         <div class="sticky-download-info">
-          <div style="font-size:12.5px; font-weight:800; color:var(--text);" id="stickySelectedCount">2 Models Selected · 78 MB</div>
-          <div style="font-size:11px; color:var(--emerald-text); font-weight:600;" id="stickySavingsText">Saves 201 MB Storage</div>
+          <div class="sticky-count-title" id="stickySelectedCount">2 Models Selected · 78 MB</div>
+          <div class="sticky-savings-sub" id="stickySavingsText">Saves 201 MB Storage</div>
         </div>
-        <button type="button" class="btn-pill" id="btnDownloadSelected" style="padding:10px 18px; font-size:12px; font-weight:800;" onclick="promptConfirmDownload()">
+        <button type="button" class="btn-pill sticky-download-btn" id="btnDownloadSelected" onclick="promptConfirmDownload()">
           Download Selected
         </button>
       </div>
@@ -3294,7 +3760,7 @@
           </div>
           <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
             <span style="color:var(--text-muted);">Storage Space Saved:</span>
-            <strong style="color:var(--accent-emerald);" id="modalTotalSavingsSize">201 MB Saved</strong>
+            <strong style="color:#0f172a;" id="modalTotalSavingsSize">201 MB Saved</strong>
           </div>
           <div style="display:flex; justify-content:space-between; font-size:11px; border-top:1px dashed #cbd5e1; padding-top:6px; margin-top:6px;">
             <span style="color:var(--text-muted);">Network Requirement:</span>
@@ -3964,31 +4430,49 @@
     };
 
     // --- SELECTIVE MODEL DOWNLOAD & STORAGE MANAGEMENT ---
-    const TOTAL_BUNDLE_SIZE_MB = 279;
+    const TOTAL_BUNDLE_SIZE_MB = 2035;
+    const LANGUAGE_PACK_SIZES = {
+      'hi-in': 268.8,
+      'en-in': 154.9,
+      'mr-in': 268.6,
+      'gu-in': 268.8,
+      'ta-in': 268.7,
+      'te-in': 267.6,
+      'kn-in': 268.7,
+      'bn-in': 266.7
+    };
+
+    function formatStorage(mb) {
+      if (mb >= 1000) {
+        return (mb / 1024).toFixed(1) + ' GB';
+      }
+      return Math.round(mb) + ' MB';
+    }
+
     const MODEL_CATALOG = [
       // Core Pre-bundled Engines (Zero extra download)
       { id: 'core-vad', category: 'core', title: 'Silero Voice Activity Detector', tag: 'VAD', size: 2.1, desc: 'Ultra-low latency speech boundary detector (pre-bundled)', bundled: true },
       { id: 'core-lid', category: 'core', title: 'FastText Language Identifier', tag: 'LID', size: 1.2, desc: 'Compact on-device acoustic language classifier (pre-bundled)', bundled: true },
 
       // Speech Recognition (STT) Models
-      { id: 'stt-hi', category: 'stt', lang: 'hi', tag: 'hi-IN', title: 'Hindi Speech Recognition (ASR)', size: 28, desc: 'Devanagari acoustic & phonetic model for offline transcription', recommended: true },
-      { id: 'stt-en', category: 'stt', lang: 'en', tag: 'en-IN', title: 'Indian English Speech Recognition', size: 24, desc: 'Indian accented phonetic vocabulary for tactical walkie-talkie', recommended: true },
-      { id: 'stt-mr', category: 'stt', lang: 'mr', tag: 'mr-IN', title: 'Marathi Speech Recognition', size: 26, desc: 'Modi/Devanagari script offline acoustic phonetics engine' },
-      { id: 'stt-gu', category: 'stt', lang: 'gu', tag: 'gu-IN', title: 'Gujarati Speech Recognition', size: 25, desc: 'Offline phonetic recognizer for Gujarati dialects' },
-      { id: 'stt-ta', category: 'stt', lang: 'ta', tag: 'ta-IN', title: 'Tamil Speech Recognition', size: 27, desc: 'Dravidian acoustic model with pure offline phonetics' },
-      { id: 'stt-te', category: 'stt', lang: 'te', tag: 'te-IN', title: 'Telugu Speech Recognition', size: 27, desc: 'Offline Telugu acoustic vocabulary & prosody model' },
-      { id: 'stt-kn', category: 'stt', lang: 'kn', tag: 'kn-IN', title: 'Kannada Speech Recognition', size: 26, desc: 'Karnataka regional dialect speech-to-text pipeline' },
-      { id: 'stt-bn', category: 'stt', lang: 'bn', tag: 'bn-IN', title: 'Bengali Speech Recognition', size: 25, desc: 'Eastern Indic phonetic acoustic engine' },
+      { id: 'stt-hi', category: 'stt', lang: 'hi', tag: 'hi-IN', title: 'Hindi Speech Recognition (ASR)', size: 155, desc: 'Devanagari acoustic & phonetic model for offline transcription', recommended: true },
+      { id: 'stt-en', category: 'stt', lang: 'en', tag: 'en-IN', title: 'Indian English Speech Recognition', size: 46, desc: 'Indian accented phonetic vocabulary for tactical walkie-talkie', recommended: true },
+      { id: 'stt-mr', category: 'stt', lang: 'mr', tag: 'mr-IN', title: 'Marathi Speech Recognition', size: 155, desc: 'Offline Devanagari phonetic model for Marathi speech' },
+      { id: 'stt-gu', category: 'stt', lang: 'gu', tag: 'gu-IN', title: 'Gujarati Speech Recognition', size: 155, desc: 'Offline phonetic recognizer for Gujarati dialects' },
+      { id: 'stt-ta', category: 'stt', lang: 'ta', tag: 'ta-IN', title: 'Tamil Speech Recognition', size: 155, desc: 'Dravidian acoustic model with pure offline phonetics' },
+      { id: 'stt-te', category: 'stt', lang: 'te', tag: 'te-IN', title: 'Telugu Speech Recognition', size: 154, desc: 'Offline Telugu acoustic vocabulary & prosody model' },
+      { id: 'stt-kn', category: 'stt', lang: 'kn', tag: 'kn-IN', title: 'Kannada Speech Recognition', size: 155, desc: 'Karnataka regional dialect speech-to-text pipeline' },
+      { id: 'stt-bn', category: 'stt', lang: 'bn', tag: 'bn-IN', title: 'Bengali Speech Recognition', size: 153, desc: 'Eastern Indic phonetic acoustic engine' },
 
       // Neural Voice Synthesis (TTS) Models
-      { id: 'tts-hi', category: 'tts', lang: 'hi', tag: 'hi-IN', title: 'Hindi Neural Voice (IndicTTS)', size: 14, desc: 'Devanagari natural speech synthesis for incoming audio', recommended: true },
-      { id: 'tts-en', category: 'tts', lang: 'en', tag: 'en-IN', title: 'Indian English Neural Voice', size: 12, desc: 'Indian accent natural TTS for incoming radio voice', recommended: true },
-      { id: 'tts-mr', category: 'tts', lang: 'mr', tag: 'mr-IN', title: 'Marathi Neural Voice', size: 14, desc: 'High-clarity Marathi neural acoustic synthesizer' },
-      { id: 'tts-gu', category: 'tts', lang: 'gu', tag: 'gu-IN', title: 'Gujarati Neural Voice', size: 13, desc: 'Lightweight on-device acoustic voice pack' },
-      { id: 'tts-ta', category: 'tts', lang: 'ta', tag: 'ta-IN', title: 'Tamil Neural Voice', size: 15, desc: 'Real-time Dravidian neural synthesis pack' },
-      { id: 'tts-te', category: 'tts', lang: 'te', tag: 'te-IN', title: 'Telugu Neural Voice', size: 15, desc: 'Low-latency neural audio synthesis pack' },
-      { id: 'tts-kn', category: 'tts', lang: 'kn', tag: 'kn-IN', title: 'Kannada Neural Voice', size: 14, desc: 'Offline phonetic prosody neural engine' },
-      { id: 'tts-bn', category: 'tts', lang: 'bn', tag: 'bn-IN', title: 'Bengali Neural Voice', size: 14, desc: 'Eastern Indic acoustic voice synthesizer' }
+      { id: 'tts-hi', category: 'tts', lang: 'hi', tag: 'hi-IN', title: 'Hindi Neural Voice (IndicTTS)', size: 114, desc: 'Devanagari natural speech synthesis for incoming audio', recommended: true },
+      { id: 'tts-en', category: 'tts', lang: 'en', tag: 'en-IN', title: 'Indian English Neural Voice', size: 109, desc: 'Indian accent natural TTS for incoming radio voice', recommended: true },
+      { id: 'tts-mr', category: 'tts', lang: 'mr', tag: 'mr-IN', title: 'Marathi Neural Voice', size: 114, desc: 'High-clarity Marathi neural acoustic synthesizer' },
+      { id: 'tts-gu', category: 'tts', lang: 'gu', tag: 'gu-IN', title: 'Gujarati Neural Voice', size: 114, desc: 'Lightweight on-device acoustic voice pack' },
+      { id: 'tts-ta', category: 'tts', lang: 'ta', tag: 'ta-IN', title: 'Tamil Neural Voice', size: 114, desc: 'Real-time Dravidian neural synthesis pack' },
+      { id: 'tts-te', category: 'tts', lang: 'te', tag: 'te-IN', title: 'Telugu Neural Voice', size: 114, desc: 'Low-latency neural audio synthesis pack' },
+      { id: 'tts-kn', category: 'tts', lang: 'kn', tag: 'kn-IN', title: 'Kannada Neural Voice', size: 114, desc: 'Offline phonetic prosody neural engine' },
+      { id: 'tts-bn', category: 'tts', lang: 'bn', tag: 'bn-IN', title: 'Bengali Neural Voice', size: 114, desc: 'Eastern Indic acoustic voice synthesizer' }
     ];
 
     let selectedModelIds = new Set();
@@ -3997,6 +4481,8 @@
     let installedTtsVoices = new Set();
     let activeDownloadingIds = new Set();
     let currentOfflineAlertLang = 'hi';
+    let currentModelFilter = 'all';
+    let modelDownloadProgress = {}; // key: tagLower or modelId -> { status, pct, mbDone, mbTotal }
 
     try {
       const saved = JSON.parse(localStorage.getItem('linc_selected_models') || '[]');
@@ -4007,6 +4493,262 @@
       }
     } catch(e) {
       selectedModelIds = new Set(['stt-hi', 'stt-en', 'tts-hi', 'tts-en']);
+    }
+
+    window.filterModelCategory = function(cat) {
+      currentModelFilter = cat;
+      document.querySelectorAll('.cat-filter-btn').forEach(btn => {
+        if (btn.dataset.category === cat) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+      const secStt = $('sectionSttModels');
+      const secTts = $('sectionTtsModels');
+      const secCore = $('sectionCoreModels');
+      if (secStt) secStt.style.display = (cat === 'all' || cat === 'stt') ? 'block' : 'none';
+      if (secTts) secTts.style.display = (cat === 'all' || cat === 'tts') ? 'block' : 'none';
+      if (secCore) secCore.style.display = (cat === 'all' || cat === 'core') ? 'block' : 'none';
+    };
+
+    let downloadTickTimer = null;
+
+    function ensureDownloadTicker() {
+      if (downloadTickTimer) return;
+      downloadTickTimer = setInterval(() => {
+        let anyActive = false;
+        const now = Date.now();
+
+        MODEL_CATALOG.forEach(m => {
+          if (m.bundled) return;
+          const prog = modelDownloadProgress[m.id];
+          if (!prog || (prog.status !== 'downloading' && prog.status !== 'starting')) return;
+          anyActive = true;
+
+          const tagLower = m.tag.toLowerCase();
+          const packTotal = LANGUAGE_PACK_SIZES[tagLower] || m.size;
+          const totalMb = prog.mbTotal || packTotal;
+
+          // If no update from native for > 600ms, gently interpolate up to 98%
+          if (now - (prog.lastTick || now) > 600 && prog.mbDone < totalMb * 0.98) {
+            const dt = Math.min(0.5, (now - prog.lastTick) / 1000);
+            prog.lastTick = now;
+            const inc = dt * 1.0;
+            prog.mbDone = Math.min(totalMb * 0.98, Math.round((prog.mbDone + inc) * 10) / 10);
+            prog.pct = Math.min(98, Math.max(1, Math.round((prog.mbDone / totalMb) * 100)));
+
+            const textEl = $('dl-text-' + m.id);
+            if (textEl) {
+              textEl.textContent = `${prog.mbDone.toFixed(1)} / ${totalMb.toFixed(1)} MB (${prog.pct}%)`;
+            }
+
+            const descEl = $('dl-desc-' + m.id);
+            if (descEl) {
+              descEl.innerHTML = `<span style="color:#0f172a; font-weight:600;">Downloading: ${prog.mbDone.toFixed(1)} / ${totalMb.toFixed(1)} MB (${prog.pct}%)</span>`;
+            }
+
+            const ringEl = $('ring-fill-' + m.id);
+            if (ringEl) {
+              const circ = 113.1;
+              const offset = Math.max(0, circ * (1 - (prog.pct / 100)));
+              ringEl.style.strokeDashoffset = `${offset}px`;
+            }
+          }
+        });
+
+        if (!anyActive) {
+          clearInterval(downloadTickTimer);
+          downloadTickTimer = null;
+        }
+      }, 200);
+    }
+
+    function handleDownloadProgress(data) {
+      if (!data || !data.tag) return;
+      const tagLower = String(data.tag).toLowerCase();
+      const packTotal = LANGUAGE_PACK_SIZES[tagLower] || 268.8;
+      const mbDone = typeof data.mbDone === 'number' ? data.mbDone : parseFloat(data.mbDone) || 0;
+      const mbTotal = typeof data.mbTotal === 'number' ? data.mbTotal : parseFloat(data.mbTotal) || packTotal;
+      const pct = typeof data.pct === 'number' ? data.pct : Math.round((mbDone / Math.max(1, mbTotal)) * 100);
+
+      MODEL_CATALOG.forEach(m => {
+        if (m.tag.toLowerCase() === tagLower || m.lang === tagLower || tagLower.startsWith(m.lang)) {
+          activeDownloadingIds.add(m.id);
+          modelDownloadProgress[m.id] = {
+            status: data.status || 'downloading',
+            pct: Math.min(100, Math.max(0, pct)),
+            mbDone: mbDone,
+            mbTotal: mbTotal,
+            lastTick: Date.now(),
+            speedMbS: 2.5
+          };
+
+          const textEl = $('dl-text-' + m.id);
+          if (textEl) {
+            textEl.textContent = `${mbDone.toFixed(1)} / ${mbTotal.toFixed(1)} MB (${pct}%)`;
+          }
+
+          const descEl = $('dl-desc-' + m.id);
+          if (descEl) {
+            descEl.innerHTML = `<span style="color:#0f172a; font-weight:600;">Downloading: ${mbDone.toFixed(1)} / ${mbTotal.toFixed(1)} MB (${pct}%)</span>`;
+          }
+
+          const ringEl = $('ring-fill-' + m.id);
+          if (ringEl) {
+            const circ = 113.1;
+            const offset = Math.max(0, circ * (1 - (pct / 100)));
+            ringEl.style.strokeDashoffset = `${offset}px`;
+          }
+        }
+      });
+      ensureDownloadTicker();
+    }
+
+    window.downloadSingleModel = function(modelId, ev) {
+      if (ev) {
+        ev.stopPropagation();
+      }
+      const m = MODEL_CATALOG.find(x => x.id === modelId);
+      if (!m || m.bundled) return;
+
+      activeDownloadingIds.add(m.id);
+      const tagLower = m.tag.toLowerCase();
+      const packTotal = LANGUAGE_PACK_SIZES[tagLower] || (m.size * 2);
+      const now = Date.now();
+
+      MODEL_CATALOG.forEach(other => {
+        if (other.tag.toLowerCase() === tagLower || other.lang === m.lang) {
+          activeDownloadingIds.add(other.id);
+          modelDownloadProgress[other.id] = {
+            status: 'downloading',
+            pct: 1,
+            mbDone: 0.1,
+            mbTotal: packTotal,
+            lastTick: now,
+            speedMbS: 2.0
+          };
+        }
+      });
+
+      renderModels();
+      ensureDownloadTicker();
+
+      command('downloadSelected', { languages: [m.tag || m.lang] });
+
+      setTimeout(() => {
+        command('capabilities');
+      }, 3500);
+    };
+
+    function updateModelDownloadProgress(tagInput, info) {
+      if (!tagInput) return;
+      const tagLower = String(tagInput).toLowerCase();
+
+      MODEL_CATALOG.forEach(m => {
+        if (m.tag.toLowerCase() === tagLower || m.lang === tagLower || (tagLower.startsWith(m.lang) && m.lang.length >= 2)) {
+          if (info.status === 'installed') {
+            activeDownloadingIds.delete(m.id);
+            if (m.category === 'stt') installedSttLanguages.add(m.tag.toLowerCase());
+            if (m.category === 'tts') installedTtsVoices.add(m.tag.toLowerCase());
+            delete modelDownloadProgress[m.id];
+          } else {
+            activeDownloadingIds.add(m.id);
+            modelDownloadProgress[m.id] = info;
+          }
+        }
+      });
+
+      renderModels();
+      ensureDownloadTicker();
+      updateStorageStats();
+    }
+
+    function handleDownloadNotice(msg) {
+      if (!msg || typeof msg !== 'string') return false;
+      const raw = msg.trim();
+
+      // 1. "Downloading hi-IN model: 25.4 MB / 268.8 MB (10%)..."
+      const dlMatch = raw.match(/Downloading\s+([\w-]+)\s+model:\s*([\d.]+)\s*MB\s*\/\s*([\d.]+)\s*MB\s*\((\d+)%\)/i);
+      if (dlMatch) {
+        const tag = dlMatch[1];
+        const nativeMbDone = parseFloat(dlMatch[2]);
+        const nativeMbTotal = parseFloat(dlMatch[3]);
+        const nativePct = parseInt(dlMatch[4], 10);
+        handleDownloadProgress({
+          tag: tag,
+          mbDone: nativeMbDone,
+          mbTotal: nativeMbTotal,
+          pct: nativePct,
+          status: 'downloading'
+        });
+        return true; // handled inline, suppress toast!
+      }
+
+      // 2. "Starting download for hi-IN voice model from Hugging Face..."
+      const startMatch = raw.match(/Starting download for\s+([\w-]+)/i);
+      if (startMatch) {
+        const tag = startMatch[1];
+        const tagLower = tag.toLowerCase();
+        const packTotal = LANGUAGE_PACK_SIZES[tagLower] || 268.8;
+        MODEL_CATALOG.forEach(m => {
+          if (m.tag.toLowerCase() === tagLower || m.lang === tagLower) {
+            activeDownloadingIds.add(m.id);
+            if (!modelDownloadProgress[m.id]) {
+              modelDownloadProgress[m.id] = {
+                status: 'downloading',
+                pct: 1,
+                mbDone: 0.1,
+                mbTotal: packTotal,
+                lastTick: Date.now(),
+                speedMbS: 2.0
+              };
+            }
+          }
+        });
+        renderModels();
+        ensureDownloadTicker();
+        return true; // handled inline, suppress toast!
+      }
+
+      // 3. "Download complete for hi-IN. Extracting model package..."
+      const extractMatch = raw.match(/Download complete for\s+([\w-]+)/i);
+      if (extractMatch) {
+        const tag = extractMatch[1].toLowerCase();
+        const packTotal = LANGUAGE_PACK_SIZES[tag] || 268.8;
+        MODEL_CATALOG.forEach(m => {
+          if (m.tag.toLowerCase() === tag || m.lang === tag) {
+            modelDownloadProgress[m.id] = { status: 'extracting', pct: 100, mbDone: packTotal, mbTotal: packTotal };
+          }
+        });
+        renderModels();
+        return true; // handled inline, suppress toast!
+      }
+
+      // 4. "Voice pack hi-IN installed successfully and ready offline!"
+      const installedMatch = raw.match(/Voice pack\s+([\w-]+)\s+installed/i);
+      if (installedMatch) {
+        const tag = installedMatch[1].toLowerCase();
+        MODEL_CATALOG.forEach(m => {
+          if (m.tag.toLowerCase() === tag || m.lang === tag) {
+            activeDownloadingIds.delete(m.id);
+            if (m.category === 'stt') installedSttLanguages.add(m.tag.toLowerCase());
+            if (m.category === 'tts') installedTtsVoices.add(m.tag.toLowerCase());
+            delete modelDownloadProgress[m.id];
+          }
+        });
+        renderModels();
+        command('capabilities');
+        showToast(`✓ ${installedMatch[1].toUpperCase()} voice pack ready offline`);
+        return true; // handled inline, suppress toast!
+      }
+
+      // 5. Generic downloading indicator
+      if (/downloading\s+[\w-]+\s+model/i.test(raw) || /extracting model package/i.test(raw)) {
+        return true; // suppress toast
+      }
+
+      return false;
     }
 
     function renderModels() {
@@ -4033,8 +4775,12 @@
           isInstalled = installedTtsVoices.has(m.tag.toLowerCase()) || installedTtsVoices.has(m.lang);
         }
 
-        const isDownloading = pendingSttLanguages.has(m.tag.toLowerCase()) || activeDownloadingIds.has(m.id);
+        const prog = modelDownloadProgress[m.id] || modelDownloadProgress[m.tag.toLowerCase()] || modelDownloadProgress[m.lang];
+        const isDownloading = !isInstalled && (pendingSttLanguages.has(m.tag.toLowerCase()) || pendingSttLanguages.has(m.lang) || activeDownloadingIds.has(m.id) || (prog && prog.status !== 'installed'));
         const isSelected = isCore || isInstalled || selectedModelIds.has(m.id);
+
+        const pct = (prog && typeof prog.pct === 'number') ? prog.pct : 0;
+        const isIndeterminate = Boolean(prog && prog.status === 'extracting');
 
         const card = document.createElement('div');
         let cardClass = 'model-card';
@@ -4044,55 +4790,127 @@
         card.className = cardClass;
         card.id = 'modelCard-' + m.id;
 
+        // Icon SVG
         let iconSvg = '';
         if (isCore) {
-          iconSvg = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="15" x2="23" y2="15"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="15" x2="4" y2="15"></line></svg>`;
+          iconSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="15" x2="23" y2="15"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="15" x2="4" y2="15"></line></svg>`;
         } else if (isStt) {
-          iconSvg = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`;
+          iconSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>`;
         } else {
-          iconSvg = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
+          iconSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>`;
         }
 
-        let checkboxHtml = '';
-        if (isCore || isInstalled) {
-          checkboxHtml = `<div class="model-checkbox installed">✓</div>`;
-        } else {
-          checkboxHtml = `<div class="model-checkbox ${isSelected ? 'checked' : ''}">${isSelected ? '✓' : ''}</div>`;
-        }
+        // Circular progress ring setup (circumference for r=18 is 113.1px)
+        const circ = 113.1;
+        const dashOffset = isIndeterminate ? 75 : Math.max(0, circ * (1 - (pct / 100)));
 
-        let statusPillHtml = '';
-        if (isCore) {
-          statusPillHtml = `<span class="model-status-pill status-installed">BUNDLED</span>`;
+        let iconContainerHtml = '';
+        if (isDownloading) {
+          iconContainerHtml = `
+            <div class="model-icon-box downloading">
+              <svg class="model-progress-ring ${isIndeterminate ? 'indeterminate' : ''}" viewBox="0 0 44 44">
+                <circle class="ring-track" cx="22" cy="22" r="18"></circle>
+                <circle class="ring-fill" id="ring-fill-${m.id}" cx="22" cy="22" r="18" style="stroke-dashoffset: ${dashOffset}px;"></circle>
+              </svg>
+              <div class="model-icon-glyph">${iconSvg}</div>
+            </div>
+          `;
         } else if (isInstalled) {
-          statusPillHtml = `<span class="model-status-pill status-installed">INSTALLED</span>`;
-        } else if (isDownloading) {
-          statusPillHtml = `<span class="model-status-pill status-downloading">DOWNLOADING</span>`;
+          iconContainerHtml = `
+            <div class="model-icon-box installed">
+              <div class="model-icon-glyph">${iconSvg}</div>
+              <div class="model-icon-check-badge">
+                <svg viewBox="0 0 24 24" width="8" height="8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </div>
+            </div>
+          `;
         } else {
-          statusPillHtml = `<span class="model-status-pill status-not-installed">AVAILABLE</span>`;
+          iconContainerHtml = `
+            <div class="model-icon-box">
+              <div class="model-icon-glyph">${iconSvg}</div>
+            </div>
+          `;
+        }
+
+        // Right side action / badge
+        let rightActionHtml = '';
+        if (isCore) {
+          rightActionHtml = `<span class="model-badge badge-bundled">Pre-bundled</span>`;
+        } else if (isInstalled) {
+          rightActionHtml = `
+            <span class="model-badge badge-installed">
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Installed
+            </span>
+          `;
+        } else if (isDownloading) {
+          const packTotal = LANGUAGE_PACK_SIZES[m.tag.toLowerCase()] || m.size;
+          const displayTotal = (prog && prog.mbTotal) ? Number(prog.mbTotal).toFixed(1) : packTotal.toFixed(1);
+          let downloadLabel = `0.1 / ${displayTotal} MB`;
+          if (prog && prog.status === 'extracting') {
+            downloadLabel = 'Extracting...';
+          } else if (prog && typeof prog.mbDone === 'number' && prog.mbDone > 0) {
+            downloadLabel = `${prog.mbDone.toFixed(1)} / ${displayTotal} MB (${pct}%)`;
+          } else if (pct > 0) {
+            const calculatedMb = ((pct / 100) * packTotal).toFixed(1);
+            downloadLabel = `${calculatedMb} / ${displayTotal} MB (${pct}%)`;
+          }
+
+          rightActionHtml = `
+            <span class="model-badge badge-downloading">
+              <span class="badge-pulse-dot"></span>
+              <span id="dl-text-${m.id}">${downloadLabel}</span>
+            </span>
+          `;
+        } else {
+          if (isSelected) {
+            rightActionHtml = `
+              <button type="button" class="model-action-btn selected" title="Selected for download">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+            `;
+          } else {
+            rightActionHtml = `
+              <button type="button" class="model-action-btn download" onclick="downloadSingleModel('${m.id}', event)" title="Download ${m.title}">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M5 11l7 7 7-7"></path></svg>
+              </button>
+            `;
+          }
+        }
+
+        let descHtml = `${m.desc} · <span class="model-size">${m.size} MB</span>`;
+        if (isDownloading) {
+          if (prog && prog.status === 'extracting') {
+            descHtml = `<span style="color:#0f172a; font-weight:600;">Extracting model files into engine...</span>`;
+          } else {
+            const packTotal = LANGUAGE_PACK_SIZES[m.tag.toLowerCase()] || m.size;
+            const displayTotal = (prog && prog.mbTotal) ? Number(prog.mbTotal).toFixed(1) : packTotal.toFixed(1);
+            const currentMb = (prog && typeof prog.mbDone === 'number' && prog.mbDone > 0) ? prog.mbDone.toFixed(1) : ((pct / 100) * packTotal).toFixed(1);
+            descHtml = `<span style="color:#0f172a; font-weight:600;">Downloading: ${currentMb} / ${displayTotal} MB (${pct}%)</span>`;
+          }
         }
 
         card.innerHTML = `
           <div class="model-left">
-            ${checkboxHtml}
-            <div class="model-icon">${iconSvg}</div>
+            ${iconContainerHtml}
             <div class="model-info">
-              <div class="model-name-row">
-                <span class="model-name">${m.title}</span>
+              <div class="model-title-row">
+                <span class="model-title">${m.title}</span>
                 <span class="model-tag">${m.tag}</span>
+                ${m.recommended ? '<span class="model-rec-pill">Recommended</span>' : ''}
               </div>
-              <div class="model-sub">${m.desc}</div>
+              <div class="model-desc" id="dl-desc-${m.id}">${descHtml}</div>
             </div>
           </div>
           <div class="model-right">
-            <span class="model-size-pill">${m.size} MB</span>
-            ${statusPillHtml}
+            ${rightActionHtml}
           </div>
         `;
 
         if (!isCore && !isInstalled && !isDownloading) {
           card.onclick = () => toggleModelSelection(m.id);
         } else if (isInstalled) {
-          card.onclick = () => showToast(`${m.title} is already active on this phone.`);
+          card.onclick = () => showToast(`${m.title} is installed and ready offline.`);
         }
 
         if (isCore) coreContainer.append(card);
@@ -4120,17 +4938,17 @@
 
       const savedMb = Math.max(0, TOTAL_BUNDLE_SIZE_MB - selectedMb);
       const savedPct = Math.round((savedMb / TOTAL_BUNDLE_SIZE_MB) * 100);
-      const usedPct = Math.min(100, Math.max(10, Math.round((selectedMb / TOTAL_BUNDLE_SIZE_MB) * 100)));
+      const usedPct = Math.min(100, Math.max(5, Math.round((selectedMb / TOTAL_BUNDLE_SIZE_MB) * 100)));
 
-      if ($('statSelectedSize')) $('statSelectedSize').textContent = `${selectedMb} MB`;
-      if ($('barSelectedLabel')) $('barSelectedLabel').textContent = `${selectedMb} MB`;
-      if ($('statSavingsMb')) $('statSavingsMb').textContent = `-${savedMb} MB`;
-      if ($('statSavingsText')) $('statSavingsText').textContent = `Saves ${savedMb} MB phone storage (${savedPct}% reduction)`;
-      if ($('barSavedPercent')) $('barSavedPercent').textContent = `${savedPct}% App Size Saved`;
+      if ($('statSelectedSize')) $('statSelectedSize').textContent = formatStorage(selectedMb);
+      if ($('barSelectedLabel')) $('barSelectedLabel').textContent = formatStorage(selectedMb);
+      if ($('statSavingsMb')) $('statSavingsMb').textContent = `-${formatStorage(savedMb)}`;
+      if ($('statSavingsText')) $('statSavingsText').textContent = `installed · Saves ${formatStorage(savedMb)} (${savedPct}%)`;
+      if ($('barSavedPercent')) $('barSavedPercent').textContent = `${savedPct}% Saved`;
       if ($('storageBarFill')) $('storageBarFill').style.width = `${usedPct}%`;
 
-      if ($('stickySelectedCount')) $('stickySelectedCount').textContent = `${selectedCount} Models Selected · ${selectedMb} MB`;
-      if ($('stickySavingsText')) $('stickySavingsText').textContent = `Saves ${savedMb} MB Storage (${savedPct}%)`;
+      if ($('stickySelectedCount')) $('stickySelectedCount').textContent = `${selectedCount} Models Selected · ${formatStorage(selectedMb)}`;
+      if ($('stickySavingsText')) $('stickySavingsText').textContent = `Saves ${formatStorage(savedMb)} Storage (${savedPct}%)`;
 
       const dlBtn = $('btnDownloadSelected');
       if (dlBtn) {
@@ -4148,11 +4966,18 @@
           dlBtn.style.opacity = '0.6';
         } else {
           let downloadSize = 0;
+          const seenLang = new Set();
           uninstalledSelected.forEach(id => {
             const m = MODEL_CATALOG.find(x => x.id === id);
-            if (m) downloadSize += m.size;
+            if (m) {
+              const langKey = m.tag.toLowerCase();
+              if (!seenLang.has(langKey)) {
+                seenLang.add(langKey);
+                downloadSize += (LANGUAGE_PACK_SIZES[langKey] || m.size);
+              }
+            }
           });
-          dlBtn.textContent = `Download Selected (${downloadSize} MB)`;
+          dlBtn.textContent = `Download Selected (${formatStorage(downloadSize)})`;
           dlBtn.disabled = false;
           dlBtn.style.opacity = '1';
         }
@@ -4170,22 +4995,16 @@
         selectedModelIds.add('stt-en');
         selectedModelIds.add('tts-hi');
         selectedModelIds.add('tts-en');
-        showToast('Selected Recommended Pack: Hindi + English (Saves ~201 MB)');
       } else if (preset === 'hi-only') {
         selectedModelIds.add('stt-hi');
         selectedModelIds.add('tts-hi');
-        showToast('Selected Hindi Only: 42 MB (Saves ~237 MB)');
       } else if (preset === 'en-only') {
         selectedModelIds.add('stt-en');
         selectedModelIds.add('tts-en');
-        showToast('Selected Indian English Only: 36 MB (Saves ~243 MB)');
       } else if (preset === 'all') {
         MODEL_CATALOG.forEach(m => {
           if (!m.bundled) selectedModelIds.add(m.id);
         });
-        showToast('Selected Full Indic Pack (279 MB)');
-      } else {
-        showToast('Selection cleared. Select individual models to customize storage.');
       }
 
       safeSet('linc_selected_models', JSON.stringify(Array.from(selectedModelIds)));
@@ -4223,11 +5042,16 @@
 
       listContainer.innerHTML = '';
       let totalSize = 0;
+      const seenLang = new Set();
 
       uninstalledSelected.forEach(id => {
         const m = MODEL_CATALOG.find(x => x.id === id);
         if (!m) return;
-        totalSize += m.size;
+        const langKey = m.tag.toLowerCase();
+        if (!seenLang.has(langKey)) {
+          seenLang.add(langKey);
+          totalSize += (LANGUAGE_PACK_SIZES[langKey] || m.size);
+        }
 
         const row = document.createElement('div');
         row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; font-size:11.5px;';
@@ -4242,9 +5066,9 @@
       });
 
       const savings = Math.max(0, TOTAL_BUNDLE_SIZE_MB - totalSize);
-      if ($('modalTotalDownloadSize')) $('modalTotalDownloadSize').textContent = `${totalSize} MB`;
-      if ($('modalTotalSavingsSize')) $('modalTotalSavingsSize').textContent = `${savings} MB Saved`;
-      if ($('btnExecuteDownload')) $('btnExecuteDownload').textContent = `Start Download (${totalSize} MB)`;
+      if ($('modalTotalDownloadSize')) $('modalTotalDownloadSize').textContent = formatStorage(totalSize);
+      if ($('modalTotalSavingsSize')) $('modalTotalSavingsSize').textContent = `${formatStorage(savings)} Saved`;
+      if ($('btnExecuteDownload')) $('btnExecuteDownload').textContent = `Start Download (${formatStorage(totalSize)})`;
 
       modal.classList.remove('hidden');
     };
@@ -4264,33 +5088,34 @@
         return true;
       });
 
-      let sttLangs = [];
-      let hasTts = false;
-
+      const targetTags = [];
+      const seen = new Set();
+      const now = Date.now();
       uninstalledSelected.forEach(id => {
         const m = MODEL_CATALOG.find(x => x.id === id);
-        if (!m) return;
+        if (!m || m.bundled) return;
         activeDownloadingIds.add(m.id);
-        if (m.category === 'stt') sttLangs.push(m.lang);
-        if (m.category === 'tts') hasTts = true;
+        const packTotal = LANGUAGE_PACK_SIZES[m.tag.toLowerCase()] || m.size;
+        modelDownloadProgress[m.id] = {
+          status: 'downloading',
+          pct: 1,
+          mbDone: 0.1,
+          mbTotal: packTotal,
+          lastTick: now,
+          speedMbS: 2.0
+        };
+        const langKey = m.lang || m.tag;
+        if (!seen.has(langKey)) {
+          seen.add(langKey);
+          targetTags.push(m.tag);
+        }
       });
 
       renderModels();
+      ensureDownloadTicker();
 
-      if (sttLangs.length > 0) {
-        showToast(`Requesting download for ${sttLangs.length} speech model(s)...`);
-        sttLangs.forEach((lang, idx) => {
-          setTimeout(() => {
-            command('language', { language: lang });
-            command('downloadModel');
-          }, idx * 700);
-        });
-      }
-
-      if (hasTts) {
-        setTimeout(() => {
-          showToast('Selected TTS voices can also be verified in Android TTS settings.');
-        }, 1800);
+      if (targetTags.length > 0) {
+        command('downloadSelected', { languages: targetTags });
       }
 
       setTimeout(() => {
@@ -5022,8 +5847,40 @@
           window.showSpeechModelOfflineModal(data.language, data.locale, data.message);
           break;
 
+        case 'download_progress':
+          handleDownloadProgress(data);
+          break;
+
         case 'notice':
+          if (handleDownloadNotice(data.message)) {
+            break;
+          }
+          showToast(data.message);
+          const noticeMsg = (data.message || '').toLowerCase();
+          if (noticeMsg.includes('offline') || noticeMsg.includes('speech model') || noticeMsg.includes('language model') || noticeMsg.includes('not supported') || noticeMsg.includes('missing') || data.code === 12 || data.code === 13) {
+            window.showSpeechModelOfflineModal(data.language || currentLanguage, data.locale, data.message);
+            const banner = $('radarModelWarningBanner');
+            const text = $('radarModelWarningText');
+            if (banner && text) {
+              text.textContent = data.message || `Offline speech model is missing for ${currentLanguage.toUpperCase()}.`;
+              banner.classList.remove('hidden');
+            }
+          }
+          break;
+
         case 'error':
+          const failMatch = (data.message || '').match(/Download failed for\s+([\w-]+)/i);
+          if (failMatch) {
+            const failTag = failMatch[1].toLowerCase();
+            MODEL_CATALOG.forEach(m => {
+              if (m.tag.toLowerCase() === failTag || m.lang === failTag) {
+                activeDownloadingIds.delete(m.id);
+                delete modelDownloadProgress[m.id];
+              }
+            });
+            renderModels();
+            updateStorageStats();
+          }
           showToast(data.message);
           const rawMsg = (data.message || '').toLowerCase();
           if (rawMsg.includes('offline') || rawMsg.includes('speech model') || rawMsg.includes('language model') || rawMsg.includes('not supported') || rawMsg.includes('missing') || data.code === 12 || data.code === 13) {

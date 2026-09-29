@@ -396,7 +396,7 @@ class SpeechEngine(
 
             val totalBytes = conn.contentLengthLong.coerceAtLeast(1L)
             var downloaded = 0L
-            var lastReport = 0L
+            var lastReportTime = 0L
 
             conn.inputStream.use { input ->
                 FileOutputStream(tmpZip).use { output ->
@@ -405,13 +405,25 @@ class SpeechEngine(
                     while (input.read(buf).also { n = it } > 0) {
                         output.write(buf, 0, n)
                         downloaded += n
-                        if (downloaded - lastReport > 25 * 1024 * 1024) {
-                            lastReport = downloaded
-                            val mbDone = downloaded / (1024 * 1024)
-                            val mbTotal = totalBytes / (1024 * 1024)
-                            val pct = (downloaded * 100 / totalBytes).toInt()
+                        val now = System.currentTimeMillis()
+                        // Report real-time download progress every ~100ms or upon completion
+                        if (now - lastReportTime >= 100 || downloaded == totalBytes) {
+                            lastReportTime = now
+                            val mbDone = downloaded.toDouble() / (1024.0 * 1024.0)
+                            val mbTotal = totalBytes.toDouble() / (1024.0 * 1024.0)
+                            val pct = ((downloaded * 100.0) / totalBytes).toInt().coerceIn(0, 100)
+                            val mbDoneStr = String.format(java.util.Locale.US, "%.1f", mbDone)
+                            val mbTotalStr = String.format(java.util.Locale.US, "%.1f", mbTotal)
                             main.post {
-                                event("notice", "message", "Downloading $tag model: $mbDone MB / $mbTotal MB ($pct%)...")
+                                event("download_progress",
+                                    "tag", tag,
+                                    "downloaded", downloaded,
+                                    "total", totalBytes,
+                                    "mbDone", mbDone,
+                                    "mbTotal", mbTotal,
+                                    "pct", pct
+                                )
+                                event("notice", "message", "Downloading $tag model: $mbDoneStr MB / $mbTotalStr MB ($pct%)...")
                             }
                         }
                     }
