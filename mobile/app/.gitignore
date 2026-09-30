@@ -8,3 +8,4 @@
 # Local Android Studio environment
 local.properties
 *.iml
+.shelf/
