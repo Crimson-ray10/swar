@@ -94,7 +94,19 @@ public final class LocalTransport {
         }
     }
     public void callsign(String name) {
-        if (name != null && !name.trim().isEmpty()) callsign = name.trim();
+        if (name != null && !name.trim().isEmpty()) {
+            String trimmed = name.trim();
+            if (!trimmed.equals(callsign)) {
+                callsign = trimmed;
+                if (registration != null && nsd != null) {
+                    try {
+                        nsd.unregisterService(registration);
+                    } catch (Exception ignored) {}
+                    registration = null;
+                    advertise();
+                }
+            }
+        }
     }
 
     public boolean isSelfAddress(String host) {
@@ -187,10 +199,11 @@ public final class LocalTransport {
                         if (parts.length >= 4) {
                             String beaconSession = parts[2];
                             String beaconCallsign = parts[3];
+                            String beaconModel = parts.length >= 5 ? parts[4] : "";
                             String senderIp = packet.getAddress() != null ? packet.getAddress().getHostAddress() : "";
                             if (!session.toString().equals(beaconSession) && !isSelfAddress(senderIp)) {
                                 Log.i(TAG, "Discovered LinC peer via UDP beacon: " + beaconCallsign + " (" + senderIp + ")");
-                                event("peer", "name", beaconCallsign, "address", senderIp, "port", 8988);
+                                event("peer", "name", beaconCallsign, "model", beaconModel, "address", senderIp, "port", 8988, "source", "beacon");
                             }
                         }
                     }
@@ -205,7 +218,8 @@ public final class LocalTransport {
         if (connected) return;
         io.execute(() -> {
             try {
-                byte[] payload = ("LINC_BEACON:8988:" + session.toString() + ":" + callsign).getBytes(StandardCharsets.UTF_8);
+                String payloadStr = "LINC_BEACON:8988:" + session.toString() + ":" + callsign + ":" + Build.MODEL;
+                byte[] payload = payloadStr.getBytes(StandardCharsets.UTF_8);
                 DatagramSocket sender = new DatagramSocket();
                 sender.setBroadcast(true);
                 
@@ -669,13 +683,13 @@ public final class LocalTransport {
                             String host = i.getHost().getHostAddress();
                             if (host != null && host.contains(".") && !isSelfAddress(host)) {
                                 Log.i(TAG, "mDNS Service resolved: " + i.getServiceName() + " -> " + host + ":" + i.getPort());
-                                event("peer", "name", i.getServiceName(), "address", host, "port", i.getPort());
+                                event("peer", "name", i.getServiceName(), "serviceName", i.getServiceName(), "address", host, "port", i.getPort(), "source", "mdns");
                             }
                         }
                     });
                 }
                 public void onServiceLost(NsdServiceInfo info) {
-                    event("peerLost", "name", info.getServiceName());
+                    event("peerLost", "name", info.getServiceName(), "serviceName", info.getServiceName());
                 }
                 public void onDiscoveryStopped(String t) { Log.i(TAG, "mDNS Discovery stopped"); }
                 public void onStartDiscoveryFailed(String t, int e) { event("error", "message", "Discovery failed; use the host address shown on the other phone."); }

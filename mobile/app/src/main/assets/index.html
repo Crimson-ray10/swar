@@ -1754,18 +1754,17 @@
 
     .radar-center-label {
       position: absolute;
-      top: 52px;
+      top: 50px;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 700;
       color: #ffffff;
-      max-width: 80px;
+      max-width: 90px;
       text-align: center;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      line-height: 1.15;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+      pointer-events: none;
     }
 
     /* Floating Discovered Peer Nodes */
@@ -4148,8 +4147,15 @@
       if ($('reqCallsignBadge')) {
         $('reqCallsignBadge').textContent = 'Callsign: ' + callsign;
       }
-      if ($('radarMyLabel')) {
-        $('radarMyLabel').textContent = callsign;
+      if ($('radarMyLabel') && callsign) {
+        let youTag = 'This Phone';
+        try {
+          const lang = (typeof currentLanguage !== 'undefined') ? currentLanguage : safeGet('linc_preferred_lang', 'hi');
+          if (window.LINC_I18N && window.LINC_I18N[lang]) {
+            youTag = window.LINC_I18N[lang].radarMyLabel || youTag;
+          }
+        } catch (e) {}
+        $('radarMyLabel').innerHTML = `${callsign}<br><span style="font-size:7px; opacity:0.85; font-weight:600;">(${youTag})</span>`;
       }
     }
 
@@ -6052,6 +6058,7 @@
             "activeSpeechLabel": "ಸಕ್ರಿಯ ಮಾತು:"
       }
     };
+    window.LINC_I18N = LINC_I18N;
 
     const NATIVE_LANG_NAMES = {
       hi: 'हिन्दी',
@@ -6137,6 +6144,8 @@
         const isConn = $('connectionPill').classList.contains('pill-emerald');
         $('connectionPill').textContent = isConn ? (dict.statusConnected || 'CONNECTED') : (dict.statusStandby || 'STANDBY');
       }
+
+      updateCallsignDisplays();
 
       // Update PTT main label if not locked
       if ($('pttMainLabel')) {
@@ -7983,16 +7992,90 @@
           $('scanStatusText').textContent = data.state || 'Mesh Beacon: Scanning Active';
           break;
 
-        case 'peer':
-          if (data.address && myAddresses.has(data.address)) break;
-          peers.set(data.name, data);
-          renderDiscoveredPeers();
-          break;
+        case 'peer': {
+          const ip = (data.address || '').trim();
+          if (ip && myAddresses.has(ip)) break;
 
-        case 'peerLost':
-          peers.delete(data.name);
+          const rawName = (data.name || '').trim();
+          const cleaned = cleanPeerDisplayName(rawName) || rawName || 'Nearby Device';
+          const peerKey = ip || cleaned;
+          if (!peerKey) break;
+
+          const now = Date.now();
+          let existing = peers.get(peerKey);
+
+          // If not found by key, search by IP across all peers to merge
+          if (!existing && ip) {
+            for (const [k, p] of peers.entries()) {
+              if (p.address === ip) {
+                existing = p;
+                peers.delete(k);
+                break;
+              }
+            }
+          }
+
+          if (existing) {
+            existing.lastSeen = now;
+            if (data.port) existing.port = data.port;
+            if (ip) existing.address = ip;
+            if (data.model) existing.model = data.model;
+            if (data.serviceName) existing.serviceName = data.serviceName;
+
+            const newIsBeacon = data.source === 'beacon';
+            const existingIsGeneric = isGenericDeviceModel(existing.name);
+            const newIsGeneric = isGenericDeviceModel(cleaned);
+
+            if (newIsBeacon || (existingIsGeneric && !newIsGeneric)) {
+              existing.name = cleaned;
+            } else if (!existing.name || existing.name === 'Nearby Device') {
+              existing.name = cleaned;
+            }
+            peers.set(peerKey, existing);
+          } else {
+            peers.set(peerKey, {
+              id: peerKey,
+              name: cleaned,
+              rawName: rawName,
+              serviceName: data.serviceName || rawName,
+              model: data.model || '',
+              address: ip,
+              port: data.port || 8988,
+              source: data.source || 'discovery',
+              lastSeen: now
+            });
+          }
+
+          // Strict deduplication: remove any other entries that share this IP
+          if (ip) {
+            for (const [k, p] of peers.entries()) {
+              if (k !== peerKey && p.address === ip) {
+                peers.delete(k);
+              }
+            }
+          }
+
           renderDiscoveredPeers();
           break;
+        }
+
+        case 'peerLost': {
+          const lostRaw = (data.name || '').trim();
+          const cleanLost = cleanPeerDisplayName(lostRaw);
+          const lostIp = (data.address || '').trim();
+
+          for (const [k, p] of peers.entries()) {
+            const matchKey = (k === lostRaw || k === cleanLost || (lostIp && k === lostIp));
+            const matchIp = (lostIp && p.address === lostIp);
+            const matchService = (p.serviceName && (p.serviceName === lostRaw || p.serviceName === data.serviceName));
+            const matchName = (p.rawName === lostRaw || p.name === cleanLost || p.name === lostRaw);
+            if (matchKey || matchIp || matchService || matchName) {
+              peers.delete(k);
+            }
+          }
+          renderDiscoveredPeers();
+          break;
+        }
 
         case 'speech':
           if (isPttLocked && (data.state === 'Idle' || data.state === 'Microphone released · finalizing')) {
@@ -8088,20 +8171,74 @@
       }
     };
 
+    function cleanPeerDisplayName(str) {
+      if (!str) return '';
+      let s = String(str).trim();
+      s = s.replace(/^(LinC|iTantra)[-._\s]*/i, '');
+      s = s.replace(/[-_][0-9a-fA-F]{4}$/, '');
+      return s.trim();
+    }
+
+    function isGenericDeviceModel(str) {
+      if (!str) return true;
+      const s = str.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (myModel && s.includes(myModel)) return true;
+      return /^(motorola|moto|realme|samsung|galaxy|redmi|xiaomi|oneplus|pixel|oppo|vivo|iqoo|apple|iphone|ipad|nokia|huawei|honor|infinix|tecno|lenovo|asus)/i.test(s);
+    }
+
     if ($('btnRefreshRadar')) {
       $('btnRefreshRadar').onclick = () => {
+        const now = Date.now();
+        // Immediately drop stale peers not seen within 6 seconds
+        for (const [k, p] of peers.entries()) {
+          if (p.lastSeen && (now - p.lastSeen > 6000)) {
+            peers.delete(k);
+          }
+        }
+        renderDiscoveredPeers();
         command('discover');
-        showToast('Refreshing radar sweep for nearby peers...');
+        showToast('Scanning 2.4/5GHz local band for peer nodes...');
       };
     }
 
+    // Periodic sweep for stale peers (drop if not heard in 16s)
+    setInterval(() => {
+      const now = Date.now();
+      let changed = false;
+      for (const [k, p] of peers.entries()) {
+        if (p.lastSeen && (now - p.lastSeen > 16000)) {
+          peers.delete(k);
+          changed = true;
+        }
+      }
+      if (changed) {
+        renderDiscoveredPeers();
+      }
+    }, 4000);
+
     function renderDiscoveredPeers() {
-      const list = Array.from(peers.values()).filter(p => {
-        if (p.address && myAddresses.has(p.address)) return false;
+      // 1. Prune expired peers (> 20s)
+      const now = Date.now();
+      for (const [k, p] of peers.entries()) {
+        if (p.lastSeen && (now - p.lastSeen > 20000)) {
+          peers.delete(k);
+        }
+      }
+
+      // 2. Filter self address & deduplicate strictly by IP
+      const seenIps = new Set();
+      const list = [];
+      for (const p of peers.values()) {
+        if (p.address && myAddresses.has(p.address)) continue;
+        if (p.address) {
+          if (seenIps.has(p.address)) continue;
+          seenIps.add(p.address);
+        }
         const cleanPeerName = (p.name || '').replace(/^(iTantra|LinC\.)-?/, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        if (myModel && cleanPeerName.startsWith(myModel)) return false;
-        return true;
-      });
+        if (myModel && cleanPeerName === myModel && (!p.address || myAddresses.has(p.address))) continue;
+        list.push(p);
+      }
+
       const container = $('discoveredPeersContainer');
       if (container) {
         container.replaceChildren();
@@ -8118,7 +8255,9 @@
       }
 
       if ($('radarMyLabel') && callsign) {
-        $('radarMyLabel').textContent = callsign;
+        const dict = (window.LINC_I18N && window.LINC_I18N[currentLanguage]) ? window.LINC_I18N[currentLanguage] : { radarMyLabel: 'This Phone' };
+        const youTag = dict.radarMyLabel || 'This Phone';
+        $('radarMyLabel').innerHTML = `${callsign}<br><span style="font-size:7px; opacity:0.85; font-weight:600;">(${youTag})</span>`;
       }
 
       // Render Floating Peer Nodes on the Circular Radar Screen
@@ -8138,8 +8277,10 @@
           const nodeX = Math.round(cx + r * Math.cos(rad));
           const nodeY = Math.round(cy + r * Math.sin(rad));
 
-          const rawName = p.name ? p.name.replace(/^(iTantra|LinC\.)-?/, '') : 'Nearby Device';
-          const initials = rawName.split(/[-_\s]/)[0].slice(0, 2).toUpperCase() || 'PH';
+          const displayName = p.name || 'Nearby Device';
+          const modelSubtitle = (p.model && p.model.toLowerCase() !== displayName.toLowerCase())
+            ? `<div class="radar-peer-model" style="font-size:7px; opacity:0.8; text-shadow:0 1px 3px #000; max-width:85px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.model}</div>`
+            : '';
 
           const node = document.createElement('div');
           node.className = 'radar-peer';
@@ -8152,7 +8293,8 @@
                 <circle cx="12" cy="18" r="1"></circle>
               </svg>
             </div>
-            <div class="radar-peer-badge">${rawName}</div>
+            <div class="radar-peer-badge">${displayName}</div>
+            ${modelSubtitle}
             <div class="radar-peer-ip">${p.address || ''}</div>
             <div class="radar-peer-tap">${(LINC_I18N[currentLanguage] || LINC_I18N['en']).tapToConnect || 'TAP TO CONNECT'}</div>
           `;
@@ -8169,14 +8311,15 @@
         list.forEach(p => {
           const item = document.createElement('div');
           item.className = 'device-item';
-          const rawName = p.name ? p.name.replace(/^(iTantra|LinC\.)-?/, '') : 'Nearby Device';
-          const initials = rawName.split(/[-_\s]/)[0].slice(0, 2).toUpperCase() || 'PH';
+          const displayName = p.name || 'Nearby Device';
+          const initials = displayName.split(/[-_\s]/)[0].slice(0, 2).toUpperCase() || 'PH';
+          const detailText = p.model ? `${p.model} · ${p.address} · Port ${p.port || 8988}` : `WI-FI DIRECT / HOTSPOT · ${p.address} · Port ${p.port || 8988}`;
           item.innerHTML = `
             <div class="device-left">
               <div class="header-avatar" style="width:34px; height:34px; font-size:12px; border-width:1.5px; border-color:#10b981; color:#059669; background:#ecfdf5;">${initials}</div>
               <div>
-                <div class="device-name">${p.name}</div>
-                <div class="device-detail">WI-FI DIRECT / HOTSPOT · ${p.address} · Port ${p.port || 8988}</div>
+                <div class="device-name">${displayName}</div>
+                <div class="device-detail">${detailText}</div>
               </div>
             </div>
             <button class="btn-pill" style="padding:6px 14px; font-size:11px; background:#111827;">${(LINC_I18N[currentLanguage] || LINC_I18N['en']).btnConnect || 'Connect'}</button>
