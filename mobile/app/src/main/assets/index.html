@@ -4119,6 +4119,16 @@
       safeSet('itantra_callsign', callsign);
     }
     let selectedPort = 8988;
+    // Global PTT & Gesture Interaction State
+    let isHoldingTalk = false;
+    let isPttLocked = false;
+    let isPttListening = false;
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let currentDragX = 0;
+    let pointerActive = false;
+
     const peers = new Map();
     let myAddresses = new Set();
 
@@ -4710,6 +4720,17 @@
     // Complete Multilingual Dictionary for Dynamic Interface Translation
     const LINC_I18N = {
       "en": {
+            "storageInstalled": "installed",
+            "storageSaves": "Saves",
+            "storageSaved": "Saved",
+            "modelsSelected": "Models Selected",
+            "storageSpace": "Storage",
+            "btnAllSelectedInstalled": "All Selected Installed ✓",
+            "btnDownloadSelected": "Download Selected",
+            "modelReadyOffline": "is installed and ready offline.",
+            "descExtracting": "Extracting model files into engine...",
+            "descDownloading": "Downloading",
+            "catOnDeviceAi": "On-Device AI",
             "statusStandby": "STANDBY",
             "statusConnected": "CONNECTED",
             "btnHeaderSpecs": "Specs",
@@ -4865,6 +4886,17 @@
             "btnConnect": "Connect",
             "activeSpeechLabel": "Active Speech:"},
       "hi": {
+            "storageInstalled": "स्थापित",
+            "storageSaves": "बचत",
+            "storageSaved": "बचत",
+            "modelsSelected": "मॉडल चयनित",
+            "storageSpace": "स्टोरेज",
+            "btnAllSelectedInstalled": "सभी चयनित स्थापित ✓",
+            "btnDownloadSelected": "चयनित डाउनलोड करें",
+            "modelReadyOffline": "स्थापित है और ऑफ़लाइन तैयार है।",
+            "descExtracting": "इंजन में मॉडल फाइलें निकाली जा रही हैं...",
+            "descDownloading": "डाउनलोड हो रहा है",
+            "catOnDeviceAi": "ऑन-डिवाइस AI",
             "statusStandby": "स्टैंडबाय",
             "statusConnected": "कनेक्टेड",
             "btnHeaderSpecs": "विवरण",
@@ -5020,6 +5052,17 @@
             "btnConnect": "कनेक्ट",
             "activeSpeechLabel": "सक्रिय भाषण:"},
       "mr": {
+            "storageInstalled": "इन्स्टॉल केलेले",
+            "storageSaves": "बचत",
+            "storageSaved": "बचत",
+            "modelsSelected": "मॉडेल्स निवडले",
+            "storageSpace": "स्टोरेज",
+            "btnAllSelectedInstalled": "सर्व निवडलेले इन्स्टॉल झाले ✓",
+            "btnDownloadSelected": "निवडलेले डाउनलोड करा",
+            "modelReadyOffline": "इन्स्टॉल आहे आणि ऑफलाइन तयार आहे.",
+            "descExtracting": "इंजिनमध्ये मॉडेल फाइल्स काढल्या जात आहेत...",
+            "descDownloading": "डाउनलोड होत आहे",
+            "catOnDeviceAi": "ऑन-डिव्हाइस AI",
             "statusStandby": "स्टँडबाय",
             "statusConnected": "कनेक्टेड",
             "btnHeaderSpecs": "तपशील",
@@ -5175,6 +5218,17 @@
             "btnConnect": "जोडा",
             "activeSpeechLabel": "सक्रिय संभाषण:"},
       "bn": {
+            "storageInstalled": "ইনস্টল করা",
+            "storageSaves": "সংরক্ষণ",
+            "storageSaved": "সংরক্ষিত",
+            "modelsSelected": "মডেল নির্বাচিত",
+            "storageSpace": "স্টোরেজ",
+            "btnAllSelectedInstalled": "সকল নির্বাচিত ইনস্টল করা হয়েছে ✓",
+            "btnDownloadSelected": "নির্বাচিত ডাউনলোড করুন",
+            "modelReadyOffline": "ইনস্টল করা আছে এবং অফলাইনে প্রস্তুত।",
+            "descExtracting": "মডেল ফাইল ইঞ্জিনে নিষ্কাশন করা হচ্ছে...",
+            "descDownloading": "ডাউনলোড হচ্ছে",
+            "catOnDeviceAi": "অন-ডিভাইস AI",
             "statusStandby": "স্ট্যান্ডবাই",
             "statusConnected": "সংযুক্ত",
             "btnHeaderSpecs": "বিবরণ",
@@ -5330,6 +5384,17 @@
             "btnConnect": "যুক্ত করুন",
             "activeSpeechLabel": "সক্রিয় ভাষা:"},
       "gu": {
+            "storageInstalled": "ઇન્સ્ટોલ કરેલ",
+            "storageSaves": "બચત",
+            "storageSaved": "બચત થયેલ",
+            "modelsSelected": "મોડેલ્સ પસંદ કરેલ",
+            "storageSpace": "સ્ટોરેજ",
+            "btnAllSelectedInstalled": "બધા પસંદ કરેલ ઇન્સ્ટોલ કરેલ છે ✓",
+            "btnDownloadSelected": "પસંદ કરેલ ડાઉનલોડ કરો",
+            "modelReadyOffline": "ઇન્સ્ટોલ થયેલ છે અને ઑફલાઇન તૈયાર છે.",
+            "descExtracting": "એન્જિનમાં મોડેલ ફાઇલો બહાર કાઢવામાં આવી રહી છે...",
+            "descDownloading": "ડાઉનલોડ થઈ રહ્યું છે",
+            "catOnDeviceAi": "ઑન-ડિવાઇસ AI",
             "statusStandby": "સ્ટેન્ડબાય",
             "statusConnected": "કનેક્ટેડ",
             "btnHeaderSpecs": "વિગત",
@@ -5485,6 +5550,17 @@
             "btnConnect": "જોડાઓ",
             "activeSpeechLabel": "સક્રિય વાણી:"},
       "ta": {
+            "storageInstalled": "நிறுவப்பட்டது",
+            "storageSaves": "சேமிக்கிறது",
+            "storageSaved": "சேமிக்கப்பட்டது",
+            "modelsSelected": "மாதிரிகள் தேர்ந்தெடுக்கப்பட்டன",
+            "storageSpace": "சேமிப்பகம்",
+            "btnAllSelectedInstalled": "தேர்ந்தெடுக்கப்பட்ட அனைத்தும் நிறுவப்பட்டன ✓",
+            "btnDownloadSelected": "தேர்ந்தெடுக்கப்பட்டதை பதிவிறக்கவும்",
+            "modelReadyOffline": "நிறுவப்பட்டு ஆஃப்லைனில் தயாராக உள்ளது.",
+            "descExtracting": "மாதிரி கோப்புகள் பிரித்தெடுக்கப்படுகின்றன...",
+            "descDownloading": "பதிவிறக்குகிறது",
+            "catOnDeviceAi": "சாதன AI",
             "statusStandby": "காத்திருப்பு",
             "statusConnected": "இணைக்கப்பட்டது",
             "btnHeaderSpecs": "விவரக்குறிப்பு",
@@ -5640,6 +5716,17 @@
             "btnConnect": "இணைக்க",
             "activeSpeechLabel": "செயலில் உள்ள பேச்சு:"},
       "te": {
+            "storageInstalled": "ఇన్‌స్టాల్ చేయబడింది",
+            "storageSaves": "ఆదా చేస్తుంది",
+            "storageSaved": "ఆదా చేయబడింది",
+            "modelsSelected": "మోడల్స్ ఎంపిక చేయబడ్డాయి",
+            "storageSpace": "స్టోరేజ్",
+            "btnAllSelectedInstalled": "ఎంచుకున్నవన్నీ ఇన్‌స్టాల్ చేయబడ్డాయి ✓",
+            "btnDownloadSelected": "ఎంచుకున్నవి డౌన్‌లోడ్ చేయండి",
+            "modelReadyOffline": "ఇన్‌స్టాల్ చేయబడింది మరియు ఆఫ్‌లైన్‌లో సిద్ధంగా ఉంది.",
+            "descExtracting": "ఇంజిన్‌లోకి మోడల్ ఫైల్‌లు సంగ్రహించబడుతున్నాయి...",
+            "descDownloading": "డౌన్‌లోడ్ అవుతోంది",
+            "catOnDeviceAi": "ఆన్-డివైస్ AI",
             "statusStandby": "స్టాండ్‌బై",
             "statusConnected": "కనెక్ట్ చేయబడింది",
             "btnHeaderSpecs": "వివరాలు",
@@ -5795,6 +5882,17 @@
             "btnConnect": "కనెక్ట్",
             "activeSpeechLabel": "క్రియాశీల సంభాషణ:"},
       "kn": {
+            "storageInstalled": "ಸ್ಥಾಪಿತ",
+            "storageSaves": "ಉಳಿಸುತ್ತದೆ",
+            "storageSaved": "ಉಳಿಸಲಾಗಿದೆ",
+            "modelsSelected": "ಮಾದರಿಗಳನ್ನು ಆಯ್ಕೆಮಾಡಲಾಗಿದೆ",
+            "storageSpace": "ಸಂಗ್ರಹಣೆ",
+            "btnAllSelectedInstalled": "ಆಯ್ಕೆಮಾಡಿದ ಎಲ್ಲವೂ ಸ್ಥಾಪಿಸಲಾಗಿದೆ ✓",
+            "btnDownloadSelected": "ಆಯ್ಕೆಮಾಡಿದವುಗಳನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ",
+            "modelReadyOffline": "ಸ್ಥಾಪಿಸಲಾಗಿದೆ ಮತ್ತು ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿ ಸಿದ್ಧವಾಗಿದೆ.",
+            "descExtracting": "ಎಂಜಿನ್‌ಗೆ ಮಾದರಿ ಫೈಲ್‌ಗಳನ್ನು ಹೊರತೆಗೆಯಲಾಗುತ್ತಿದೆ...",
+            "descDownloading": "ಡೌನ್‌ಲೋಡ್ ಆಗುತ್ತಿದೆ",
+            "catOnDeviceAi": "ಆನ್-ಡಿವೈಸ್ AI",
             "statusStandby": "ಸ್ಟ್ಯಾಂಡ್‌ಬೈ",
             "statusConnected": "ಸಂಪರ್ಕಗೊಂಡಿದೆ",
             "btnHeaderSpecs": "ವಿವರಣೆ",
@@ -6670,6 +6768,26 @@
     }
 
     const MODEL_I18N = {
+      en: {
+        'core-vad': { title: 'Silero Voice Activity Detector', desc: 'Ultra-low latency speech boundary detector (pre-bundled)' },
+        'core-lid': { title: 'FastText Language Identifier', desc: 'Compact on-device acoustic language classifier (pre-bundled)' },
+        'stt-hi': { title: 'Hindi Speech Recognition (ASR)', desc: 'Devanagari acoustic & phonetic model for offline transcription' },
+        'stt-en': { title: 'Indian English Speech Recognition', desc: 'Indian accented phonetic vocabulary for tactical walkie-talkie' },
+        'stt-mr': { title: 'Marathi Speech Recognition (ASR)', desc: 'Offline Devanagari phonetic model for Marathi speech' },
+        'stt-gu': { title: 'Gujarati Speech Recognition (ASR)', desc: 'Offline phonetic recognizer for Gujarati dialects' },
+        'stt-ta': { title: 'Tamil Speech Recognition (ASR)', desc: 'Dravidian acoustic model with pure offline phonetics' },
+        'stt-te': { title: 'Telugu Speech Recognition (ASR)', desc: 'Offline Telugu acoustic vocabulary & prosody model' },
+        'stt-kn': { title: 'Kannada Speech Recognition (ASR)', desc: 'Karnataka regional dialect speech-to-text pipeline' },
+        'stt-bn': { title: 'Bengali Speech Recognition (ASR)', desc: 'Eastern Indic phonetic acoustic engine' },
+        'tts-hi': { title: 'Hindi Neural Voice (IndicTTS)', desc: 'Devanagari natural speech synthesis for incoming audio' },
+        'tts-en': { title: 'Indian English Neural Voice', desc: 'Indian accent natural TTS for incoming radio voice' },
+        'tts-mr': { title: 'Marathi Neural Voice', desc: 'High-clarity Marathi neural acoustic synthesizer' },
+        'tts-gu': { title: 'Gujarati Neural Voice', desc: 'Lightweight on-device acoustic voice pack' },
+        'tts-ta': { title: 'Tamil Neural Voice', desc: 'Real-time Dravidian neural synthesis pack' },
+        'tts-te': { title: 'Telugu Neural Voice', desc: 'Low-latency neural audio synthesis pack' },
+        'tts-kn': { title: 'Kannada Neural Voice', desc: 'Offline phonetic prosody neural engine' },
+        'tts-bn': { title: 'Bengali Neural Voice', desc: 'Eastern Indic acoustic voice synthesizer' }
+      },
       hi: {
         'core-vad': { title: 'सिलेरो वॉयस एक्टिविटी डिटेक्टर', desc: 'अल्ट्रा-लो लेटेंसी स्पीच डिटेक्टर (प्री-बंडल)' },
         'core-lid': { title: 'फास्टटेक्स्ट भाषा पहचानकर्ता', desc: 'ऑन-डिवाइस ध्वनिक भाषा क्लासिफायर (प्री-बंडल)' },
@@ -6812,14 +6930,20 @@
       }
     };
 
-    function getModelDisplay(m, lang) {
-      if (MODEL_I18N[lang] && MODEL_I18N[lang][m.id]) {
-        return MODEL_I18N[lang][m.id];
+        function getModelDisplay(m, lang) {
+      const normLang = (lang || currentLanguage || safeGet('linc_preferred_lang', 'en')).toLowerCase().split('-')[0];
+      if (MODEL_I18N[normLang] && MODEL_I18N[normLang][m.id]) {
+        return MODEL_I18N[normLang][m.id];
+      }
+      if (MODEL_I18N['en'] && MODEL_I18N['en'][m.id]) {
+        return MODEL_I18N['en'][m.id];
       }
       return { title: m.title, desc: m.desc };
     }
 
-    function renderModels() {
+        function renderModels(lang) {
+      const activeLang = (lang || currentLanguage || safeGet('linc_preferred_lang', 'en')).toLowerCase().split('-')[0];
+      currentLanguage = activeLang;
       const coreContainer = $('coreModelsContainer');
       const sttContainer = $('sttModelsContainer');
       const ttsContainer = $('ttsModelsContainer');
@@ -6828,6 +6952,8 @@
       coreContainer.innerHTML = '';
       sttContainer.innerHTML = '';
       ttsContainer.innerHTML = '';
+
+      const dict = LINC_I18N[activeLang] || LINC_I18N['en'];
 
       MODEL_CATALOG.forEach(m => {
         const isCore = m.category === 'core';
@@ -6850,8 +6976,7 @@
         const pct = (prog && typeof prog.pct === 'number') ? prog.pct : 0;
         const isIndeterminate = Boolean(prog && prog.status === 'extracting');
 
-        const dict = LINC_I18N[currentLanguage] || LINC_I18N['en'];
-        const disp = getModelDisplay(m, currentLanguage);
+        const disp = getModelDisplay(m, activeLang);
         const card = document.createElement('div');
         let cardClass = 'model-card';
         if (isInstalled) cardClass += ' installed';
@@ -6918,7 +7043,7 @@
           const displayTotal = (prog && prog.mbTotal) ? Number(prog.mbTotal).toFixed(1) : packTotal.toFixed(1);
           let downloadLabel = `0.1 / ${displayTotal} MB`;
           if (prog && prog.status === 'extracting') {
-            downloadLabel = 'Extracting...';
+            downloadLabel = dict.descExtracting || 'Extracting...';
           } else if (prog && typeof prog.mbDone === 'number' && prog.mbDone > 0) {
             downloadLabel = `${prog.mbDone.toFixed(1)} / ${displayTotal} MB (${pct}%)`;
           } else if (pct > 0) {
@@ -6941,7 +7066,7 @@
             `;
           } else {
             rightActionHtml = `
-              <button type="button" class="model-action-btn download" onclick="downloadSingleModel('${m.id}', event)" title="Download ${m.title}">
+              <button type="button" class="model-action-btn download" onclick="downloadSingleModel('${m.id}', event)" title="${dict.btnDownload || 'Download'} ${disp.title}">
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M5 11l7 7 7-7"></path></svg>
               </button>
             `;
@@ -6951,12 +7076,12 @@
         let descHtml = `${disp.desc} · <span class="model-size">${m.size} MB</span>`;
         if (isDownloading) {
           if (prog && prog.status === 'extracting') {
-            descHtml = `<span style="color:#0f172a; font-weight:600;">Extracting model files into engine...</span>`;
+            descHtml = `<span style="color:#0f172a; font-weight:600;">${dict.descExtracting || 'Extracting model files into engine...'}</span>`;
           } else {
             const packTotal = LANGUAGE_PACK_SIZES[m.tag.toLowerCase()] || m.size;
             const displayTotal = (prog && prog.mbTotal) ? Number(prog.mbTotal).toFixed(1) : packTotal.toFixed(1);
             const currentMb = (prog && typeof prog.mbDone === 'number' && prog.mbDone > 0) ? prog.mbDone.toFixed(1) : ((pct / 100) * packTotal).toFixed(1);
-            descHtml = `<span style="color:#0f172a; font-weight:600;">Downloading: ${currentMb} / ${displayTotal} MB (${pct}%)</span>`;
+            descHtml = `<span style="color:#0f172a; font-weight:600;">${dict.descDownloading || 'Downloading'}: ${currentMb} / ${displayTotal} MB (${pct}%)</span>`;
           }
         }
 
@@ -6980,7 +7105,7 @@
         if (!isCore && !isInstalled && !isDownloading) {
           card.onclick = () => toggleModelSelection(m.id);
         } else if (isInstalled) {
-          card.onclick = () => showToast(`${m.title} is installed and ready offline.`);
+          card.onclick = () => showToast(`${disp.title} ${dict.modelReadyOffline || 'is installed and ready offline.'}`);
         }
 
         if (isCore) coreContainer.append(card);
@@ -6988,10 +7113,13 @@
         else ttsContainer.append(card);
       });
 
-      updateStorageStats();
+      updateStorageStats(activeLang);
     }
 
-    function updateStorageStats() {
+        function updateStorageStats(lang) {
+      const activeLang = (lang || currentLanguage || safeGet('linc_preferred_lang', 'en')).toLowerCase().split('-')[0];
+      const dict = LINC_I18N[activeLang] || LINC_I18N['en'];
+
       let selectedMb = 0;
       let selectedCount = 0;
 
@@ -7013,12 +7141,12 @@
       if ($('statSelectedSize')) $('statSelectedSize').textContent = formatStorage(selectedMb);
       if ($('barSelectedLabel')) $('barSelectedLabel').textContent = formatStorage(selectedMb);
       if ($('statSavingsMb')) $('statSavingsMb').textContent = `-${formatStorage(savedMb)}`;
-      if ($('statSavingsText')) $('statSavingsText').textContent = `installed · Saves ${formatStorage(savedMb)} (${savedPct}%)`;
-      if ($('barSavedPercent')) $('barSavedPercent').textContent = `${savedPct}% Saved`;
+      if ($('statSavingsText')) $('statSavingsText').textContent = `${dict.storageInstalled || 'installed'} · ${dict.storageSaves || 'Saves'} ${formatStorage(savedMb)} (${savedPct}%)`;
+      if ($('barSavedPercent')) $('barSavedPercent').textContent = `${savedPct}% ${dict.storageSaved || 'Saved'}`;
       if ($('storageBarFill')) $('storageBarFill').style.width = `${usedPct}%`;
 
-      if ($('stickySelectedCount')) $('stickySelectedCount').textContent = `${selectedCount} Models Selected · ${formatStorage(selectedMb)}`;
-      if ($('stickySavingsText')) $('stickySavingsText').textContent = `Saves ${formatStorage(savedMb)} Storage (${savedPct}%)`;
+      if ($('stickySelectedCount')) $('stickySelectedCount').textContent = `${selectedCount} ${dict.modelsSelected || 'Models Selected'} · ${formatStorage(selectedMb)}`;
+      if ($('stickySavingsText')) $('stickySavingsText').textContent = `${dict.storageSaves || 'Saves'} ${formatStorage(savedMb)} ${dict.storageSpace || 'Storage'} (${savedPct}%)`;
 
       const dlBtn = $('btnDownloadSelected');
       if (dlBtn) {
@@ -7031,7 +7159,7 @@
         });
 
         if (uninstalledSelected.length === 0) {
-          dlBtn.textContent = 'All Selected Installed ✓';
+          dlBtn.textContent = dict.btnAllSelectedInstalled || 'All Selected Installed ✓';
           dlBtn.disabled = true;
           dlBtn.style.opacity = '0.6';
         } else {
@@ -7047,7 +7175,7 @@
               }
             }
           });
-          dlBtn.textContent = `Download Selected (${formatStorage(downloadSize)})`;
+          dlBtn.textContent = `${dict.btnDownloadSelected || 'Download Selected'} (${formatStorage(downloadSize)})`;
           dlBtn.disabled = false;
           dlBtn.style.opacity = '1';
         }
@@ -7297,13 +7425,7 @@
     const pttBtn = $('pttBtn');
     const pttTrack = $('pttCapsuleTrack');
     const pttLockTarget = $('pttLockTarget');
-    let isHoldingTalk = false;
-    let isPttLocked = false;
-    let isDragging = false;
-    let dragStartX = 0;
-    let dragStartY = 0;
-    let currentDragX = 0;
-    let pointerActive = false;
+    // PTT state declared globally at top of script
 
     function startPtt() {
       if (isHoldingTalk) return;
