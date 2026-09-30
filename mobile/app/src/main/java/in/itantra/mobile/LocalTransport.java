@@ -1,8 +1,15 @@
 package in.itantra.mobile;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.net.NetworkInfo;
 import android.net.nsd.*;
 import android.net.wifi.WifiManager;
+import android.net.wifi.WpsInfo;
+import android.net.wifi.p2p.*;
+import android.net.wifi.p2p.WifiP2pManager.*;
 import android.os.Build;
 import android.util.Log;
 import org.json.*;
@@ -14,13 +21,14 @@ import java.util.concurrent.*;
 import java.security.SecureRandom;
 
 /**
- * Foreground, two-peer LAN transport.
- * Supports mDNS DNS-SD, UDP Broadcast Beacon (port 8989), and TCP direct streaming (port 8988).
+ * Foreground, two-peer LAN and WiFi Direct transport.
+ * Supports WiFi Direct (P2P), mDNS DNS-SD, UDP Broadcast Beacon (port 8989), and TCP direct streaming (port 8988).
  * Auto-links walkie-talkie devices in proximity with zero friction.
  */
 public final class LocalTransport {
     private static final String TAG = "LocalTransport";
     public interface Listener { void event(String type, JSONObject data); void received(ItpPacket.Decoded message); }
+    private final Context context;
     private final Listener listener;
     private final NsdManager nsd;
     private final WifiManager.MulticastLock multicast;
@@ -32,6 +40,18 @@ public final class LocalTransport {
     private final LinkedHashSet<String> seen = new LinkedHashSet<>();
     private final Queue<String[]> outbox = new ConcurrentLinkedQueue<>();
     private final Object writeLock = new Object();
+
+    // WiFi Direct (P2P) fields
+    private WifiP2pManager p2pManager;
+    private Channel p2pChannel;
+    private BroadcastReceiver p2pReceiver;
+    private volatile boolean p2pReceiverRegistered = false;
+    private volatile boolean p2pDiscovering = false;
+    private volatile boolean p2pEnabled = false;
+    private volatile boolean p2pGroupConnected = false;
+    private volatile boolean p2pIsGroupOwner = false;
+    private volatile String p2pGroupOwnerAddress = null;
+    private volatile String myP2pAddress = null;
 
     private volatile Socket socket;
     private volatile ServerSocket server;
@@ -55,11 +75,13 @@ public final class LocalTransport {
     private volatile ScheduledFuture<?> approvalTimer = null;
 
     public LocalTransport(Context context, Listener listener) {
+        this.context = context;
         this.listener = listener;
         nsd = (NsdManager) context.getSystemService(Context.NSD_SERVICE);
         WifiManager wifi = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         multicast = wifi.createMulticastLock("linc-discovery");
         multicast.setReferenceCounted(false);
+        initWifiP2p();
         clock.scheduleWithFixedDelay(this::tick, 2, 2, TimeUnit.SECONDS);
         startListening();
         startUdpBeaconListener();
@@ -119,6 +141,278 @@ public final class LocalTransport {
             }
         } catch (Exception ignored) {}
         return false;
+    }
+
+    // ==========================================
+    // WiFi Direct (P2P) Implementation
+    // ==========================================
+
+    private void initWifiP2p() {
+        try {
+            if (context != null) {
+                p2pManager = (WifiP2pManager) context.getSystemService(Context.WIFI_P2P_SERVICE);
+                if (p2pManager != null) {
+                    p2pChannel = p2pManager.initialize(context, context.getMainLooper(), () -> {
+                        Log.w(TAG, "WiFi P2P Channel disconnected; re-initializing...");
+                        try {
+                            p2pChannel = p2pManager.initialize(context, context.getMainLooper(), null);
+                        } catch (Exception e) {
+                            Log.w(TAG, "Failed to reinitialize P2P channel: " + e.getMessage());
+                        }
+                    });
+                    Log.i(TAG, "WiFi P2P initialized successfully");
+                } else {
+                    Log.w(TAG, "WifiP2pManager is null; WiFi Direct not supported on this device");
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to initialize WiFi Direct: " + e.getMessage());
+        }
+    }
+
+    public synchronized void registerP2pReceiver() {
+        if (context == null || p2pManager == null || p2pChannel == null || p2pReceiverRegistered) return;
+        try {
+            if (p2pReceiver == null) {
+                p2pReceiver = new BroadcastReceiver() {
+                    @Override
+                    public void onReceive(Context ctx, Intent intent) {
+                        handleP2pIntent(intent);
+                    }
+                };
+            }
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
+            filter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
+            filter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
+            filter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
+
+            if (Build.VERSION.SDK_INT >= 33) {
+                context.registerReceiver(p2pReceiver, filter, Context.RECEIVER_EXPORTED);
+            } else {
+                context.registerReceiver(p2pReceiver, filter);
+            }
+            p2pReceiverRegistered = true;
+            Log.i(TAG, "WiFi P2P BroadcastReceiver registered");
+            discoverP2pPeers();
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to register P2P receiver: " + e.getMessage());
+        }
+    }
+
+    public synchronized void unregisterP2pReceiver() {
+        if (!p2pReceiverRegistered || context == null || p2pReceiver == null) return;
+        try {
+            context.unregisterReceiver(p2pReceiver);
+            p2pReceiverRegistered = false;
+            Log.i(TAG, "WiFi P2P BroadcastReceiver unregistered");
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to unregister P2P receiver: " + e.getMessage());
+        }
+    }
+
+    private void handleP2pIntent(Intent intent) {
+        if (intent == null) return;
+        String action = intent.getAction();
+        if (action == null) return;
+
+        switch (action) {
+            case WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION -> {
+                int state = intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, -1);
+                p2pEnabled = (state == WifiP2pManager.WIFI_P2P_STATE_ENABLED);
+                Log.i(TAG, "WiFi P2P state changed: " + (p2pEnabled ? "ENABLED" : "DISABLED"));
+                if (!p2pEnabled) {
+                    p2pDiscovering = false;
+                }
+            }
+
+            case WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION -> {
+                if (p2pManager != null && p2pChannel != null) {
+                    try {
+                        p2pManager.requestPeers(p2pChannel, peers -> {
+                            if (peers == null) return;
+                            Collection<WifiP2pDevice> deviceList = peers.getDeviceList();
+                            Log.i(TAG, "WiFi P2P peers discovered count: " + deviceList.size());
+                            for (WifiP2pDevice device : deviceList) {
+                                String p2pAddr = device.deviceAddress;
+                                String devName = device.deviceName;
+                                if (p2pAddr != null && !p2pAddr.equals(myP2pAddress)) {
+                                    Log.i(TAG, "P2P peer found: " + devName + " (" + p2pAddr + ") status=" + p2pDeviceStatus(device.status));
+                                    event("peer",
+                                        "name", devName != null && !devName.isEmpty() ? devName : "WiFi Direct Peer",
+                                        "model", devName != null ? devName : "",
+                                        "address", "",
+                                        "p2pAddress", p2pAddr,
+                                        "port", 8988,
+                                        "source", "p2p",
+                                        "status", p2pDeviceStatus(device.status)
+                                    );
+                                }
+                            }
+                        });
+                    } catch (SecurityException se) {
+                        Log.w(TAG, "SecurityException requesting P2P peers: " + se.getMessage());
+                    } catch (Exception e) {
+                        Log.w(TAG, "Error requesting P2P peers: " + e.getMessage());
+                    }
+                }
+            }
+
+            case WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION -> {
+                NetworkInfo networkInfo = intent.getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO);
+                boolean isP2pConn = networkInfo != null && networkInfo.isConnected();
+                Log.i(TAG, "WiFi P2P connection changed: " + (isP2pConn ? "CONNECTED" : "DISCONNECTED"));
+                if (isP2pConn && p2pManager != null && p2pChannel != null) {
+                    try {
+                        p2pManager.requestConnectionInfo(p2pChannel, info -> {
+                            if (info == null) return;
+                            p2pGroupConnected = info.groupFormed;
+                            p2pIsGroupOwner = info.isGroupOwner;
+                            InetAddress goInet = info.groupOwnerAddress;
+                            p2pGroupOwnerAddress = goInet != null ? goInet.getHostAddress() : null;
+
+                            Log.i(TAG, "P2P Group Formed! isGroupOwner=" + p2pIsGroupOwner + ", GO Address=" + p2pGroupOwnerAddress);
+                            event("p2p_connection",
+                                "groupFormed", info.groupFormed,
+                                "isGroupOwner", info.isGroupOwner,
+                                "groupOwnerAddress", p2pGroupOwnerAddress != null ? p2pGroupOwnerAddress : ""
+                            );
+
+                            if (info.groupFormed) {
+                                if (p2pIsGroupOwner) {
+                                    // Group Owner hosts TCP server on port 8988
+                                    Log.i(TAG, "Acting as P2P Group Owner; listening on port 8988 for incoming client TCP");
+                                    startListening();
+                                } else {
+                                    // Client connects to the Group Owner's IP on port 8988
+                                    if (p2pGroupOwnerAddress != null && !p2pGroupOwnerAddress.isEmpty()) {
+                                        Log.i(TAG, "Acting as P2P Client; connecting to GO at " + p2pGroupOwnerAddress + ":8988");
+                                        clock.schedule(() -> {
+                                            connect(p2pGroupOwnerAddress, 8988, pin, callsign);
+                                        }, 600, TimeUnit.MILLISECONDS);
+                                    }
+                                }
+                            }
+                        });
+                    } catch (Exception e) {
+                        Log.w(TAG, "Error requesting P2P connection info: " + e.getMessage());
+                    }
+                } else if (!isP2pConn) {
+                    p2pGroupConnected = false;
+                    p2pIsGroupOwner = false;
+                    p2pGroupOwnerAddress = null;
+                }
+            }
+
+            case WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION -> {
+                WifiP2pDevice thisDevice = intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE);
+                if (thisDevice != null) {
+                    myP2pAddress = thisDevice.deviceAddress;
+                    Log.i(TAG, "This device P2P address: " + thisDevice.deviceAddress + " (" + thisDevice.deviceName + ")");
+                }
+            }
+        }
+    }
+
+    public void discoverP2pPeers() {
+        if (p2pManager == null || p2pChannel == null) return;
+        try {
+            p2pManager.discoverPeers(p2pChannel, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    p2pDiscovering = true;
+                    Log.i(TAG, "WiFi P2P peer discovery started");
+                }
+
+                @Override
+                public void onFailure(int reason) {
+                    p2pDiscovering = false;
+                    Log.w(TAG, "WiFi P2P peer discovery failed: " + p2pFailureReason(reason));
+                }
+            });
+        } catch (SecurityException se) {
+            Log.w(TAG, "SecurityException on discoverP2pPeers: " + se.getMessage());
+        } catch (Exception e) {
+            Log.w(TAG, "Error on discoverP2pPeers: " + e.getMessage());
+        }
+    }
+
+    public void stopP2pDiscovery() {
+        if (p2pManager == null || p2pChannel == null) return;
+        try {
+            p2pManager.stopPeerDiscovery(p2pChannel, new WifiP2pManager.ActionListener() {
+                @Override public void onSuccess() { p2pDiscovering = false; }
+                @Override public void onFailure(int reason) {}
+            });
+        } catch (Exception ignored) {}
+    }
+
+    public void connectP2p(String p2pAddress) {
+        if (p2pManager == null || p2pChannel == null || p2pAddress == null || p2pAddress.trim().isEmpty()) {
+            event("error", "message", "WiFi Direct is unavailable or invalid address.");
+            return;
+        }
+        try {
+            WifiP2pConfig config = new WifiP2pConfig();
+            config.deviceAddress = p2pAddress.trim();
+            config.wps.setup = WpsInfo.PBC;
+
+            state("WAITING_APPROVAL");
+            Log.i(TAG, "Connecting via WiFi Direct to " + p2pAddress);
+
+            p2pManager.connect(p2pChannel, config, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    Log.i(TAG, "WiFi P2P connect initiated successfully to " + p2pAddress);
+                }
+
+                @Override
+                public void onFailure(int reason) {
+                    Log.w(TAG, "WiFi P2P connect failed: " + p2pFailureReason(reason));
+                    event("error", "message", "WiFi Direct connect failed: " + p2pFailureReason(reason));
+                    state("DISCONNECTED");
+                }
+            });
+        } catch (SecurityException se) {
+            Log.w(TAG, "SecurityException on connectP2p: " + se.getMessage());
+            event("error", "message", "WiFi Direct permission missing: " + se.getMessage());
+            state("DISCONNECTED");
+        } catch (Exception e) {
+            Log.w(TAG, "Exception on connectP2p: " + e.getMessage());
+            event("error", "message", "WiFi Direct error: " + e.getMessage());
+            state("DISCONNECTED");
+        }
+    }
+
+    public void disconnectP2pGroup() {
+        if (p2pManager == null || p2pChannel == null) return;
+        try {
+            p2pManager.removeGroup(p2pChannel, new WifiP2pManager.ActionListener() {
+                @Override public void onSuccess() { Log.i(TAG, "WiFi P2P group removed"); }
+                @Override public void onFailure(int reason) {}
+            });
+            p2pManager.cancelConnect(p2pChannel, null);
+        } catch (Exception ignored) {}
+    }
+
+    private static String p2pDeviceStatus(int status) {
+        return switch (status) {
+            case WifiP2pDevice.AVAILABLE -> "Available";
+            case WifiP2pDevice.INVITED -> "Invited";
+            case WifiP2pDevice.CONNECTED -> "Connected";
+            case WifiP2pDevice.FAILED -> "Failed";
+            case WifiP2pDevice.UNAVAILABLE -> "Unavailable";
+            default -> "Unknown";
+        };
+    }
+
+    private static String p2pFailureReason(int reason) {
+        return switch (reason) {
+            case WifiP2pManager.P2P_UNSUPPORTED -> "P2P unsupported on this device";
+            case WifiP2pManager.ERROR -> "Internal framework error";
+            case WifiP2pManager.BUSY -> "Framework busy";
+            default -> "Code " + reason;
+        };
     }
 
     public void startListening() {
@@ -555,6 +849,9 @@ public final class LocalTransport {
                 control(json("type", "PING", "at", now()));
             } else {
                 broadcastUdpBeacon();
+                if (!p2pDiscovering && p2pEnabled) {
+                    discoverP2pPeers();
+                }
             }
             for (var entry : pending.entrySet()) {
                 if (now() - entry.getValue() > 12000 && pending.remove(entry.getKey(), entry.getValue())) {
@@ -663,6 +960,7 @@ public final class LocalTransport {
     public void discover() {
         startListening();
         broadcastUdpBeacon();
+        discoverP2pPeers();
         if (discovery != null) return;
         try {
             multicast.acquire();
@@ -732,6 +1030,9 @@ public final class LocalTransport {
         closed = true;
         disconnect();
         closeServer();
+        stopP2pDiscovery();
+        disconnectP2pGroup();
+        unregisterP2pReceiver();
         if (discovery != null) try { nsd.stopServiceDiscovery(discovery); } catch (Exception ignored) {}
         if (multicast.isHeld()) multicast.release();
         sender.shutdownNow();

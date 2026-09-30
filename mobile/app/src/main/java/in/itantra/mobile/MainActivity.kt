@@ -8,6 +8,8 @@ import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.Manifest
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Build
@@ -184,6 +186,8 @@ class MainActivity : Activity() {
         })
 
         transport.discover()
+        requestP2pPermissions()
+        transport.registerP2pReceiver()
         web?.loadUrl("https://app.itantra.local/")
     }
 
@@ -368,12 +372,15 @@ class MainActivity : Activity() {
                     when (action) {
                         "host" -> transport.host()
                         "discover" -> transport.discover()
+                        "discoverP2p" -> transport.discoverP2pPeers()
                         "connect" -> transport.connect(
                             data.optString("address"),
                             data.optInt("port", 8988),
                             data.optString("pin"),
                             data.optString("callsign")
                         )
+                        "connectP2p" -> transport.connectP2p(data.optString("p2pAddress"))
+                        "disconnectP2p" -> transport.disconnectP2pGroup()
                         "respondConnection" -> transport.respondRequest(data.optBoolean("accept", false))
                         "cancelRequest" -> transport.cancelRequest()
                         "callsign" -> transport.callsign(data.optString("callsign"))
@@ -434,14 +441,51 @@ class MainActivity : Activity() {
         }
     }
 
+    private val P2P_PERMISSION_REQUEST_CODE = 1001
+
+    private fun requestP2pPermissions() {
+        val permissions = mutableListOf<String>()
+        if (Build.VERSION.SDK_INT >= 33) {
+            if (checkSelfPermission(Manifest.permission.NEARBY_WIFI_DEVICES) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.NEARBY_WIFI_DEVICES)
+            }
+        } else {
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+            if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+            }
+        }
+        if (permissions.isNotEmpty()) {
+            requestPermissions(permissions.toTypedArray(), P2P_PERMISSION_REQUEST_CODE)
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == P2P_PERMISSION_REQUEST_CODE) {
+            val allGranted = grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+            if (allGranted) {
+                Log.i("LinC", "WiFi Direct permissions granted by user; discovering peers")
+                transport.discoverP2pPeers()
+            } else {
+                Log.w("LinC", "WiFi Direct permissions denied by user")
+            }
+        }
+    }
+
     override fun onPause() {
         super.onPause()
         speech.pause()
+        transport.unregisterP2pReceiver()
     }
 
     override fun onResume() {
         super.onResume()
         speech.resume()
+        transport.registerP2pReceiver()
+        transport.discoverP2pPeers()
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -485,6 +529,7 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         loaded = false
         speech.close()
+        transport.unregisterP2pReceiver()
         transport.close()
         web?.apply {
             removeJavascriptInterface("iTantra")
