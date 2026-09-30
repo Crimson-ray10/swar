@@ -79,6 +79,9 @@ class MainActivity : Activity() {
         splash = FrameLayout(this).apply {
             setBackgroundColor(-0x1000000)
             elevation = 100f
+            isClickable = true
+            isFocusable = true
+            setOnTouchListener { _, _ -> true }
         }
         root.addView(splash, FrameLayout.LayoutParams(-1, -1))
 
@@ -337,7 +340,7 @@ class MainActivity : Activity() {
         fullSequence.playSequentially(intro, outro)
         fullSequence.addListener(object : AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: Animator) {
-                web?.evaluateJavascript("const el = document.querySelector('.hero-brand-title'); if(el) el.style.opacity = '1';", null)
+                web?.evaluateJavascript("if (window.onBootCompleted) window.onBootCompleted(); const el = document.querySelector('.hero-brand-title'); if(el) el.style.opacity = '1';", null)
                 splash?.let { sp ->
                     (sp.parent as? FrameLayout)?.removeView(sp)
                 }

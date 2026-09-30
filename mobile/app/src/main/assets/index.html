@@ -82,6 +82,15 @@
       -webkit-touch-callout: none !important;
     }
 
+    /* Boot isolation: Prevent touches during startup boot animation */
+    body.app-booting,
+    body.app-booting * {
+      pointer-events: none !important;
+      touch-action: none !important;
+      user-select: none !important;
+      -webkit-user-select: none !important;
+    }
+
     button,
     input,
     select,
@@ -2827,15 +2836,172 @@
     .hidden {
       display: none !important;
     }
+
+    /* Mandatory Onboarding Modal Styles */
+    #onboardingModal {
+      z-index: 12000 !important;
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .onboarding-card {
+      background: #ffffff;
+      border-radius: 28px;
+      padding: 24px 20px;
+      width: 100%;
+      max-width: 410px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .onboarding-progress-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .onboarding-step-seg {
+      flex: 1;
+      height: 4px;
+      border-radius: 9999px;
+      background: #e2e8f0;
+      transition: background 0.3s ease;
+    }
+    .onboarding-step-seg.active {
+      background: #10b981;
+    }
+    .onboarding-step-indicator {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #10b981;
+      margin-bottom: 6px;
+    }
+    .onboarding-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.3;
+      margin-bottom: 6px;
+    }
+    .onboarding-subtitle {
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.45;
+      margin-bottom: 18px;
+    }
+    .onboarding-lang-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .onboarding-lang-btn {
+      padding: 12px 10px;
+      border-radius: 14px;
+      border: 1.5px solid #e2e8f0;
+      background: #f8fafc;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      cursor: pointer;
+      transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .onboarding-lang-btn:active {
+      transform: scale(0.96);
+    }
+    .onboarding-lang-btn.active {
+      border-color: #10b981;
+      background: #ecfdf5;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+    }
+    .onboarding-lang-native {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .onboarding-lang-btn.active .onboarding-lang-native {
+      color: #065f46;
+    }
+    .onboarding-lang-sub {
+      font-size: 10px;
+      font-weight: 600;
+      color: #64748b;
+    }
+    .onboarding-lang-btn.active .onboarding-lang-sub {
+      color: #059669;
+    }
+    .onboarding-explainer-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    .onboarding-explainer-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
+    .onboarding-explainer-text {
+      font-size: 11.5px;
+      color: #475569;
+      line-height: 1.5;
+    }
+    .onboarding-model-card {
+      border: 2px solid #10b981;
+      background: #ecfdf5;
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .onboarding-model-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #10b981;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .onboarding-model-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #065f46;
+    }
+    .onboarding-model-sub {
+      font-size: 11px;
+      color: #059669;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+    .onboarding-btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: auto;
+    }
   </style>
 </head>
 
-<body>
+<body class="app-booting">
 
   <!-- UNIVERSAL TOP HEADER -->
   <header class="top-header">
     <div class="header-left-slot" id="headerLeftSlot">
-      <div id="connectionPill" class="header-pill pill-neutral">STANDBY</div>
+      <div id="connectionPill" class="header-pill pill-neutral" data-i18n="statusStandby">STANDBY</div>
       <div class="header-brand" id="headerBrand" style="display:none;">
         <div class="header-title" id="pageHeaderTitle">LinC<span style="color:#0f172a">.</span></div>
         <div class="header-subtitle" id="pageHeaderSubtitle"></div>
@@ -2856,7 +3022,7 @@
           <line x1="1" y1="9" x2="4" y2="9" />
           <line x1="1" y1="15" x2="4" y2="15" />
         </svg>
-        <span>Specs</span>
+        <span data-i18n="btnHeaderSpecs">Specs</span>
       </button>
       <button class="header-avatar" id="avatarBtn" aria-label="Node Identity">RO</button>
     </div>
@@ -2872,19 +3038,19 @@
     <section id="viewHome" class="view-page">
       <div class="home-hero-container">
         <h1 class="hero-brand-title">LinC<span class="brand-dot">.</span></h1>
-        <p class="hero-desc">
+        <p class="hero-desc" data-i18n="heroDesc">
           LinC is a fully offline, AI-powered multilingual<br>voice communication Android application designed<br>for
           use in zero-connectivity environments.
         </p>
         <button class="btn-circle-action" id="btnGetStarted" aria-label="Get Started">
-          <span>Get<br>Started</span>
+          <span id="btnGetStartedText" data-i18n="btnGetStarted">Get<br>Started</span>
         </button>
       </div>
 
       <!-- Home Footer Terms & Compliance Notice -->
       <footer class="home-compliance-footer">
-        <div class="compliance-footer-title">LinC. Architecture & Compliance</div>
-        <p class="compliance-footer-text">
+        <div class="compliance-footer-title" data-i18n="complianceFooterTitle">LinC. Architecture &amp; Compliance</div>
+        <p class="compliance-footer-text" data-i18n="complianceFooterText">
           100% Offline · Zero Cloud Dependencies · Neural Voice Recognition + IndicTTS Audio
           synthesis · Direct IP/ZeroConf P2P Mesh.
         </p>
@@ -2898,10 +3064,10 @@
       <!-- RADAR SCANNER -->
       <div class="radar-card" id="radarCardUnit">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-          <div style="font-size:13px; font-weight:800; color:var(--text);">
+          <div style="font-size:13px; font-weight:800; color:var(--text);" id="radarSearchingNearby" data-i18n="searchingNearby">
             Searching Nearby Devices
           </div>
-          <button class="btn-outline" style="padding:4px 10px; font-size:10px; border-radius:8px;" id="btnRefreshRadar">
+          <button class="btn-outline" style="padding:4px 10px; font-size:10px; border-radius:8px;" id="btnRefreshRadar" data-i18n="btnScan">
             Scan
           </button>
         </div>
@@ -2930,7 +3096,7 @@
                   <circle cx="12" cy="18" r="1" />
                 </svg>
               </div>
-              <div class="radar-center-label" id="radarMyLabel">This Phone</div>
+              <div class="radar-center-label" id="radarMyLabel" data-i18n="radarMyLabel">This Phone</div>
             </div>
 
             <!-- Dynamic Floating Discovered Peer Nodes -->
@@ -2939,7 +3105,7 @@
         </div>
 
         <div style="text-align:center; margin-top:10px; font-size:11px; font-weight:600; color:var(--text-muted);"
-          id="radarStatusSub">
+          id="radarStatusSub" data-i18n="radarStatusSub">
           Radar scanning 2.4/5GHz local band… Tap any detected phone bubble to link.
         </div>
 
@@ -2953,7 +3119,7 @@
                 <path d="M2 12h20" />
                 <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
               </svg>
-              Speech Language:
+              <span data-i18n="speechLangTitle">Speech Language:</span>
             </span>
             <span class="radar-tts-engine" title="AI4Bharat Indic-TTS Neural Synthesizer">
               AI4Bharat Indic-TTS
@@ -3033,11 +3199,11 @@
                 </div>
                 <span class="item-check">✓</span>
               </button>
-              <button type="button" class="radar-dropdown-item" data-lang="ml"
-                onclick="selectDropdownLanguage('ml', 'മലയാളം', 'ml-IN')">
+              <button type="button" class="radar-dropdown-item" data-lang="bn"
+                onclick="selectDropdownLanguage('bn', 'বাংলা', 'bn-IN')">
                 <div>
-                  <span class="item-title">മലയാളം</span>
-                  <span class="item-sub">Malayalam · ml-IN</span>
+                  <span class="item-title">বাংলা</span>
+                  <span class="item-sub">Bengali · bn-IN</span>
                 </div>
                 <span class="item-check">✓</span>
               </button>
@@ -3109,22 +3275,22 @@
               <div class="eq-bar"></div>
               <div class="eq-bar"></div>
             </div>
-            <span class="ptt-label" id="pttMainLabel">PUSH TO TALK</span>
+            <span class="ptt-label" id="pttMainLabel" data-i18n="pttMainLabel">PUSH TO TALK</span>
           </button>
         </div>
       </div>
 
       <div id="pttStatusLabel"
-        style="text-align:center; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:16px;">
+        style="text-align:center; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:16px;" data-i18n="pttStatusLabel">
         Hold to broadcast · Swipe right to lock hands-free
       </div>
 
       <!-- Realtime Transcript Box -->
       <div class="card" style="padding:12px 14px; margin-bottom:14px; background:#ffffff;">
         <div
-          style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">
+          style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;" data-i18n="recognizedSpeechTitle">
           Recognized Speech</div>
-        <div id="transcriptPreview" style="font-size:13px; color:#111827; min-height:22px; line-height:1.4;">
+        <div id="transcriptPreview" style="font-size:13px; color:#111827; min-height:22px; line-height:1.4;" data-i18n="transcriptPlaceholder">
           Your spoken voice transcript will appear here in real time...
         </div>
       </div>
@@ -3132,7 +3298,7 @@
       <!-- Discovered Peers / Paired Bluetooth Devices Section -->
       <div class="card" style="padding:14px; margin-bottom:14px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-          <span style="font-size:13px; font-weight:800;" id="meshDevicesHeader">Paired Bluetooth &amp; Mesh (0)</span>
+          <span style="font-size:13px; font-weight:800;" id="meshDevicesHeader" data-i18n="pairedMeshHeader">Paired Bluetooth &amp; Mesh (0)</span>
           <button type="button" class="btn-outline" id="btnPastDevices"
             style="padding:4px 10px; font-size:11px; font-weight:700; border-radius:8px; display:inline-flex; align-items:center; gap:5px; cursor:pointer; border-color:#e2e8f0; background:#f8fafc;"
             onclick="openPastDevicesModal()">
@@ -3140,13 +3306,13 @@
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>
-            <span>Past Devices</span>
+            <span data-i18n="btnPastDevices">Past Devices</span>
           </button>
         </div>
 
         <!-- Session Connected Devices Container (only devices connected during current session) -->
         <div id="sessionConnectedDevicesContainer">
-          <div id="noSessionDevicesPlaceholder"
+          <div id="noSessionDevicesPlaceholder" data-i18n="noSessionDevicesPlaceholder"
             style="text-align:center; padding:18px 12px; color:var(--text-muted); font-size:11.5px; border:1px dashed #e2e8f0; border-radius:12px; background:#fafafa;">
             No devices connected in this session.<br>
             <span style="font-size:10px; color:var(--text-light); margin-top:2px; display:inline-block;">Devices you
@@ -3160,7 +3326,7 @@
 
       <!-- Manual Connection Drawer Toggle -->
       <details class="card" style="padding:14px; margin-bottom:14px;">
-        <summary style="font-size:12px; font-weight:700; color:var(--text); cursor:pointer;">Manual Direct IP / Port
+        <summary style="font-size:12px; font-weight:700; color:var(--text); cursor:pointer;" data-i18n="manualConnectTitle">Manual Direct IP / Port
           Connection</summary>
         <div style="margin-top:12px;">
           <label class="input-label">Host IPv4 Address</label>
@@ -3201,8 +3367,8 @@
       <!-- Top Section Header -->
       <div class="models-screen-header">
         <div>
-          <div class="models-screen-title">Speech &amp; Voice Models</div>
-          <div class="models-screen-subtitle">
+          <div class="models-screen-title" data-i18n="modelsScreenTitle">Speech &amp; Voice Models</div>
+          <div class="models-screen-subtitle" data-i18n="modelsScreenSubtitle">
             Tactical on-device speech packs for 100% offline communication.
           </div>
         </div>
@@ -3401,7 +3567,7 @@
             </svg>
           </div>
           <div class="feature-title">8 Supported Languages</div>
-          <div class="feature-desc">AI4Bharat Multilingual: Hindi, English, Marathi, Gujarati, Tamil, Telugu, Kannada, Malayalam.</div>
+          <div class="feature-desc">AI4Bharat Multilingual: Hindi, English, Marathi, Bengali, Gujarati, Tamil, Telugu, Kannada.</div>
         </div>
 
         <div class="feature-card">
@@ -3466,14 +3632,15 @@
     </section>
   </main>
 
-  <!-- FIXED BOTTOM NAVIGATION DOCK (Symmetrical: Home - PTT - Models) -->
+  <!-- FIXED BOTTOM NAVIGATION DOCK (Symmetrical: Radar - PTT - Models) -->
   <nav class="bottom-nav" aria-label="Main Navigation">
-    <button class="nav-item active" data-view="viewHome" id="navItemHome">
+    <button class="nav-item active" data-view="viewTransceiver" id="navItemHome">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        <polyline points="9 22 9 12 15 12 15 22" />
+        <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z" />
+        <path d="M12 6a6 6 0 1 0 6 6 6 6 0 0 0-6-6zm0 10a4 4 0 1 1 4-4 4 4 0 0 1-4 4z" />
+        <circle cx="12" cy="12" r="1.5" />
       </svg>
-      <span>Home</span>
+      <span data-i18n="navItemHome">Radar</span>
     </button>
     <!-- Center Audio Transceiver PTT Quick Trigger -->
     <button class="nav-ptt-btn" id="navCenterPtt" aria-label="Center Audio PTT Quick Access">
@@ -3487,7 +3654,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
       </svg>
-      <span>Models</span>
+      <span data-i18n="navItemModels">Models</span>
     </button>
   </nav>
 
@@ -3733,6 +3900,138 @@
         <button type="button" class="btn-outline" style="border-radius:9999px;" onclick="closeSpeechOfflineModal()">
           Dismiss
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ONBOARDING MODAL (MANDATORY 3-STEP WIZARD) -->
+  <div id="onboardingModal" class="modal-backdrop hidden" style="z-index: 12000; align-items:center; justify-content:center;">
+    <div class="onboarding-card" onclick="event.stopPropagation()">
+      <!-- Step Progress Header -->
+      <div class="onboarding-progress-bar">
+        <div class="onboarding-step-seg active" id="obSeg1"></div>
+        <div class="onboarding-step-seg" id="obSeg2"></div>
+        <div class="onboarding-step-seg" id="obSeg3"></div>
+      </div>
+      <div class="onboarding-step-indicator" id="obStepIndicator">Step 1 of 3: Preferred Language</div>
+
+      <!-- STEP 1: PREFERRED LANGUAGE -->
+      <div id="obStep1Content">
+        <div class="onboarding-title" id="obStep1Title" data-i18n="onboardingStep1Title">Select Preferred Language</div>
+        <div class="onboarding-subtitle" id="obStep1Sub" data-i18n="onboardingStep1Sub">
+          Choose your primary language. The entire app interface will immediately adapt to your selection.
+        </div>
+
+        <div class="onboarding-lang-grid" id="obLangGrid">
+          <button type="button" class="onboarding-lang-btn active" data-ob-lang="hi" onclick="selectOnboardingLanguage('hi')">
+            <span class="onboarding-lang-native">हिन्दी</span>
+            <span class="onboarding-lang-sub">Hindi · hi-IN</span>
+          </button>
+          <button type="button" class="onboarding-lang-btn" data-ob-lang="en" onclick="selectOnboardingLanguage('en')">
+            <span class="onboarding-lang-native">English</span>
+            <span class="onboarding-lang-sub">Indian English · en-IN</span>
+          </button>
+          <button type="button" class="onboarding-lang-btn" data-ob-lang="mr" onclick="selectOnboardingLanguage('mr')">
+            <span class="onboarding-lang-native">मराठी</span>
+            <span class="onboarding-lang-sub">Marathi · mr-IN</span>
+          </button>
+          <button type="button" class="onboarding-lang-btn" data-ob-lang="bn" onclick="selectOnboardingLanguage('bn')">
+            <span class="onboarding-lang-native">বাংলা</span>
+            <span class="onboarding-lang-sub">Bengali · bn-IN</span>
+          </button>
+          <button type="button" class="onboarding-lang-btn" data-ob-lang="gu" onclick="selectOnboardingLanguage('gu')">
+            <span class="onboarding-lang-native">ગુજરાતી</span>
+            <span class="onboarding-lang-sub">Gujarati · gu-IN</span>
+          </button>
+          <button type="button" class="onboarding-lang-btn" data-ob-lang="ta" onclick="selectOnboardingLanguage('ta')">
+            <span class="onboarding-lang-native">தமிழ்</span>
+            <span class="onboarding-lang-sub">Tamil · ta-IN</span>
+          </button>
+          <button type="button" class="onboarding-lang-btn" data-ob-lang="te" onclick="selectOnboardingLanguage('te')">
+            <span class="onboarding-lang-native">తెలుగు</span>
+            <span class="onboarding-lang-sub">Telugu · te-IN</span>
+          </button>
+          <button type="button" class="onboarding-lang-btn" data-ob-lang="kn" onclick="selectOnboardingLanguage('kn')">
+            <span class="onboarding-lang-native">ಕನ್ನಡ</span>
+            <span class="onboarding-lang-sub">Kannada · kn-IN</span>
+          </button>
+        </div>
+
+        <div class="onboarding-btn-row">
+          <button type="button" class="btn-pill full-width" id="btnObNext1" style="padding:14px; font-size:14px; font-weight:800;" onclick="setOnboardingStep(2)">
+            <span data-i18n="btnNext">Next →</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 2: USERNAME -->
+      <div id="obStep2Content" class="hidden">
+        <div class="onboarding-title" id="obStep2Title" data-i18n="onboardingStep2Title">Enter Your Username</div>
+        <div class="onboarding-subtitle" id="obStep2Sub" data-i18n="onboardingStep2Sub">
+          This callsign identifies your device to nearby peers across the offline LinC mesh network.
+        </div>
+
+        <div style="margin-bottom:18px;">
+          <label class="input-label" for="obUsernameInput" data-i18n="callsignLabel">Callsign / User Name</label>
+          <input class="input-text" id="obUsernameInput" placeholder="e.g. Rohit, Commander, Alpha-1"
+            maxlength="24" autocomplete="off" oninput="onOnboardingUsernameInput()" style="font-size:15px; padding:12px 14px;">
+          <div id="obUsernameValidation" style="font-size:11px; color:#ef4444; margin-top:5px; display:none;">
+            Username must be at least 2 characters.
+          </div>
+        </div>
+
+        <div class="onboarding-btn-row">
+          <button type="button" class="btn-outline" style="flex:1; padding:14px; font-size:13px; font-weight:700;" onclick="setOnboardingStep(1)">
+            <span data-i18n="btnBack">← Back</span>
+          </button>
+          <button type="button" class="btn-pill" id="btnObNext2" style="flex:1.5; padding:14px; font-size:14px; font-weight:800;" onclick="submitOnboardingStep2()">
+            <span data-i18n="btnNext">Next →</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 3: OFFLINE AI VOICE MODEL -->
+      <div id="obStep3Content" class="hidden">
+        <div class="onboarding-title" id="obStep3Title" data-i18n="onboardingStep3Title">Install Offline AI Voice Model</div>
+
+        <!-- Explainer Card -->
+        <div class="onboarding-explainer-card">
+          <div class="onboarding-explainer-header">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+            </svg>
+            <span id="obWhyModelTitle" data-i18n="onboardingWhyModel">Why is an offline model required?</span>
+          </div>
+          <div class="onboarding-explainer-text" id="obModelExplainerText" data-i18n="onboardingModelDesc">
+            LinC operates 100% offline with zero cell towers or internet. Neural speech recognition (ASR) and voice synthesis (IndicTTS) run directly on your phone's processor. Installing your model enables crystal-clear offline walkie-talkie communication.
+          </div>
+        </div>
+
+        <!-- Selected Model Preview Card -->
+        <div class="onboarding-model-card" id="obModelCard">
+          <div class="onboarding-model-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+          <div style="flex:1; min-width:0;">
+            <div class="onboarding-model-title" id="obModelName">Hindi Neural Voice &amp; ASR Pack</div>
+            <div class="onboarding-model-sub" id="obModelMeta">AI4Bharat IndicConformer + IndicTTS · ~155 MB</div>
+          </div>
+        </div>
+
+        <div style="font-size:11px; color:#64748b; margin-bottom:18px; text-align:center;">
+          * Model installs directly on your device storage for permanent offline use.
+        </div>
+
+        <div class="onboarding-btn-row">
+          <button type="button" class="btn-outline" style="flex:1; padding:14px; font-size:13px; font-weight:700;" onclick="setOnboardingStep(2)">
+            <span data-i18n="btnBack">← Back</span>
+          </button>
+          <button type="button" class="btn-pill" id="btnObComplete" style="flex:1.8; padding:14px; font-size:13px; font-weight:800; background:#0f172a;" onclick="completeOnboarding()">
+            <span data-i18n="btnInstallComplete">Install Model &amp; Get Started</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -4064,6 +4363,17 @@
     }
 
     function switchTab(viewId) {
+      if (isBooting) return;
+
+      const isCompleted = localStorage.getItem('linc_onboarding_completed') === 'true';
+      if (!isCompleted && viewId !== 'viewHome') {
+        openOnboardingModal();
+        return;
+      }
+      if (isCompleted && viewId === 'viewHome') {
+        viewId = 'viewTransceiver';
+      }
+
       const targetPage = $(viewId);
       if (!targetPage) return;
       if (viewId === currentViewId && !targetPage.classList.contains('hidden')) return;
@@ -4198,14 +4508,33 @@
 
 
     document.querySelectorAll('.nav-item').forEach(btn => {
-      btn.onclick = () => switchTab(btn.dataset.view);
+      btn.onclick = () => {
+        if (isBooting) return;
+        const targetView = btn.dataset.view;
+        const isCompleted = localStorage.getItem('linc_onboarding_completed') === 'true';
+        if (!isCompleted && targetView !== 'viewHome') {
+          openOnboardingModal();
+          return;
+        }
+        if (isCompleted && targetView === 'viewHome') {
+          switchTab('viewTransceiver');
+          return;
+        }
+        switchTab(targetView);
+      };
     });
 
     if ($('btnHeaderSpecs')) {
       $('btnHeaderSpecs').onclick = () => {
+        if (isBooting) return;
+        const isCompleted = localStorage.getItem('linc_onboarding_completed') === 'true';
+        if (!isCompleted) {
+          openOnboardingModal();
+          return;
+        }
         const isSpecs = !$('viewSpecs').classList.contains('hidden');
         if (isSpecs) {
-          switchTab('viewHome');
+          switchTab(isCompleted ? 'viewTransceiver' : 'viewHome');
         } else {
           switchTab('viewSpecs');
         }
@@ -4215,6 +4544,7 @@
     const getStartedBtn = $('btnGetStarted');
     if (getStartedBtn) {
       getStartedBtn.addEventListener('pointerdown', () => {
+        if (isBooting) return;
         getStartedBtn.style.transform = 'scale(0.93)';
         if (navigator.vibrate) {
           try { navigator.vibrate(12); } catch (e) {}
@@ -4226,26 +4556,52 @@
       getStartedBtn.addEventListener('pointercancel', () => {
         getStartedBtn.style.transform = '';
       }, { passive: true });
-      getStartedBtn.onclick = () => switchTab('viewTransceiver');
+      getStartedBtn.onclick = () => {
+        if (isBooting) return;
+        const isCompleted = localStorage.getItem('linc_onboarding_completed') === 'true';
+        if (isCompleted) {
+          switchTab('viewTransceiver');
+        } else {
+          openOnboardingModal();
+        }
+      };
     }
     if ($('linkSpecs')) {
-      $('linkSpecs').onclick = () => switchTab('viewSpecs');
+      $('linkSpecs').onclick = () => {
+        if (isBooting) return;
+        const isCompleted = localStorage.getItem('linc_onboarding_completed') === 'true';
+        if (!isCompleted) {
+          openOnboardingModal();
+          return;
+        }
+        switchTab('viewSpecs');
+      };
     }
 
     // Nav Center PTT Quick Trigger
     $('navCenterPtt').onclick = () => {
+      if (isBooting) return;
+      const isCompleted = localStorage.getItem('linc_onboarding_completed') === 'true';
+      if (!isCompleted) {
+        openOnboardingModal();
+        return;
+      }
       switchTab('viewTransceiver');
       showToast('Transceiver ready. Hold PTT button to speak.');
     };
 
     // Node Identity Modal
-    $('avatarBtn').onclick = () => $('nodeIdentityModal').classList.remove('hidden');
+    $('avatarBtn').onclick = () => {
+      if (isBooting) return;
+      $('nodeIdentityModal').classList.remove('hidden');
+    };
     $('modalCloseBtn').onclick = () => $('nodeIdentityModal').classList.add('hidden');
     $('btnSaveIdentity').onclick = () => {
       const val = $('inputCallsign').value.trim();
       if (val) {
         callsign = val;
         safeSet('itantra_callsign', callsign);
+        safeSet('linc_username', callsign);
         updateCallsignDisplays();
         showToast('Callsign updated: ' + callsign);
       }
@@ -4253,8 +4609,21 @@
     };
 
     // Central Language & Radar State
+    let isBooting = true;
     let currentLanguage = 'hi';
     let selectedDropdownLang = 'mr';
+
+    const LANG_META = {
+      hi: { primary: 'हिन्दी', code: 'hi-IN' },
+      en: { primary: 'English', code: 'en-IN' },
+      mr: { primary: 'मराठी', code: 'mr-IN' },
+      bn: { primary: 'বাংলা', code: 'bn-IN' },
+      gu: { primary: 'ગુજરાતી', code: 'gu-IN' },
+      ta: { primary: 'தமிழ்', code: 'ta-IN' },
+      te: { primary: 'తెలుగు', code: 'te-IN' },
+      kn: { primary: 'ಕನ್ನಡ', code: 'kn-IN' },
+      hinglish: { primary: 'Hinglish', code: 'Dual-ASR' }
+    };
 
     const langNames = {
       hi: 'Hindi (हिन्दी · hi-IN)',
@@ -4265,7 +4634,444 @@
       ta: 'Tamil (தமிழ் · ta-IN)',
       te: 'Telugu (తెలుగు · te-IN)',
       kn: 'Kannada (ಕನ್ನಡ · kn-IN)',
-      ml: 'Malayalam (മലയാളം · ml-IN)'
+      bn: 'Bengali (বাংলা · bn-IN)'
+    };
+
+    // Complete Multilingual Dictionary for Dynamic Interface Translation
+    const LINC_I18N = {
+      en: {
+        statusStandby: 'STANDBY',
+        statusConnected: 'CONNECTED',
+        btnHeaderSpecs: 'Specs',
+        heroDesc: 'LinC is a fully offline, AI-powered multilingual<br>voice communication Android application designed<br>for use in zero-connectivity environments.',
+        btnGetStarted: 'Get<br>Started',
+        complianceFooterTitle: 'LinC. Architecture & Compliance',
+        complianceFooterText: '100% Offline · Zero Cloud Dependencies · Neural Voice Recognition + IndicTTS Audio synthesis · Direct IP/ZeroConf P2P Mesh.',
+        searchingNearby: 'Searching Nearby Devices',
+        btnScan: 'Scan',
+        radarMyLabel: 'This Phone',
+        radarStatusSub: 'Radar scanning 2.4/5GHz local band… Tap any detected phone bubble to link.',
+        speechLangTitle: 'Speech Language:',
+        pttMainLabel: 'PUSH TO TALK',
+        pttStatusLabel: 'Hold to broadcast · Swipe right to lock hands-free',
+        pttListening: 'LISTENING...',
+        pttLocked: 'HANDS-FREE ON',
+        recognizedSpeechTitle: 'Recognized Speech',
+        transcriptPlaceholder: 'Your spoken voice transcript will appear here in real time...',
+        pairedMeshHeader: 'Paired Bluetooth & Mesh (0)',
+        btnPastDevices: 'Past Devices',
+        noSessionDevicesPlaceholder: 'No devices connected in this session.<br><span style="font-size:10px; color:var(--text-light); margin-top:2px; display:inline-block;">Devices you connect to during this session will appear here.</span>',
+        manualConnectTitle: 'Manual Direct IP / Port Connection',
+        modelsScreenTitle: 'Speech & Voice Models',
+        modelsScreenSubtitle: 'Tactical on-device speech packs for 100% offline communication.',
+        navItemHome: 'Radar',
+        navItemModels: 'Models',
+        identityModalTitle: 'Node Identity & Hardware',
+        callsignLabel: 'Callsign / User Name',
+        deviceSpecsTitle: 'Device Specifications',
+        btnSaveIdentity: 'Save Changes',
+        onboardingStep1Title: 'Select Preferred Language',
+        onboardingStep1Sub: 'Choose your primary language. The entire app interface will immediately adapt to your selection.',
+        onboardingStep2Title: 'Enter Your Username',
+        onboardingStep2Sub: 'This callsign identifies your device to nearby peers across the offline LinC mesh network.',
+        onboardingStep3Title: 'Install Offline AI Voice Model',
+        onboardingWhyModel: 'Why is an offline model required?',
+        onboardingModelDesc: 'LinC operates 100% offline with zero cell towers or internet. Neural speech recognition (ASR) and voice synthesis (IndicTTS) run directly on your phone\'s processor. Installing your model enables crystal-clear offline walkie-talkie communication.',
+        btnNext: 'Next →',
+        btnBack: '← Back',
+        btnInstallComplete: 'Install Model & Get Started',
+        obIndicator1: 'Step 1 of 3: Preferred Language',
+        obIndicator2: 'Step 2 of 3: Your Username',
+        obIndicator3: 'Step 3 of 3: Offline AI Voice Model',
+        setupComplete: 'Setup complete! LinC offline mesh transceiver ready.'
+      },
+      hi: {
+        statusStandby: 'स्टैंडबाय',
+        statusConnected: 'कनेक्टेड',
+        btnHeaderSpecs: 'विवरण',
+        heroDesc: 'LinC पूरी तरह से ऑफ़लाइन, AI-संचालित बहुभाषी<br>वॉयस संचार एंड्रॉइड एप्लिकेशन है, जो शून्य-कनेक्टिविटी<br>वातावरण के लिए डिज़ाइन किया गया है।',
+        btnGetStarted: 'शुरू<br>करें',
+        complianceFooterTitle: 'LinC. आर्किटेक्चर एवं अनुपालन',
+        complianceFooterText: '100% ऑफ़लाइन · शून्य क्लाउड निर्भरता · न्यूरल वॉयस रिकग्निशन + IndicTTS ऑडियो संश्लेषण · डायरेक्ट IP/ZeroConf मेश।',
+        searchingNearby: 'निकटवर्ती डिवाइस खोजे जा रहे हैं',
+        btnScan: 'स्कैन',
+        radarMyLabel: 'यह फ़ोन',
+        radarStatusSub: 'राडार 2.4/5GHz स्थानीय बैंड स्कैन कर रहा है… लिंक करने के लिए किसी भी फ़ोन बबल पर टैप करें।',
+        speechLangTitle: 'भाषण भाषा:',
+        pttMainLabel: 'बोलने के लिए दबाएं',
+        pttStatusLabel: 'प्रसारण के लिए दबाए रखें · हैंड्स-फ्री लॉक करने के लिए दाएं स्वाइप करें',
+        pttListening: 'सुन रहा है...',
+        pttLocked: 'हैंड्स-फ्री चालू',
+        recognizedSpeechTitle: 'पहचाना गया भाषण',
+        transcriptPlaceholder: 'आपका बोला गया वॉइस ट्रांसक्रिप्ट यहां रीयल-टाइम में दिखाई देगा...',
+        pairedMeshHeader: 'पेयर किया गया ब्लूटूथ और मेश (0)',
+        btnPastDevices: 'पुराने डिवाइस',
+        noSessionDevicesPlaceholder: 'इस सत्र में कोई डिवाइस कनेक्ट नहीं है।<br><span style="font-size:10px; color:var(--text-light); margin-top:2px; display:inline-block;">इस सत्र के दौरान आप जिन डिवाइस से कनेक्ट होंगे वे यहां दिखाई देंगे।</span>',
+        manualConnectTitle: 'मैनुअल डायरेक्ट आईपी / पोर्ट कनेक्शन',
+        modelsScreenTitle: 'भाषण और आवाज मॉडल',
+        modelsScreenSubtitle: '100% ऑफ़लाइन संचार के लिए ऑन-डिवाइस स्पीच पैक।',
+        navItemHome: 'राडार',
+        navItemModels: 'मॉडल',
+        identityModalTitle: 'नोड पहचान और हार्डवेयर',
+        callsignLabel: 'कॉलसाइन / उपयोगकर्ता नाम',
+        deviceSpecsTitle: 'डिवाइस विनिर्देश',
+        btnSaveIdentity: 'परिवर्तन सहेजें',
+        onboardingStep1Title: 'अपनी पसंदीदा भाषा चुनें',
+        onboardingStep1Sub: 'अपनी प्राथमिक भाषा चुनें। पूरा ऐप इंटरफ़ेस तुरंत आपके चयन के अनुसार बदल जाएगा।',
+        onboardingStep2Title: 'अपना उपयोगकर्ता नाम दर्ज करें',
+        onboardingStep2Sub: 'यह कॉलसाइन ऑफ़लाइन LinC मेश पर आस-पास के साथियों को आपके डिवाइस की पहचान कराता है।',
+        onboardingStep3Title: 'ऑफ़लाइन AI वॉइस मॉडल इंस्टॉल करें',
+        onboardingWhyModel: 'ऑफ़लाइन मॉडल की आवश्यकता क्यों है?',
+        onboardingModelDesc: 'LinC बिना मोबाइल टावर और बिना इंटरनेट के 100% ऑफ़लाइन काम करता है। न्यूरल स्पीच रिकग्निशन (ASR) और वॉयस सिंथेसिस (IndicTTS) सीधे आपके फ़ोन पर चलते हैं। मॉडल चुनने से स्पष्ट ऑफ़लाइन वॉकी-टॉकी संचार सक्षम होता है।',
+        btnNext: 'आगे बढ़ें →',
+        btnBack: '← पीछे',
+        btnInstallComplete: 'मॉडल इंस्टॉल करें और शुरू करें',
+        obIndicator1: 'चरण 1 / 3: पसंदीदा भाषा',
+        obIndicator2: 'चरण 2 / 3: आपका उपयोगकर्ता नाम',
+        obIndicator3: 'चरण 3 / 3: ऑफ़लाइन AI वॉइस मॉडल',
+        setupComplete: 'सेटअप पूरा हुआ! LinC ऑफ़लाइन मेश ट्रांससीवर तैयार है।'
+      },
+      mr: {
+        statusStandby: 'स्टँडबाय',
+        statusConnected: 'कनेक्टेड',
+        btnHeaderSpecs: 'तपशील',
+        heroDesc: 'LinC हे पूर्णपणे ऑफलाइन, AI-शक्तीवर चालणारे बहुभाषिक<br>व्हॉइस संप्रेषण अँड्रॉइड ॲप्लिकेशन आहे जे शून्य-कनेक्टिव्हिटी<br>वातावरणासाठी तयार केले आहे.',
+        btnGetStarted: 'सुरू<br>करा',
+        complianceFooterTitle: 'LinC. रचना आणि अनुपालन',
+        complianceFooterText: '100% ऑफलाइन · शून्य क्लाउड अवलंबित्व · न्यूरल व्हॉइस रेकग्निशन + IndicTTS ऑडिओ सिंथेसिस · थेट IP/ZeroConf मेश.',
+        searchingNearby: 'जवळपासची उपकरणे शोधत आहे',
+        btnScan: 'स्कॅन',
+        radarMyLabel: 'हा फोन',
+        radarStatusSub: 'रडार 2.4/5GHz स्थानिक बँड स्कॅन करत आहे… जोडण्यासाठी कोणत्याही शोधलेल्या फोन बबलवर टॅप करा.',
+        speechLangTitle: 'संभाषण भाषा:',
+        pttMainLabel: 'बोलण्यासाठी दाबा',
+        pttStatusLabel: 'प्रसारणासाठी दाबून ठेवा · हँड्स-फ्री लॉक करण्यासाठी उजवीकडे स्वाइप करा',
+        pttListening: 'ऐकत आहे...',
+        pttLocked: 'हँड्स-फ्री चालू',
+        recognizedSpeechTitle: 'ओळखलेले भाषण',
+        transcriptPlaceholder: 'तुमचे बोललेले व्हॉइस ट्रान्सक्रिप्ट येथे रिअल-टाइममध्ये दिसेल...',
+        pairedMeshHeader: 'पेअर केलेले ब्लूटूथ आणि मेश (0)',
+        btnPastDevices: 'मागील उपकरणे',
+        noSessionDevicesPlaceholder: 'या सत्रात कोणतेही उपकरण जोडलेले नाही.<br><span style="font-size:10px; color:var(--text-light); margin-top:2px; display:inline-block;">या सत्रादरम्यान तुम्ही कनेक्ट केलेली उपकरणे येथे दिसतील.</span>',
+        manualConnectTitle: 'मॅन्युअल डायरेक्ट आयपी / पोर्ट कनेक्शन',
+        modelsScreenTitle: 'भाषण आणि आवाज मॉडेल्स',
+        modelsScreenSubtitle: '100% ऑफलाइन संप्रेषणासाठी ऑन-डिव्हाइस स्पीच पॅक.',
+        navItemHome: 'रडार',
+        navItemModels: 'मॉडेल्स',
+        identityModalTitle: 'नोड ओळख आणि हार्डवेअर',
+        callsignLabel: 'कॉलसाइन / वापरकर्ता नाव',
+        deviceSpecsTitle: 'उपकरण तपशील',
+        btnSaveIdentity: 'बदल जतन करा',
+        onboardingStep1Title: 'तुमची पसंतीची भाषा निवडा',
+        onboardingStep1Sub: 'तुमची प्राथमिक भाषा निवडा. संपूर्ण ॲप इंटरफेस तुमच्या निवडीनुसार लगेच बदलेल.',
+        onboardingStep2Title: 'आपले वापरकर्ता नाव प्रविष्ट करा',
+        onboardingStep2Sub: 'हे कॉलसाइन ऑफलाइन LinC मेशवरील जवळपासच्या उपकरणांना तुमची ओळख करून देते.',
+        onboardingStep3Title: 'ऑफलाइन AI व्हॉइस मॉडेल स्थापित करा',
+        onboardingWhyModel: 'ऑफलाइन मॉडेलची गरज का आहे?',
+        onboardingModelDesc: 'LinC कोणत्याही मोबाइल टॉवर किंवा इंटरनेटशिवाय 100% ऑफलाइन कार्य करते. न्यूरल स्पीच रेकग्निशन आणि व्हॉइस सिंथेसिस थेट तुमच्या फोनवर चालते. मॉडेल निवडल्याने स्पष्ट ऑफलाइन वॉकी-टॉकी संप्रेषण सक्षम होते.',
+        btnNext: 'पुढे जा →',
+        btnBack: '← मागे',
+        btnInstallComplete: 'मॉडेल स्थापित करा आणि सुरू करा',
+        obIndicator1: 'टप्पा 1 / 3: पसंतीची भाषा',
+        obIndicator2: 'टप्पा 2 / 3: आपले वापरकर्ता नाव',
+        obIndicator3: 'टप्पा 3 / 3: ऑफलाइन AI व्हॉइस मॉडेल',
+        setupComplete: 'सेटअप पूर्ण! LinC ऑफलाइन मेश ट्रान्सिव्हर तयार आहे.'
+      },
+      bn: {
+        statusStandby: 'স্ট্যান্ডবাই',
+        statusConnected: 'সংযুক্ত',
+        btnHeaderSpecs: 'স্পেক্স',
+        heroDesc: 'LinC একটি সম্পূর্ণ অফলাইন, AI-চালিত বহুভাষিক<br>ভয়েস যোগাযোগ অ্যান্ড্রয়েড অ্যাপ্লিকেশন যা শূন্য-সংযোগ<br>পরিবেশে ব্যবহারের জন্য ডিজাইন করা হয়েছে।',
+        btnGetStarted: 'শুরু<br>করুন',
+        complianceFooterTitle: 'LinC. আর্কিটেকচার ও সম্মতি',
+        complianceFooterText: '১০০% অফলাইন · কোনো ক্লাউড নির্ভরতা নেই · নিউরাল ভয়েস রিকগনিশন + IndicTTS অডিও সংশ্লেষণ · সরাসরি IP/ZeroConf মেশ।',
+        searchingNearby: 'কাছাকাছি ডিভাইস খোঁজা হচ্ছে',
+        btnScan: 'স্ক্যান',
+        radarMyLabel: 'এই ফোন',
+        radarStatusSub: 'রাডার ২.৪/৫ গিগাহার্টজ ব্যান্ড স্ক্যান করছে… সংযোগ করতে যেকোনো ফোনে ট্যাপ করুন।',
+        speechLangTitle: 'কথোপকথনের ভাষা:',
+        pttMainLabel: 'কথা বলতে চাপুন',
+        pttStatusLabel: 'সম্প্রচারের জন্য ধরে রাখুন · হ্যান্ডস-ফ্রি লকের জন্য ডানে সোয়াইপ করুন',
+        pttListening: 'শুনছে...',
+        pttLocked: 'হ্যান্ডস-ফ্রি চালু',
+        recognizedSpeechTitle: 'শনাক্তকৃত কথা',
+        transcriptPlaceholder: 'আপনার বলা কণ্ঠের প্রতিলিপি এখানে রিয়েল-টাইমে প্রদর্শিত হবে...',
+        pairedMeshHeader: 'পেয়ার করা ব্লুটুথ এবং মেশ (0)',
+        btnPastDevices: 'পূর্ববর্তী ডিভাইস',
+        noSessionDevicesPlaceholder: 'এই সেশনে কোনো ডিভাইস সংযুক্ত নেই।<br><span style="font-size:10px; color:var(--text-light); margin-top:2px; display:inline-block;">এই সেশনের সময় আপনি যে ডিভাইসগুলিতে সংযুক্ত হবেন সেগুলি এখানে প্রদর্শিত হবে।</span>',
+        manualConnectTitle: 'ম্যানুয়াল ডাইরেক্ট আইপি / পোর্ট সংযোগ',
+        modelsScreenTitle: 'স্পিচ এবং ভয়েস মডেল',
+        modelsScreenSubtitle: '১০০% অফলাইন যোগাযোগের জন্য অন-ডিভাইস ভয়েস প্যাক।',
+        navItemHome: 'রাডার',
+        navItemModels: 'মডেল',
+        identityModalTitle: 'নোড পরিচয় এবং হার্ডওয়্যার',
+        callsignLabel: 'কলসাইন / ব্যবহারকারীর নাম',
+        deviceSpecsTitle: 'ডিভাইস স্পেসিফিকেশন',
+        btnSaveIdentity: 'পরিবর্তন সংরক্ষণ করুন',
+        onboardingStep1Title: 'পছন্দের ভাষা নির্বাচন করুন',
+        onboardingStep1Sub: 'আপনার প্রাথমিক ভাষা নির্বাচন করুন। সম্পূর্ণ অ্যাপ ইন্টারফেস অবিলম্বে আপনার পছন্দে পরিবর্তিত হবে।',
+        onboardingStep2Title: 'আপনার ব্যবহারকারীর নাম লিখুন',
+        onboardingStep2Sub: 'এই কলসাইনটি অফলাইন LinC মেশে কাছাকাছি ডিভাইসগুলিতে আপনার পরিচয় প্রকাশ করে।',
+        onboardingStep3Title: 'অফলাইন AI ভয়েস মডেল ইনস্টল করুন',
+        onboardingWhyModel: 'অফলাইন মডেলের কেন প্রয়োজন?',
+        onboardingModelDesc: 'LinC কোনো মোবাইল টাওয়ার বা ইন্টারনেট ছাড়াই ১০০% অফলাইনে কাজ করে। স্পিচ রিকগনিশন (ASR) এবং ভয়েস সিন্থেসিস (IndicTTS) সরাসরি আপনার ফোনে চলে। মডেল নির্বাচন স্পষ্ট অফলাইন ওয়াকি-টকি যোগাযোগ সক্ষম করে।',
+        btnNext: 'পরবর্তী →',
+        btnBack: '← পেছনে',
+        btnInstallComplete: 'মডেল ইনস্টল করুন এবং শুরু করুন',
+        obIndicator1: 'ধাপ ১ / ৩: পছন্দের ভাষা',
+        obIndicator2: 'ধাপ ২ / ৩: আপনার ব্যবহারকারীর নাম',
+        obIndicator3: 'ধাপ ৩ / ৩: অফলাইন AI ভয়েস মডেল',
+        setupComplete: 'সেটআপ সম্পন্ন! LinC অফলাইন মেশ ট্রান্সিভার প্রস্তুত।'
+      },
+      gu: {
+        statusStandby: 'સ્ટેન્ડબાય',
+        statusConnected: 'જોડાયેલ',
+        btnHeaderSpecs: 'વિગતો',
+        heroDesc: 'LinC એ સંપૂર્ણપણે ઑફલાઇન, AI-સંચાલિત બહુભાષી<br>વૉઇસ કમ્યુનિકેશન એન્ડ્રોઇડ એપ્લિકેશન છે જે શૂન્ય-કનેક્ટિવિટી<br>વાતાવરણ માટે રચાયેલ છે.',
+        btnGetStarted: 'શરૂ<br>કરો',
+        complianceFooterTitle: 'LinC. આર્કિટેક્ચર અને પાલન',
+        complianceFooterText: '100% ઑફલાઇન · શૂન્ય ક્લાઉડ નિર્ભરતા · ન્યુરલ વૉઇસ રેકગ્નિશન + IndicTTS ઑડિયો સિન્થેસિસ · ડાયરેક્ટ IP/ZeroConf મેશ.',
+        searchingNearby: 'નજીકના ઉપકરણો શોધી રહ્યાં છીએ',
+        btnScan: 'સ્કેન',
+        radarMyLabel: 'આ ફોન',
+        radarStatusSub: 'રડાર 2.4/5GHz લોકલ બેન્ડ સ્કેન કરી રહ્યું છે… લિંક કરવા માટે કોઈપણ ફોન પર ટેપ કરો.',
+        speechLangTitle: 'વાણી ભાષા:',
+        pttMainLabel: 'બોલવા માટે દબાવો',
+        pttStatusLabel: 'પ્રસારણ માટે પકડી રાખો · હેન્ડ્સ-ફ્રી લોક કરવા જમણે સ્વાઇપ કરો',
+        pttListening: 'સાંભળી રહ્યું છે...',
+        pttLocked: 'હેન્ડ્સ-ફ્રી ચાલુ',
+        recognizedSpeechTitle: 'ઓળખાયેલ ભાષણ',
+        transcriptPlaceholder: 'તમારું બોલાયેલ અવાજનું લખાણ અહીં રીઅલ-ટાઇમમાં દેખાશે...',
+        pairedMeshHeader: 'જોડી કરેલ બ્લૂટૂથ અને મેશ (0)',
+        btnPastDevices: 'પાછલા ઉપકરણો',
+        noSessionDevicesPlaceholder: 'આ સત્રમાં કોઈ ઉપકરણ જોડાયેલ નથી.<br><span style="font-size:10px; color:var(--text-light); margin-top:2px; display:inline-block;">આ સત્ર દરમિયાન તમે જે ઉપકરણો સાથે કનેક્ટ થશો તે અહીં દેખાશે.</span>',
+        manualConnectTitle: 'મેન્યુઅલ ડાયરેક્ટ IP / પોર્ટ કનેક્શન',
+        modelsScreenTitle: 'ભાષણ અને અવાજ મોડેલો',
+        modelsScreenSubtitle: '100% ઑફલાઇન કમ્યુનિકેશન માટે ઑન-ડિવાઇસ સ્પીચ પૅક્સ.',
+        navItemHome: 'રડાર',
+        navItemModels: 'મોડેલો',
+        identityModalTitle: 'નોડ ઓળખ અને હાર્ડવેર',
+        callsignLabel: 'કૉલસાઇન / વપરાશકર્તા નામ',
+        deviceSpecsTitle: 'ઉપકરણ વિશિષ્ટતાઓ',
+        btnSaveIdentity: 'ફેરફારો સાચવો',
+        onboardingStep1Title: 'પસંદગીની ભાષા પસંદ કરો',
+        onboardingStep1Sub: 'તમારી પ્રાથમિક ભાષા પસંદ કરો. સમગ્ર એપ્લિકેશન ઇન્ટરફેસ તરત જ તમારી પસંદગીમાં અનુકૂલિત થશે.',
+        onboardingStep2Title: 'તમારું વપરાશકર્તા નામ દાખલ કરો',
+        onboardingStep2Sub: 'આ કૉલસાઇન ઑફલાઇન LinC મેશ પર નજીકના સાથીઓને તમારા ઉપકરણની ઓળખ આપે છે.',
+        onboardingStep3Title: 'ઑફલાઇન AI વૉઇસ મોડેલ પસંદ કરો',
+        onboardingWhyModel: 'ઑફલાઇન મોડેલની શા માટે જરૂર છે?',
+        onboardingModelDesc: 'LinC કોઈપણ મોબાઈલ ટાવર કે ઈન્ટરનેટ વગર 100% ઑફલાઇન કામ કરે છે. ન્યુરલ સ્પીચ રેકગ્નિશન અને વૉઇસ સિન્થેસિસ સીધા તમારા ફોન પર ચાલે છે. મોડેલ પસંદ કરવાથી સ્પષ્ટ ઑફલાઇન વૉકી-ટૉકી કમ્યુનિકેશન સક્ષમ થાય છે.',
+        btnNext: 'આગળ વધો →',
+        btnBack: '← પાછળ',
+        btnInstallComplete: 'મોડેલ ઇન્સ્ટોલ કરો અને શરૂ કરો',
+        obIndicator1: 'પગલું 1 / 3: પસંદગીની ભાષા',
+        obIndicator2: 'પગલું 2 / 3: તમારું વપરાશકર્તા નામ',
+        obIndicator3: 'પગલું 3 / 3: ઑફલાઇન AI વૉઇસ મોડેલ',
+        setupComplete: 'સેટઅપ પૂર્ણ થયું! LinC ઑફલાઇન મેશ ટ્રાન્સસીવર તૈયાર છે.'
+      },
+      ta: {
+        statusStandby: 'காத்திருப்பு',
+        statusConnected: 'இணைக்கப்பட்டது',
+        btnHeaderSpecs: 'விவரம்',
+        heroDesc: 'LinC என்பது பூஜ்ஜிய-இணைப்பு சூழல்களில்<br>பயன்படுத்த வடிவமைக்கப்பட்ட முற்றிலும் ஆஃப்லைன்,<br>AI-இயங்கும் பலமொழி குரல் தொடர்பு பயன்பாடாகும்.',
+        btnGetStarted: 'தொடங்<br>கவும்',
+        complianceFooterTitle: 'LinC. கட்டமைப்பு மற்றும் இணக்கம்',
+        complianceFooterText: '100% ஆஃப்லைன் · பூஜ்ஜிய கிளவுட் சார்பு · நியூரல் குரல் அறிதல் + IndicTTS ஆடியோ தொகுப்பு · நேரடி IP/ZeroConf மெஷ்.',
+        searchingNearby: 'அருகிலுள்ள சாதனங்களைத் தேடுகிறது',
+        btnScan: 'ஸ்கேன்',
+        radarMyLabel: 'இந்த போன்',
+        radarStatusSub: 'ரேடார் 2.4/5GHz லோக்கல் பேண்டை ஸ்கேன் செய்கிறது… இணைக்க ஏதேனும் ஃபோன் குமிழியைத் தட்டவும்.',
+        speechLangTitle: 'பேச்சு மொழி:',
+        pttMainLabel: 'பேச அழுத்தவும்',
+        pttStatusLabel: 'ஒலிபரப்ப அழுத்திப் பிடிக்கவும் · ஹேண்ட்ஸ்-ஃப்ரீக்கு வலதுபுறம் ஸ்வைப் செய்யவும்',
+        pttListening: 'கேட்கிறது...',
+        pttLocked: 'ஹேண்ட்ஸ்-ஃப்ரீ ஆன்',
+        recognizedSpeechTitle: 'அடையாளம் காணப்பட்ட பேச்சு',
+        transcriptPlaceholder: 'நீங்கள் பேசிய குரல் உரை இங்கே நிகழ்நேரத்தில் தோன்றும்...',
+        pairedMeshHeader: 'இணைக்கப்பட்ட புளூடூத் & மெஷ் (0)',
+        btnPastDevices: 'முந்தைய சாதனங்கள்',
+        noSessionDevicesPlaceholder: 'இந்த அமர்வில் சாதனங்கள் எதுவும் இணைக்கப்படவில்லை.<br><span style="font-size:10px; color:var(--text-light); margin-top:2px; display:inline-block;">இந்த அமர்வின் போது நீங்கள் இணைக்கும் சாதனங்கள் இங்கே தோன்றும்.</span>',
+        manualConnectTitle: 'கைமுறை நேரடி ஐபி / போர்ட் இணைப்பு',
+        modelsScreenTitle: 'பேச்சு மற்றும் குரல் மாதிரிகள்',
+        modelsScreenSubtitle: '100% ஆஃப்லைன் தகவல்தொடர்புக்கான சாதன பேச்சு தொகுப்புகள்.',
+        navItemHome: 'ரேடார்',
+        navItemModels: 'மாதிரிகள்',
+        identityModalTitle: 'நோட் அடையாளம் & வன்பொருள்',
+        callsignLabel: 'அழைப்பு அடையாளம் / பயனர் பெயர்',
+        deviceSpecsTitle: 'சாதன விவரக்குறிப்புகள்',
+        btnSaveIdentity: 'மாற்றங்களை சேமிக்கவும்',
+        onboardingStep1Title: 'விருப்ப மொழியைத் தேர்ந்தெடுக்கவும்',
+        onboardingStep1Sub: 'உங்கள் முதன்மை மொழியைத் தேர்ந்தெடுக்கவும். முழு பயன்பாட்டு இடைமுகமும் உடனடியாக மாறும்.',
+        onboardingStep2Title: 'உங்கள் பயனர் பெயரை உள்ளிடவும்',
+        onboardingStep2Sub: 'இந்த அழைப்பு அடையாளம் ஆஃப்லைன் LinC மெஷில் உள்ள அருகிலுள்ள சாதனங்களுக்கு உங்களை அடையாளம் காட்டுகிறது.',
+        onboardingStep3Title: 'ஆஃப்லைன் AI குரல் மாதிரியைத் தேர்வுசெய்க',
+        onboardingWhyModel: 'ஆஃப்லைன் மாதிரி ஏன் தேவைப்படுகிறது?',
+        onboardingModelDesc: 'LinC எந்த மொபைல் டவர் அல்லது இணையமும் இல்லாமல் 100% ஆஃப்லைனில் செயல்படுகிறது. பேச்சு அறிதல் மற்றும் குரல் தொகுப்பு நேரடியாக உங்கள் தொலைபேசியில் இயங்கும். மாதிரியைத் தேர்ந்தெடுப்பது தெளிவான ஆஃப்லைன் வாக்கி-டாக்கி தொடர்பை செயல்படுத்துகிறது.',
+        btnNext: 'அடுத்து →',
+        btnBack: '← பின்',
+        btnInstallComplete: 'மாதிரியை நிறுவி தொடங்கவும்',
+        obIndicator1: 'படி 1 / 3: விருப்ப மொழி',
+        obIndicator2: 'படி 2 / 3: உங்கள் பயனர் பெயர்',
+        obIndicator3: 'படி 3 / 3: ஆஃப்லைன் AI குரல் மாதிரி',
+        setupComplete: 'அமைப்பு முடிந்தது! LinC ஆஃப்லைன் மெஷ் டிரான்ஸ்ஸீவர் தயார்.'
+      },
+      te: {
+        statusStandby: 'స్టాండ్‌బై',
+        statusConnected: 'కనెక్ట్ అయింది',
+        btnHeaderSpecs: 'వివరాలు',
+        heroDesc: 'LinC అనేది జీరో-కనెక్టివిటీ వాతావరణంలో<br>ఉపయోగించడానికి రూపొందించబడిన పూర్తిగా ఆఫ్‌లైన్,<br>AI-ఆధారిత బహుభాషా వాయిస్ కమ్యూనికేషన్ యాప్.',
+        btnGetStarted: 'ప్రారంభిం<br>చండి',
+        complianceFooterTitle: 'LinC. ఆర్కిటెక్చర్ & వర్తింపు',
+        complianceFooterText: '100% ఆఫ్‌లైన్ · క్లౌడ్ ఆధారపడటం లేదు · న్యూరల్ వాయిస్ రికగ్నిషన్ + IndicTTS ఆడియో సింథసిస్ · డైరెక్ట్ IP/ZeroConf మెష్.',
+        searchingNearby: 'సమీపంలోని పరికరాలను వెతుకుతోంది',
+        btnScan: 'స్కాన్',
+        radarMyLabel: 'ఈ ఫోన్',
+        radarStatusSub: 'రాడార్ 2.4/5GHz లోకల్ బ్యాండ్‌ను స్కాన్ చేస్తోంది… లింక్ చేయడానికి ఏదైనా ఫోన్ బబుల్‌ను నొక్కండి.',
+        speechLangTitle: 'సంభాషణ భాష:',
+        pttMainLabel: 'మాట్లాడటానికి నొక్కండి',
+        pttStatusLabel: 'ప్రసారానికి పట్టుకోండి · హ్యాండ్స్-ఫ్రీ లాక్ చేయడానికి కుడివైపు స్వైప్ చేయండి',
+        pttListening: 'వింటోంది...',
+        pttLocked: 'హ్యాండ్స్-ఫ్రీ ఆన్',
+        recognizedSpeechTitle: 'గుర్తించిన సంభాషణ',
+        transcriptPlaceholder: 'మీరు మాట్లాడిన వాయిస్ ట్రాన్స్‌క్రిప్ట్ ఇక్కడ రియల్-టైమ్‌లో కనిపిస్తుంది...',
+        pairedMeshHeader: 'జతచేసిన బ్లూటూత్ మరియు మెష్ (0)',
+        btnPastDevices: 'గత పరికరాలు',
+        noSessionDevicesPlaceholder: 'ఈ సెషన్‌లో పరికరాలు కనెక్ట్ కాలేదు.<br><span style="font-size:10px; color:var(--text-light); margin-top:2px; display:inline-block;">ఈ సెషన్‌లో మీరు కనెక్ట్ అయ్యే పరికరాలు ఇక్కడ కనిపిస్తాయి.</span>',
+        manualConnectTitle: 'మాన్యువల్ డైరెక్ట్ IP / పోర్ట్ కనెక్షన్',
+        modelsScreenTitle: 'స్పీచ్ మరియు వాయిస్ మోడల్స్',
+        modelsScreenSubtitle: '100% ఆఫ్‌లైన్ కమ్యూనికేషన్ కోసం ఆన్-డివైస్ స్పీచ్ ప్యాక్‌లు.',
+        navItemHome: 'రాడార్',
+        navItemModels: 'మోడల్స్',
+        identityModalTitle: 'నోడ్ గుర్తింపు & హార్డ్‌వేర్',
+        callsignLabel: 'కాల్‌సైన్ / వినియోగదారు పేరు',
+        deviceSpecsTitle: 'పరికర స్పెసిఫికేషన్లు',
+        btnSaveIdentity: 'మార్పులను సేవ్ చేయండి',
+        onboardingStep1Title: 'ప్రాధాన్య భాషను ఎంచుకోండి',
+        onboardingStep1Sub: 'మీ ప్రాథమిక భాషను ఎంచుకోండి. మొత్తం యాప్ ఇంటర్‌ఫేస్ వెంటనే మీ ఎంపికకు అనుగుణంగా మారుతుంది.',
+        onboardingStep2Title: 'మీ వినియోగదారు పేరును నమోదు చేయండి',
+        onboardingStep2Sub: 'ఈ కాల్‌సైన్ ఆఫ్‌లైన్ LinC మెష్‌లో సమీప పరికరాలకు మీ పరికరాన్ని గుర్తిస్తుంది.',
+        onboardingStep3Title: 'ఆఫ్‌లైన్ AI వాయిస్ మోడల్‌ను ఎంచుకోండి',
+        onboardingWhyModel: 'ఆఫ్‌లైన్ మోడల్ ఎందుకు అవసరం?',
+        onboardingModelDesc: 'LinC ఎటువంటి మొబైల్ టవర్లు లేదా ఇంటర్నెట్ లేకుండా 100% ఆఫ్‌లైన్‌లో పనిచేస్తుంది. స్పీచ్ రికగ్నిషన్ మరియు వాయిస్ సింథసిస్ నేరుగా మీ ఫోన్‌లో నడుస్తాయి. మోడల్‌ను ఎంచుకోవడం స్పష్టమైన ఆఫ్‌లైన్ వాకీ-టాకీ కమ్యూనికేషన్‌ను ప్రారంభిస్తుంది.',
+        btnNext: 'తదుపరి →',
+        btnBack: '← వెనుకకు',
+        btnInstallComplete: 'మోడల్‌ను ఇన్‌స్టాల్ చేసి ప్రారంభించండి',
+        obIndicator1: 'దశ 1 / 3: ప్రాధాన్య భాష',
+        obIndicator2: 'దశ 2 / 3: మీ వినియోగదారు పేరు',
+        obIndicator3: 'దశ 3 / 3: ఆఫ్‌లైన్ AI వాయిస్ మోడల్',
+        setupComplete: 'సెటప్ పూర్తయింది! LinC ఆఫ్‌లైన్ మెష్ ట్రాన్స్‌సీవర్ సిద్ధంగా ఉంది.'
+      },
+      kn: {
+        statusStandby: 'ಸ್ಟ್ಯಾಂಡ್‌ಬೈ',
+        statusConnected: 'ಸಂಪರ್ಕಗೊಂಡಿದೆ',
+        btnHeaderSpecs: 'ವಿವರಗಳು',
+        heroDesc: 'LinC ಸಂಪೂರ್ಣವಾಗಿ ಆಫ್‌ಲೈನ್, AI-ಚಾಲಿತ ಬಹುಭಾಷಾ<br>ಧ್ವನಿ ಸಂವಹನ ಆಂಡ್ರಾಯ್ಡ್ ಅಪ್ಲಿಕೇಶನ್ ಆಗಿದ್ದು, ಶೂನ್ಯ-ಸಂಪರ್ಕ<br>ಪರಿಸರದಲ್ಲಿ ಬಳಸಲು ವಿನ್ಯಾಸಗೊಳಿಸಲಾಗಿದೆ.',
+        btnGetStarted: 'ಪ್ರಾರಂಭಿ<br>ಸಿ',
+        complianceFooterTitle: 'LinC. ವಾಸ್ತುಶಿಲ್ಪ ಮತ್ತು ಅನುಸರಣೆ',
+        complianceFooterText: '100% ಆಫ್‌ಲೈನ್ · ಶೂನ್ಯ ಕ್ಲೌಡ್ ಅವಲಂಬನೆ · ನರ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ + IndicTTS ಆಡಿಯೊ ಸಂಶ್ಲೇಷಣೆ · ನೇರ IP/ZeroConf ಮೆಶ್.',
+        searchingNearby: 'ಹತ್ತಿರದ ಸಾಧನಗಳನ್ನು ಹುಡುಕಲಾಗುತ್ತಿದೆ',
+        btnScan: 'ಸ್ಕ್ಯಾನ್',
+        radarMyLabel: 'ಈ ಫೋನ್',
+        radarStatusSub: 'ರಾಡಾರ್ 2.4/5GHz ಲೋಕಲ್ ಬ್ಯಾಂಡ್ ಸ್ಕ್ಯಾನ್ ಮಾಡುತ್ತಿದೆ… ಲಿಂಕ್ ಮಾಡಲು ಪತ್ತೆಯಾದ ಯಾವುದೇ ಫೋನ್ ಮೇಲೆ ಟ್ಯಾಪ್ ಮಾಡಿ.',
+        speechLangTitle: 'ಮಾತಿನ ಭಾಷೆ:',
+        pttMainLabel: 'ಮಾತನಾಡಲು ಒತ್ತಿರಿ',
+        pttStatusLabel: 'ಪ್ರಸಾರಕ್ಕೆ ಹಿಡಿದುಕೊಳ್ಳಿ · ಹ್ಯಾಂಡ್ಸ್-ಫ್ರೀ ಲಾಕ್ ಮಾಡಲು ಬಲಕ್ಕೆ ಸ್ವೈಪ್ ಮಾಡಿ',
+        pttListening: 'ಕೇಳಿಸಿಕೊಳ್ಳುತ್ತಿದೆ...',
+        pttLocked: 'ಹ್ಯಾಂಡ್ಸ್-ಫ್ರೀ ಆನ್',
+        recognizedSpeechTitle: 'ಗುರುತಿಸಲಾದ ಮಾತು',
+        transcriptPlaceholder: 'ನಿಮ್ಮ ಮಾತಿನ ಧ್ವನಿ ಪ್ರತಿಲೇಖನವು ನೈಜ ಸಮಯದಲ್ಲಿ ಇಲ್ಲಿ ಗೋಚರಿಸುತ್ತದೆ...',
+        pairedMeshHeader: 'ಜೋಡಿಸಲಾದ ಬ್ಲೂಟೂತ್ ಮತ್ತು ಮೆಶ್ (0)',
+        btnPastDevices: 'ಹಿಂದಿನ ಸಾಧನಗಳು',
+        noSessionDevicesPlaceholder: 'ಈ ಅವಧಿಯಲ್ಲಿ ಯಾವುದೇ ಸಾಧನಗಳು ಸಂಪರ್ಕಗೊಂಡಿಲ್ಲ.<br><span style="font-size:10px; color:var(--text-light); margin-top:2px; display:inline-block;">ಈ ಅವಧಿಯಲ್ಲಿ ನೀವು ಸಂಪರ್ಕಿಸುವ ಸಾಧನಗಳು ಇಲ್ಲಿ ಗೋಚರಿಸುತ್ತವೆ.</span>',
+        manualConnectTitle: 'ಹಸ್ತಚಾಲಿತ ನೇರ IP / ಪೋರ್ಟ್ ಸಂಪರ್ಕ',
+        modelsScreenTitle: 'ಧ್ವನಿ ಮತ್ತು ವಾಕ್ ಮಾದರಿಗಳು',
+        modelsScreenSubtitle: '100% ಆಫ್‌ಲೈನ್ ಸಂವಹನಕ್ಕಾಗಿ ಸಾಧನದಲ್ಲಿನ ಸ್ಪೀಚ್ ಪ್ಯಾಕ್‌ಗಳು.',
+        navItemHome: 'ರಾಡಾರ್',
+        navItemModels: 'ಮಾದರಿಗಳು',
+        identityModalTitle: 'ನೋಡ್ ಗುರುತು ಮತ್ತು ಯಂತ್ರಾಂಶ',
+        callsignLabel: 'ಕಾಲ್‌ಸೈನ್ / ಬಳಕೆದಾರ ಹೆಸರು',
+        deviceSpecsTitle: 'ಸಾಧನದ ವಿವರಣೆಗಳು',
+        btnSaveIdentity: 'ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಿ',
+        onboardingStep1Title: 'ಆದ್ಯತೆಯ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ',
+        onboardingStep1Sub: 'ನಿಮ್ಮ ಪ್ರಾಥಮಿಕ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ. ಸಂಪೂರ್ಣ ಅಪ್ಲಿಕೇಶನ್ ತಕ್ಷಣವೇ ಈ ಭಾಷೆಗೆ ಹೊಂದಿಕೊಳ್ಳುತ್ತದೆ.',
+        onboardingStep2Title: 'ನಿಮ್ಮ ಬಳಕೆದಾರ ಹೆಸರನ್ನು ನಮೂದಿಸಿ',
+        onboardingStep2Sub: 'ಈ ಕಾಲ್‌ಸೈನ್ ಆಫ್‌ಲೈನ್ LinC ಮೆಶ್‌ನಲ್ಲಿ ಹತ್ತಿರದ ಸಾಧನಗಳಿಗೆ ನಿಮ್ಮ ಸಾಧನವನ್ನು ಗುರುತಿಸುತ್ತದೆ.',
+        onboardingStep3Title: 'ಆಫ್‌ಲೈನ್ AI ಧ್ವನಿ ಮಾದರಿಯನ್ನು ಆಯ್ಕೆಮಾಡಿ',
+        onboardingWhyModel: 'ಆಫ್‌ಲೈನ್ ಮಾದರಿಯು ಏಕೆ ಅಗತ್ಯವಿದೆ?',
+        onboardingModelDesc: 'LinC ಯಾವುದೇ ಮೊಬೈಲ್ ಟವರ್ ಅಥವಾ ಇಂಟರ್ನೆಟ್ ಇಲ್ಲದೆ 100% ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿ ಕಾರ್ಯನಿರ್ವಹಿಸುತ್ತದೆ. ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ ಮತ್ತು ಸಂಶ್ಲೇಷಣೆ ನೇರವಾಗಿ ನಿಮ್ಮ ಫೋನ್‌ನಲ್ಲಿ ಚಲಿಸುತ್ತದೆ. ಮಾದರಿಯನ್ನು ಆಯ್ಕೆ ಮಾಡುವುದರಿಂದ ಸ್ಪಷ್ಟ ಆಫ್‌ಲೈನ್ ವಾಕಿ-ಟಾಕಿ ಸಂವಹನ ಸಾಧ್ಯವಾಗುತ್ತದೆ.',
+        btnNext: 'ಮುಂದೆ →',
+        btnBack: '← ಹಿಂದಕ್ಕೆ',
+        btnInstallComplete: 'ಮಾದರಿಯನ್ನು ಸ್ಥಾಪಿಸಿ ಮತ್ತು ಪ್ರಾರಂಭಿಸಿ',
+        obIndicator1: 'ಹಂತ 1 / 3: ಆದ್ಯತೆಯ ಭಾಷೆ',
+        obIndicator2: 'ಹಂತ 2 / 3: ನಿಮ್ಮ ಬಳಕೆದಾರ ಹೆಸರು',
+        obIndicator3: 'ಹಂತ 3 / 3: ಆಫ್‌ಲೈನ್ AI ಧ್ವನಿ ಮಾದರಿ',
+        setupComplete: 'ಸೆಟಪ್ ಪೂರ್ಣಗೊಂಡಿದೆ! LinC ಆಫ್‌ಲೈನ್ ಮೆಶ್ ಟ್ರಾನ್ಸಿವರ್ ಸಿದ್ಧವಾಗಿದೆ.'
+      }
+    };
+
+    window.applyAppLanguage = function (lang) {
+      if (!LINC_I18N[lang]) lang = 'en';
+      const dict = LINC_I18N[lang];
+      document.documentElement.lang = lang;
+
+      // Update text in elements with data-i18n
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (dict && dict[key]) {
+          el.innerHTML = dict[key];
+        } else if (LINC_I18N['en'] && LINC_I18N['en'][key]) {
+          el.innerHTML = LINC_I18N['en'][key];
+        }
+      });
+
+      // Update placeholders
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (dict && dict[key]) {
+          el.placeholder = dict[key];
+        }
+      });
+
+      // Update PTT main label if not locked
+      if ($('pttMainLabel')) {
+        if (isPttLocked) {
+          $('pttMainLabel').textContent = dict.pttLocked || 'HANDS-FREE ON';
+        } else if (isPttListening) {
+          $('pttMainLabel').textContent = dict.pttListening || 'LISTENING...';
+        } else {
+          $('pttMainLabel').textContent = dict.pttMainLabel || 'PUSH TO TALK';
+        }
+      }
+
+      // Update Radar language pills / dropdown active state
+      const hiBtn = $('radarLangHi');
+      const enBtn = $('radarLangEn');
+      const ddBtn = $('radarLangDropdownBtn');
+      if (hiBtn) hiBtn.classList.toggle('active', lang === 'hi');
+      if (enBtn) enBtn.classList.toggle('active', lang === 'en');
+      if (ddBtn) {
+        ddBtn.classList.toggle('active', lang !== 'hi' && lang !== 'en');
+        if (lang !== 'hi' && lang !== 'en' && LANG_META[lang]) {
+          const ddPrimary = $('radarLangDropdownPrimary');
+          const ddCode = $('radarLangDropdownCode');
+          if (ddPrimary) ddPrimary.textContent = LANG_META[lang].primary;
+          if (ddCode) ddCode.textContent = LANG_META[lang].code;
+          ddBtn.setAttribute('data-lang', lang);
+        }
+      }
+
+      // Update dropdown items active check
+      document.querySelectorAll('.radar-dropdown-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-lang') === lang);
+      });
+
+      // Update radar status label if present
+      if ($('radarStatusSub')) {
+        const label = langNames[lang] || lang;
+        $('radarStatusSub').innerHTML = `Active Speech: <b>${label}</b> · <span style="color:#0f172a">AI4Bharat Indic-TTS</span>`;
+      }
+
+      updateOnboardingStepDisplay();
     };
 
     window.toggleLanguageDropdown = function (e) {
@@ -4293,7 +5099,7 @@
       });
 
       if (dd) dd.classList.add('hidden');
-      setRadarLanguage(lang);
+      setRadarLanguage(lang, true);
     };
 
     // Close language dropdown on outside click
@@ -4307,17 +5113,13 @@
       }
     });
 
-    window.setRadarLanguage = function (lang) {
+    window.setRadarLanguage = function (lang, syncUI = true) {
       currentLanguage = lang;
+      safeSet('linc_preferred_lang', lang);
 
-      // Update active pill highlight
-      const hiBtn = $('radarLangHi');
-      const enBtn = $('radarLangEn');
-      const ddBtn = $('radarLangDropdownBtn');
-
-      if (hiBtn) hiBtn.classList.toggle('active', lang === 'hi');
-      if (enBtn) enBtn.classList.toggle('active', lang === 'en');
-      if (ddBtn) ddBtn.classList.toggle('active', lang !== 'hi' && lang !== 'en');
+      if (syncUI) {
+        applyAppLanguage(lang);
+      }
 
       command('language', { language: lang });
 
@@ -4327,12 +5129,174 @@
       }
 
       if ($('pttMainLabel') && !isPttLocked) {
-        $('pttMainLabel').textContent = 'PUSH TO TALK';
+        const dict = LINC_I18N[lang] || LINC_I18N['en'];
+        $('pttMainLabel').textContent = dict.pttMainLabel || 'PUSH TO TALK';
       }
 
       showToast(`Language set to ${label}. Using AI4Bharat Indic-TTS.`);
       checkCurrentSpeechModelStatus();
     };
+
+    // Onboarding Wizard Implementation
+    let onboardingStep = 1;
+    let onboardingSelectedLang = 'hi';
+
+    window.openOnboardingModal = function () {
+      const modal = $('onboardingModal');
+      if (!modal) return;
+      onboardingSelectedLang = safeGet('linc_preferred_lang', 'hi');
+      setOnboardingStep(1);
+      modal.classList.remove('hidden');
+    };
+
+    window.selectOnboardingLanguage = function (lang) {
+      onboardingSelectedLang = lang;
+      document.querySelectorAll('#obLangGrid .onboarding-lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-ob-lang') === lang);
+      });
+      applyAppLanguage(lang);
+      updateOnboardingModelPreview();
+      if (navigator.vibrate) {
+        try { navigator.vibrate(10); } catch (e) { }
+      }
+    };
+
+    window.setOnboardingStep = function (step) {
+      onboardingStep = step;
+      $('obStep1Content').classList.toggle('hidden', step !== 1);
+      $('obStep2Content').classList.toggle('hidden', step !== 2);
+      $('obStep3Content').classList.toggle('hidden', step !== 3);
+
+      $('obSeg1').classList.toggle('active', step >= 1);
+      $('obSeg2').classList.toggle('active', step >= 2);
+      $('obSeg3').classList.toggle('active', step >= 3);
+
+      updateOnboardingStepDisplay();
+
+      if (step === 1) {
+        document.querySelectorAll('#obLangGrid .onboarding-lang-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.getAttribute('data-ob-lang') === onboardingSelectedLang);
+        });
+      } else if (step === 2) {
+        const inp = $('obUsernameInput');
+        if (inp) {
+          if (!inp.value || inp.value === 'RO') {
+            inp.value = (callsign && callsign !== 'RO') ? callsign : 'Rohit';
+          }
+          onOnboardingUsernameInput();
+          setTimeout(() => inp.focus(), 150);
+        }
+      } else if (step === 3) {
+        updateOnboardingModelPreview();
+      }
+    };
+
+    function updateOnboardingStepDisplay() {
+      const lang = onboardingSelectedLang || 'hi';
+      const dict = LINC_I18N[lang] || LINC_I18N['en'];
+      const indicator = $('obStepIndicator');
+      if (indicator && dict) {
+        if (onboardingStep === 1) indicator.textContent = dict.obIndicator1 || 'Step 1 of 3: Preferred Language';
+        else if (onboardingStep === 2) indicator.textContent = dict.obIndicator2 || 'Step 2 of 3: Your Username';
+        else if (onboardingStep === 3) indicator.textContent = dict.obIndicator3 || 'Step 3 of 3: Offline AI Voice Model';
+      }
+    }
+
+    const MODEL_NAMES_BY_LANG = {
+      hi: { name: 'Hindi Neural Voice & ASR Pack', meta: 'AI4Bharat IndicConformer + IndicTTS · ~155 MB' },
+      en: { name: 'Indian English Neural Voice & ASR Pack', meta: 'AI4Bharat IndicConformer + IndicTTS · ~46 MB' },
+      mr: { name: 'Marathi Neural Voice & ASR Pack', meta: 'AI4Bharat IndicConformer + IndicTTS · ~155 MB' },
+      bn: { name: 'Bengali Neural Voice & ASR Pack', meta: 'AI4Bharat IndicConformer + IndicTTS · ~153 MB' },
+      gu: { name: 'Gujarati Neural Voice & ASR Pack', meta: 'AI4Bharat IndicConformer + IndicTTS · ~155 MB' },
+      ta: { name: 'Tamil Neural Voice & ASR Pack', meta: 'AI4Bharat IndicConformer + IndicTTS · ~155 MB' },
+      te: { name: 'Telugu Neural Voice & ASR Pack', meta: 'AI4Bharat IndicConformer + IndicTTS · ~154 MB' },
+      kn: { name: 'Kannada Neural Voice & ASR Pack', meta: 'AI4Bharat IndicConformer + IndicTTS · ~155 MB' }
+    };
+
+    function updateOnboardingModelPreview() {
+      const info = MODEL_NAMES_BY_LANG[onboardingSelectedLang] || MODEL_NAMES_BY_LANG['hi'];
+      if ($('obModelName')) $('obModelName').textContent = info.name;
+      if ($('obModelMeta')) $('obModelMeta').textContent = info.meta;
+    }
+
+    window.onOnboardingUsernameInput = function () {
+      const inp = $('obUsernameInput');
+      const btn = $('btnObNext2');
+      const err = $('obUsernameValidation');
+      if (!inp || !btn) return;
+      const val = inp.value.trim();
+      const isValid = val.length >= 2;
+      btn.disabled = !isValid;
+      if (err) {
+        err.style.display = (inp.value.length > 0 && !isValid) ? 'block' : 'none';
+      }
+    };
+
+    window.submitOnboardingStep2 = function () {
+      const inp = $('obUsernameInput');
+      if (!inp) return;
+      const val = inp.value.trim();
+      if (val.length < 2) {
+        inp.focus();
+        if ($('obUsernameValidation')) $('obUsernameValidation').style.display = 'block';
+        return;
+      }
+      callsign = val;
+      safeSet('itantra_callsign', callsign);
+      safeSet('linc_username', callsign);
+      updateCallsignDisplays();
+      setOnboardingStep(3);
+    };
+
+    window.completeOnboarding = function () {
+      const completeBtn = $('btnObComplete');
+      if (completeBtn) {
+        completeBtn.disabled = true;
+        completeBtn.textContent = 'Installing...';
+      }
+
+      const lang = onboardingSelectedLang || 'hi';
+      safeSet('linc_onboarding_completed', 'true');
+      safeSet('linc_preferred_lang', lang);
+      safeSet('linc_selected_models', JSON.stringify([lang]));
+
+      command('downloadSelected', { languages: [lang] });
+      command('downloadModel');
+
+      if (navigator.vibrate) {
+        try { navigator.vibrate([15, 60, 20]); } catch (e) {}
+      }
+
+      setTimeout(() => {
+        $('onboardingModal').classList.add('hidden');
+        setRadarLanguage(lang, false);
+        switchTab('viewTransceiver');
+        const dict = LINC_I18N[lang] || LINC_I18N['en'];
+        showToast(dict.setupComplete || 'LinC setup complete! Transceiver ready.');
+      }, 300);
+    };
+
+    // Native boot complete callback (invoked by MainActivity when splash animation finishes)
+    window.onBootCompleted = function () {
+      isBooting = false;
+      document.body.classList.remove('app-booting');
+
+      const isCompleted = localStorage.getItem('linc_onboarding_completed') === 'true';
+      const savedLang = localStorage.getItem('linc_preferred_lang') || 'hi';
+      applyAppLanguage(savedLang);
+
+      if (isCompleted) {
+        setRadarLanguage(savedLang, false);
+        switchTab('viewTransceiver');
+      }
+    };
+
+    // Failsafe timer: unblock after 3.8s if running outside Android or splash ended early
+    setTimeout(() => {
+      if (isBooting) {
+        window.onBootCompleted();
+      }
+    }, 3800);
 
     // --- SELECTIVE MODEL DOWNLOAD & STORAGE MANAGEMENT ---
     const TOTAL_BUNDLE_SIZE_MB = 2035;
