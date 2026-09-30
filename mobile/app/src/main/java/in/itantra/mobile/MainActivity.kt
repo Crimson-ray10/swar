@@ -100,6 +100,7 @@ class MainActivity : Activity() {
             settings.allowContentAccess = false
             settings.blockNetworkLoads = true
             addJavascriptInterface(Bridge(), "iTantra")
+            addJavascriptInterface(Bridge(), "LinC")
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = true
 
@@ -484,6 +485,7 @@ class MainActivity : Activity() {
         transport.close()
         web?.apply {
             removeJavascriptInterface("iTantra")
+            removeJavascriptInterface("LinC")
             destroy()
         }
         web = null

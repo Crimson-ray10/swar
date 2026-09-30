@@ -58,7 +58,7 @@ public final class LocalTransport {
         this.listener = listener;
         nsd = (NsdManager) context.getSystemService(Context.NSD_SERVICE);
         WifiManager wifi = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        multicast = wifi.createMulticastLock("itantra-discovery");
+        multicast = wifi.createMulticastLock("linc-discovery");
         multicast.setReferenceCounted(false);
         clock.scheduleWithFixedDelay(this::tick, 2, 2, TimeUnit.SECONDS);
         startListening();
@@ -630,7 +630,7 @@ public final class LocalTransport {
         if (registration != null) return;
         NsdServiceInfo info = new NsdServiceInfo();
         String nodeName = callsign != null && !callsign.isEmpty() ? callsign : Build.MODEL;
-        info.setServiceName("iTantra-" + nodeName.replaceAll("[^a-zA-Z0-9-]", "") + "-" + session.toString().substring(0, 4));
+        info.setServiceName("LinC-" + nodeName.replaceAll("[^a-zA-Z0-9-]", "") + "-" + session.toString().substring(0, 4));
         info.setServiceType("_itantra._tcp.");
         info.setPort(8988);
         registration = new NsdManager.RegistrationListener() {

@@ -2883,24 +2883,17 @@
 
       <!-- Home Footer Terms & Compliance Notice -->
       <footer class="home-compliance-footer">
-        <div class="compliance-footer-title">PS-26173 Mandate Compliance</div>
+        <div class="compliance-footer-title">LinC. Architecture & Compliance</div>
         <p class="compliance-footer-text">
-          100% Offline · Zero Cloud Dependencies · Open Source TorchScript [BitStream] + AI4Bharat IndicTTS Audio
-          synthesis · Direct IP/ZeroConf P2P Mesh (Meets all SIH2026 specifications).
+          100% Offline · Zero Cloud Dependencies · Neural Voice Recognition + IndicTTS Audio
+          synthesis · Direct IP/ZeroConf P2P Mesh.
         </p>
       </footer>
     </section>
 
     <!-- 2. RADIO TRANSCEIVER SCREEN (Screen 2) -->
     <section id="viewTransceiver" class="view-page hidden">
-      <!-- Transceiver Header Details -->
-      <div style="display:flex; align-items:center; justify-content:flex-end; margin-bottom:14px; padding:0 2px;">
-        <span id="scanStatusText" style="display:none;"></span>
-        <div style="display:flex; gap:6px;">
-          <span class="header-pill pill-neutral" id="rssiBadge">Rssi: -71</span>
-        </div>
-      </div>
-
+      <span id="scanStatusText" style="display:none;"></span>
 
       <!-- RADAR SCANNER -->
       <div class="radar-card" id="radarCardUnit">
@@ -3048,30 +3041,6 @@
                 </div>
                 <span class="item-check">✓</span>
               </button>
-              <button type="button" class="radar-dropdown-item" data-lang="bn"
-                onclick="selectDropdownLanguage('bn', 'বাংলা', 'bn-IN')">
-                <div>
-                  <span class="item-title">বাংলা</span>
-                  <span class="item-sub">Bengali · bn-IN</span>
-                </div>
-                <span class="item-check">✓</span>
-              </button>
-              <button type="button" class="radar-dropdown-item" data-lang="or"
-                onclick="selectDropdownLanguage('or', 'ଓଡ଼ିଆ', 'or-IN')">
-                <div>
-                  <span class="item-title">ଓଡ଼ିଆ</span>
-                  <span class="item-sub">Odia · or-IN</span>
-                </div>
-                <span class="item-check">✓</span>
-              </button>
-              <button type="button" class="radar-dropdown-item" data-lang="pa"
-                onclick="selectDropdownLanguage('pa', 'ਪੰਜਾਬੀ', 'pa-IN')">
-                <div>
-                  <span class="item-title">ਪੰਜਾਬੀ</span>
-                  <span class="item-sub">Punjabi · pa-IN</span>
-                </div>
-                <span class="item-check">✓</span>
-              </button>
             </div>
           </div>
 
@@ -3157,48 +3126,6 @@
           Recognized Speech</div>
         <div id="transcriptPreview" style="font-size:13px; color:#111827; min-height:22px; line-height:1.4;">
           Your spoken voice transcript will appear here in real time...
-        </div>
-      </div>
-
-      <!-- Host Beacon & Search Peers Toggle Switches -->
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:14px;">
-        <div class="card" style="padding:14px; margin-bottom:0;">
-          <div class="switch-container">
-            <div>
-              <div style="font-size:13px; font-weight:800;">Host Beacon</div>
-              <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Discoverable to peers</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="toggleHost">
-              <span class="slider"></span>
-            </label>
-          </div>
-          <!-- Hosting PIN & Address Box -->
-          <div id="hostInfoBox" class="hidden" style="margin-top:12px; padding-top:10px; border-top:1px solid #f1f3f5;">
-            <div style="font-size:9px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Joining PIN
-            </div>
-            <div id="displayPin"
-              style="font-size:24px; font-weight:900; letter-spacing:4px; color:#111827; margin:2px 0;">------</div>
-            <div id="displayAddress" style="font-size:9px; color:var(--text-muted); font-family:monospace;">Waiting for
-              local IP...</div>
-          </div>
-        </div>
-
-        <div class="card" style="padding:14px; margin-bottom:0;">
-          <div class="switch-container">
-            <div>
-              <div style="font-size:13px; font-weight:800;">Search Peers</div>
-              <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Scan for nodes</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="toggleDiscover" checked>
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div
-            style="margin-top:12px; padding-top:10px; border-top:1px solid #f1f3f5; font-size:10px; color:var(--text-muted);">
-            <span id="activePeerCounter">Scanning 2.4/5GHz...</span>
-          </div>
         </div>
       </div>
 
@@ -3438,9 +3365,9 @@
       <!-- Top Section Header -->
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; padding:0 2px;">
         <div>
-          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">PS-26173 Specifications</div>
+          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">LinC. Specifications</div>
         </div>
-        <span class="header-pill pill-neutral">SIH2026</span>
+        <span class="header-pill pill-neutral">Offline P2P</span>
       </div>
 
       <!-- 4 Core Feature Cards (2x2 Grid) -->
@@ -3473,9 +3400,8 @@
               <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
             </svg>
           </div>
-          <div class="feature-title">10 Indic Languages</div>
-          <div class="feature-desc">AI4Bharat Multilingual. Hindi, Gujarati, Marathi, Kannada, Malayalam, Tamil, Telugu,
-            Odia, Bengali, English.</div>
+          <div class="feature-title">8 Supported Languages</div>
+          <div class="feature-desc">AI4Bharat Multilingual: Hindi, English, Marathi, Gujarati, Tamil, Telugu, Kannada, Malayalam.</div>
         </div>
 
         <div class="feature-card">
@@ -3849,8 +3775,9 @@
 
     // Native Bridge Wrapper
     function command(action, data = {}) {
-      if (window.iTantra) {
-        window.iTantra.command(action, JSON.stringify(data));
+      const bridge = window.LinC || window.iTantra;
+      if (bridge) {
+        bridge.command(action, JSON.stringify(data));
       } else {
         showToast('Open the installed Android app to use mesh networking and speech.');
       }
@@ -4218,7 +4145,7 @@
         'viewHome': ['', ''],
         'viewTransceiver': ['', ''],
         'viewDownloads': ['Models', 'Neural Voice Models · Offline IndicTTS'],
-        'viewSpecs': ['System Architecture', 'PS-26173 Specifications'],
+        'viewSpecs': ['System Architecture', 'LinC. Specifications'],
         'viewMessages': ['Tactical Messages', 'Dispatch Stream']
       };
 
@@ -4325,25 +4252,6 @@
       $('nodeIdentityModal').classList.add('hidden');
     };
 
-    // Host Beacon & Search Peers Toggles
-    $('toggleHost').onchange = (e) => {
-      if (e.target.checked) {
-        command('host');
-        $('hostInfoBox').classList.remove('hidden');
-      } else {
-        $('hostInfoBox').classList.add('hidden');
-      }
-    };
-
-    $('toggleDiscover').onchange = (e) => {
-      if (e.target.checked) {
-        command('discover');
-        $('activePeerCounter').textContent = 'Scanning 2.4/5GHz...';
-      } else {
-        $('activePeerCounter').textContent = 'Discovery paused';
-      }
-    };
-
     // Central Language & Radar State
     let currentLanguage = 'hi';
     let selectedDropdownLang = 'mr';
@@ -4357,10 +4265,7 @@
       ta: 'Tamil (தமிழ் · ta-IN)',
       te: 'Telugu (తెలుగు · te-IN)',
       kn: 'Kannada (ಕನ್ನಡ · kn-IN)',
-      ml: 'Malayalam (മലയാളം · ml-IN)',
-      bn: 'Bengali (বাংলা · bn-IN)',
-      or: 'Odia (ଓଡ଼ିଆ · or-IN)',
-      pa: 'Punjabi (ਪੰਜਾਬੀ · pa-IN)'
+      ml: 'Malayalam (മലയാളം · ml-IN)'
     };
 
     window.toggleLanguageDropdown = function (e) {
