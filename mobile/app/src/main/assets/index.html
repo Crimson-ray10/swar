@@ -3159,14 +3159,6 @@
                 </div>
                 <span class="item-check">✓</span>
               </button>
-              <button type="button" class="radar-dropdown-item" data-lang="hinglish"
-                onclick="selectDropdownLanguage('hinglish', 'Hinglish', 'Dual-ASR')">
-                <div>
-                  <span class="item-title">Hinglish</span>
-                  <span class="item-sub">Dual ASR + Indic-TTS</span>
-                </div>
-                <span class="item-check">✓</span>
-              </button>
               <button type="button" class="radar-dropdown-item" data-lang="gu"
                 onclick="selectDropdownLanguage('gu', 'ગુજરાતી', 'gu-IN')">
                 <div>
@@ -3627,18 +3619,17 @@
     </section>
   </main>
 
-  <!-- FIXED BOTTOM NAVIGATION DOCK (Symmetrical: Radar - PTT - Models) -->
+  <!-- FIXED BOTTOM NAVIGATION DOCK (Symmetrical: Home - Radar PTT - Models) -->
   <nav class="bottom-nav" aria-label="Main Navigation">
-    <button class="nav-item active" data-view="viewTransceiver" id="navItemHome">
+    <button class="nav-item active" data-view="viewHome" id="navItemHome">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z" />
-        <path d="M12 6a6 6 0 1 0 6 6 6 6 0 0 0-6-6zm0 10a4 4 0 1 1 4-4 4 4 0 0 1-4 4z" />
-        <circle cx="12" cy="12" r="1.5" />
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
       </svg>
-      <span data-i18n="navItemHome">Radar</span>
+      <span data-i18n="navItemHome">Home</span>
     </button>
-    <!-- Center Audio Transceiver PTT Quick Trigger -->
-    <button class="nav-ptt-btn" id="navCenterPtt" aria-label="Center Audio PTT Quick Access">
+    <!-- Center Audio Transceiver Radar PTT Quick Trigger -->
+    <button class="nav-ptt-btn" id="navCenterPtt" aria-label="Center Radar Transceiver Quick Access">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="8" y1="7" x2="8" y2="17" />
         <line x1="12" y1="4" x2="12" y2="20" />
@@ -4233,6 +4224,12 @@
         home.style.pointerEvents = '';
         home.style.zIndex = '';
       }
+      const heroTitle = document.querySelector('.hero-brand-title');
+      if (heroTitle) {
+        heroTitle.style.opacity = '1';
+        heroTitle.style.visibility = 'visible';
+        heroTitle.style.transform = '';
+      }
       if ($('btnGetStarted')) $('btnGetStarted').style.opacity = '';
 
       // 5. Reset Transceiver page styling and classes
@@ -4450,13 +4447,20 @@
         openOnboardingModal();
         return;
       }
-      if (isCompleted && viewId === 'viewHome') {
-        viewId = 'viewTransceiver';
-      }
 
       const targetPage = $(viewId);
       if (!targetPage) return;
       if (viewId === currentViewId && !targetPage.classList.contains('hidden')) return;
+
+      if (viewId === 'viewHome') {
+        const heroTitle = document.querySelector('.hero-brand-title');
+        if (heroTitle) {
+          heroTitle.style.opacity = '1';
+          heroTitle.style.visibility = 'visible';
+          heroTitle.style.transform = '';
+        }
+        if ($('btnGetStarted')) $('btnGetStarted').style.opacity = '';
+      }
 
       const fromPage = $(currentViewId);
       const prevId = currentViewId;
@@ -4585,10 +4589,7 @@
           openOnboardingModal();
           return;
         }
-        if (isCompleted && targetView === 'viewHome') {
-          switchTab('viewTransceiver');
-          return;
-        }
+
         switchTab(targetView);
       };
     });
@@ -4791,7 +4792,7 @@
             "dispatchLogsTitle": "Dispatch Logs",
             "btnClearLogs": "Clear Logs",
             "emptyMsgPlaceholder": "No messages sent or received in this session.",
-            "navItemHome": "Radar",
+            "navItemHome": "Home",
             "navItemModels": "Models",
             "identityModalTitle": "Node Identity & Hardware",
             "callsignLabel": "Callsign / User Name",
@@ -4856,8 +4857,13 @@
             "obIndicator1": "Step 1 of 3: Preferred Language",
             "obIndicator2": "Step 2 of 3: Your Username",
             "obIndicator3": "Step 3 of 3: Offline AI Voice Model",
-            "setupComplete": "Setup complete! LinC offline mesh transceiver ready."
-      },
+            "setupComplete": "Setup complete! LinC offline mesh transceiver ready.",
+            "tagRecommended": "Recommended",
+            "nodesDetected": "node(s) detected",
+            "scanningRadar": "Scanning 2.4/5GHz...",
+            "peersLocked": "peer node(s) locked on radar. Tap node bubble to connect.",
+            "btnConnect": "Connect",
+            "activeSpeechLabel": "Active Speech:"},
       "hi": {
             "statusStandby": "स्टैंडबाय",
             "statusConnected": "कनेक्टेड",
@@ -4941,7 +4947,7 @@
             "dispatchLogsTitle": "डिस्पैच लॉग्स",
             "btnClearLogs": "लॉग साफ़ करें",
             "emptyMsgPlaceholder": "इस सत्र में कोई संदेश भेजा या प्राप्त नहीं हुआ है।",
-            "navItemHome": "राडार",
+            "navItemHome": "होम",
             "navItemModels": "मॉडल",
             "identityModalTitle": "नोड पहचान और हार्डवेयर",
             "callsignLabel": "कॉलसाइन / उपयोगकर्ता नाम",
@@ -4992,7 +4998,7 @@
             "btnDownload": "डाउनलोड",
             "tapToConnect": "कनेक्ट करने के लिए टैप करें",
             "tagInstalled": "स्थापित",
-            "tagPreBundled": "पहले से शामिल",
+            "tagPreBundled": "प्री-बंडल",
             "onboardingStep1Title": "अपनी पसंदीदा भाषा चुनें",
             "onboardingStep1Sub": "अपनी प्राथमिक भाषा चुनें। पूरा ऐप इंटरफ़ेस तुरंत आपके चयन के अनुसार बदल जाएगा।",
             "onboardingStep2Title": "अपना उपयोगकर्ता नाम दर्ज करें",
@@ -5006,8 +5012,13 @@
             "obIndicator1": "चरण 1 / 3: पसंदीदा भाषा",
             "obIndicator2": "चरण 2 / 3: आपका उपयोगकर्ता नाम",
             "obIndicator3": "चरण 3 / 3: ऑफ़लाइन AI वॉयस मॉडल",
-            "setupComplete": "सेटअप पूरा हुआ! LinC ऑफ़लाइन मेश ट्रांससीवर तैयार है।"
-      },
+            "setupComplete": "सेटअप पूरा हुआ! LinC ऑफ़लाइन मेश ट्रांससीवर तैयार है।",
+            "tagRecommended": "अनुशंसित",
+            "nodesDetected": "नोड मिले",
+            "scanningRadar": "2.4/5GHz स्कैन किया जा रहा है...",
+            "peersLocked": "नोड रडार पर लॉक हैं। कनेक्ट करने के लिए बबल पर टैप करें।",
+            "btnConnect": "कनेक्ट",
+            "activeSpeechLabel": "सक्रिय भाषण:"},
       "mr": {
             "statusStandby": "स्टँडबाय",
             "statusConnected": "कनेक्टेड",
@@ -5091,7 +5102,7 @@
             "dispatchLogsTitle": "डिस्पॅच नोंदी",
             "btnClearLogs": "लॉग साफ करा",
             "emptyMsgPlaceholder": "या सत्रात कोणताही संदेश पाठवला किंवा प्राप्त झाला नाही.",
-            "navItemHome": "रडार",
+            "navItemHome": "होम",
             "navItemModels": "मॉडेल्स",
             "identityModalTitle": "नोड ओळख आणि हार्डवेअर",
             "callsignLabel": "कॉलसाइन / वापरकर्ता नाव",
@@ -5141,8 +5152,8 @@
             "warningModelHint": "ऑफलाइन व्हॉइस ओळख सक्षम करण्यासाठी डाउनलोड टॅप करा",
             "btnDownload": "डाउनलोड",
             "tapToConnect": "जोडण्यासाठी टॅप करा",
-            "tagInstalled": "स्थापित",
-            "tagPreBundled": "आधीच समाविष्ट",
+            "tagInstalled": "इन्स्टॉल केलेले",
+            "tagPreBundled": "आधीपासून समाविष्ट",
             "onboardingStep1Title": "पसंतीची भाषा निवडा",
             "onboardingStep1Sub": "तुमची प्राथमिक भाषा निवडा. संपूर्ण ॲप इंटरफेस त्वरित तुमच्या निवडीनुसार बदलेल.",
             "onboardingStep2Title": "वापरकर्ता नाव प्रविष्ट करा",
@@ -5156,8 +5167,13 @@
             "obIndicator1": "टप्पा 1 / 3: पसंतीची भाषा",
             "obIndicator2": "टप्पा 2 / 3: वापरकर्ता नाव",
             "obIndicator3": "टप्पा 3 / 3: ऑफलाइन AI व्हॉइस मॉडेल",
-            "setupComplete": "सेटअप पूर्ण झाले! LinC ऑफलाइन मेश ट्रान्सीव्हर तयार आहे."
-      },
+            "setupComplete": "सेटअप पूर्ण झाले! LinC ऑफलाइन मेश ट्रान्सीव्हर तयार आहे.",
+            "tagRecommended": "शिफारस केलेले",
+            "nodesDetected": "उपकरणे आढळली",
+            "scanningRadar": "2.4/5GHz स्कॅन करत आहे...",
+            "peersLocked": "उपकरणे रडारवर दिसली. जोडण्यासाठी बबलवर टॅप करा.",
+            "btnConnect": "जोडा",
+            "activeSpeechLabel": "सक्रिय संभाषण:"},
       "bn": {
             "statusStandby": "স্ট্যান্ডবাই",
             "statusConnected": "সংযুক্ত",
@@ -5241,7 +5257,7 @@
             "dispatchLogsTitle": "ডিসপ্যাচ লগ",
             "btnClearLogs": "লগ মুছুন",
             "emptyMsgPlaceholder": "এই সেশনে কোনো বার্তা পাঠানো বা গ্রহণ করা হয়নি।",
-            "navItemHome": "রাডার",
+            "navItemHome": "হোম",
             "navItemModels": "মডেল",
             "identityModalTitle": "নোড পরিচয় ও হার্ডওয়্যার",
             "callsignLabel": "কলসাইন / ব্যবহারকারীর নাম",
@@ -5292,7 +5308,7 @@
             "btnDownload": "ডাউনলোড",
             "tapToConnect": "যুক্ত হতে ট্যাপ করুন",
             "tagInstalled": "ইনস্টল করা",
-            "tagPreBundled": "পূর্ব-সংযুক্ত",
+            "tagPreBundled": "প্রাক-ইনস্টল করা",
             "onboardingStep1Title": "পছন্দের ভাষা নির্বাচন করুন",
             "onboardingStep1Sub": "আপনার প্রাথমিক ভাষা নির্বাচন করুন। সম্পূর্ণ অ্যাপ ইন্টারফেস অবিলম্বে পরিবর্তিত হবে।",
             "onboardingStep2Title": "আপনার ব্যবহারকারীর নাম লিখুন",
@@ -5306,8 +5322,13 @@
             "obIndicator1": "ধাপ ১ / ৩: পছন্দের ভাষা",
             "obIndicator2": "ধাপ ২ / ৩: ব্যবহারকারীর নাম",
             "obIndicator3": "ধাপ ৩ / ৩: অফলাইন AI ভয়েস মডেল",
-            "setupComplete": "সেটআপ সম্পন্ন হয়েছে! LinC অফলাইন মেশ ট্রান্সিভার প্রস্তুত।"
-      },
+            "setupComplete": "সেটআপ সম্পন্ন হয়েছে! LinC অফলাইন মেশ ট্রান্সিভার প্রস্তুত।",
+            "tagRecommended": "সুপারিশকৃত",
+            "nodesDetected": "টি ডিভাইস পাওয়া গেছে",
+            "scanningRadar": "২.৪/৫ গিগাহার্টজ স্ক্যান করা হচ্ছে...",
+            "peersLocked": "টি ডিভাইস রাডারে পাওয়া গেছে। যুক্ত হতে বাবেলে ট্যাপ করুন।",
+            "btnConnect": "যুক্ত করুন",
+            "activeSpeechLabel": "সক্রিয় ভাষা:"},
       "gu": {
             "statusStandby": "સ્ટેન્ડબાય",
             "statusConnected": "કનેક્ટેડ",
@@ -5391,7 +5412,7 @@
             "dispatchLogsTitle": "ડિસ્પેચ લોગ્સ",
             "btnClearLogs": "લોગ સાફ કરો",
             "emptyMsgPlaceholder": "આ સત્રમાં કોઈ સંદેશ મોકલવામાં કે પ્રાપ્ત થયો નથી.",
-            "navItemHome": "રડાર",
+            "navItemHome": "હોમ",
             "navItemModels": "મોડેલ્સ",
             "identityModalTitle": "નોડ ઓળખ અને હાર્ડવેર",
             "callsignLabel": "કૉલસાઇન / વપરાશકર્તા નામ",
@@ -5442,7 +5463,7 @@
             "btnDownload": "ડાઉનલોડ",
             "tapToConnect": "જોડાવા માટે ટેપ કરો",
             "tagInstalled": "ઇન્સ્ટોલ કરેલ",
-            "tagPreBundled": "પહેલેથી સામેલ",
+            "tagPreBundled": "પૂર્વ-ઇન્સ્ટોલ કરેલ",
             "onboardingStep1Title": "પસંદગીની ભાષા પસંદ કરો",
             "onboardingStep1Sub": "તમારી પ્રાથમિક ભાષા પસંદ કરો. સમગ્ર એપ્લિકેશન ઇન્ટરફેસ તરત જ તમારી પસંદગી અનુસાર અનુકૂલિત થશે.",
             "onboardingStep2Title": "તમારું વપરાશકર્તા નામ દાખલ કરો",
@@ -5456,8 +5477,13 @@
             "obIndicator1": "પગલું 1 / 3: પસંદગીની ભાષા",
             "obIndicator2": "પગલું 2 / 3: વપરાશકર્તા નામ",
             "obIndicator3": "પગલું 3 / 3: ઑફલાઇન AI વૉઇસ મોડેલ",
-            "setupComplete": "સેટઅપ પૂર્ણ થયું! LinC ઑફલાઇન મેશ ટ્રાન્સસીવર તૈયાર છે."
-      },
+            "setupComplete": "સેટઅપ પૂર્ણ થયું! LinC ઑફલાઇન મેશ ટ્રાન્સસીવર તૈયાર છે.",
+            "tagRecommended": "ભલામણ કરેલ",
+            "nodesDetected": "ઉપકરણો મળ્યા",
+            "scanningRadar": "2.4/5GHz સ્કેન થઈ રહ્યું છે...",
+            "peersLocked": "ઉપકરણો રડાર પર લિંક માટે તૈયાર છે. બબલ પર ટેપ કરો.",
+            "btnConnect": "જોડાઓ",
+            "activeSpeechLabel": "સક્રિય વાણી:"},
       "ta": {
             "statusStandby": "காத்திருப்பு",
             "statusConnected": "இணைக்கப்பட்டது",
@@ -5541,7 +5567,7 @@
             "dispatchLogsTitle": "பதிவுகள்",
             "btnClearLogs": "பதிவுகளை அழிக்கவும்",
             "emptyMsgPlaceholder": "இந்த அமர்வில் எந்த செய்தியும் அனுப்பப்படவில்லை அல்லது பெறப்படவில்லை.",
-            "navItemHome": "ரேடார்",
+            "navItemHome": "முகப்பு",
             "navItemModels": "மாதிரிகள்",
             "identityModalTitle": "முனை அடையாளம் & வன்பொருள்",
             "callsignLabel": "அழைப்பு அடையாளம் / பயனர் பெயர்",
@@ -5592,7 +5618,7 @@
             "btnDownload": "பதிவிறக்கு",
             "tapToConnect": "இணைக்க தட்டவும்",
             "tagInstalled": "நிறுவப்பட்டது",
-            "tagPreBundled": "முன்பே இணைக்கப்பட்டது",
+            "tagPreBundled": "முன்பே நிறுவப்பட்டது",
             "onboardingStep1Title": "விருப்ப மொழியைத் தேர்ந்தெடுக்கவும்",
             "onboardingStep1Sub": "உங்கள் முதன்மை மொழியைத் தேர்ந்தெடுக்கவும். முழு பயன்பாட்டு இடைமுகமும் உடனடியாக மாறும்.",
             "onboardingStep2Title": "உங்கள் பயனர் பெயரை உள்ளிடவும்",
@@ -5606,8 +5632,13 @@
             "obIndicator1": "படி 1 / 3: விருப்ப மொழி",
             "obIndicator2": "படி 2 / 3: பயனர் பெயர்",
             "obIndicator3": "படி 3 / 3: ஆஃப்லைன் AI குரல் மாதிரி",
-            "setupComplete": "அமைப்பு முடிந்தது! LinC ஆஃப்லைன் மெஷ் டிரான்ஸ்சீவர் தயார்."
-      },
+            "setupComplete": "அமைப்பு முடிந்தது! LinC ஆஃப்லைன் மெஷ் டிரான்ஸ்சீவர் தயார்.",
+            "tagRecommended": "பரிந்துரைக்கப்பட்டது",
+            "nodesDetected": "சாதனங்கள் கண்டறியப்பட்டன",
+            "scanningRadar": "2.4/5GHz ஸ்கேன் செய்கிறது...",
+            "peersLocked": "சாதனங்கள் ரேடாரில் இணைக்கத் தயார். குமிழியைத் தட்டவும்.",
+            "btnConnect": "இணைக்க",
+            "activeSpeechLabel": "செயலில் உள்ள பேச்சு:"},
       "te": {
             "statusStandby": "స్టాండ్‌బై",
             "statusConnected": "కనెక్ట్ చేయబడింది",
@@ -5691,7 +5722,7 @@
             "dispatchLogsTitle": "డిస్పాచ్ లాగ్‌లు",
             "btnClearLogs": "లాగ్‌లను క్లియర్ చేయండి",
             "emptyMsgPlaceholder": "ఈ సెషన్‌లో ఎలాంటి సందేశాలు పంపబడలేదు లేదా స్వీకరించబడలేదు.",
-            "navItemHome": "రాడార్",
+            "navItemHome": "హోమ్",
             "navItemModels": "మోడల్స్",
             "identityModalTitle": "నోడ్ గుర్తింపు & హార్డ్‌వేర్",
             "callsignLabel": "కాల్‌సైన్ / వినియోగదారు పేరు",
@@ -5742,7 +5773,7 @@
             "btnDownload": "డౌన్‌లోడ్",
             "tapToConnect": "కనెక్ట్ చేయడానికి నొక్కండి",
             "tagInstalled": "ఇన్‌స్టాల్ చేయబడింది",
-            "tagPreBundled": "ముందుగానే చేర్చబడింది",
+            "tagPreBundled": "ముందుగానే ఇన్‌స్టాల్ చేయబడింది",
             "onboardingStep1Title": "ప్రాధాన్య భాషను ఎంచుకోండి",
             "onboardingStep1Sub": "మీ ప్రాథమిక భాషను ఎంచుకోండి. మొత్తం యాప్ ఇంటర్‌ఫేస్ వెంటనే మీ ఎంపికకు అనుగుణంగా మారుతుంది.",
             "onboardingStep2Title": "మీ వినియోగదారు పేరును నమోదు చేయండి",
@@ -5756,8 +5787,13 @@
             "obIndicator1": "దశ 1 / 3: ప్రాధాన్య భాష",
             "obIndicator2": "దశ 2 / 3: వినియోగదారు పేరు",
             "obIndicator3": "దశ 3 / 3: ఆఫ్‌లైన్ AI వాయిస్ మోడల్",
-            "setupComplete": "సెటప్ పూర్తయింది! LinC ఆఫ్‌లైన్ మెష్ ట్రాన్స్‌సీవర్ సిద్ధంగా ఉంది."
-      },
+            "setupComplete": "సెటప్ పూర్తయింది! LinC ఆఫ్‌లైన్ మెష్ ట్రాన్స్‌సీవర్ సిద్ధంగా ఉంది.",
+            "tagRecommended": "సిఫార్సు చేయబడింది",
+            "nodesDetected": "పరికరాలు కనుగొనబడ్డాయి",
+            "scanningRadar": "2.4/5GHz స్కాన్ చేస్తోంది...",
+            "peersLocked": "పరికరాలు రాడార్‌లో గుర్తించబడ్డాయి. కనెక్ట్ చేయడానికి నొక్కండి.",
+            "btnConnect": "కనెక్ట్",
+            "activeSpeechLabel": "క్రియాశీల సంభాషణ:"},
       "kn": {
             "statusStandby": "ಸ್ಟ್ಯಾಂಡ್‌ಬೈ",
             "statusConnected": "ಸಂಪರ್ಕಗೊಂಡಿದೆ",
@@ -5841,7 +5877,7 @@
             "dispatchLogsTitle": "ರವಾನೆ ಲಾಗ್‌ಗಳು",
             "btnClearLogs": "ಲಾಗ್‌ಗಳನ್ನು ತೆರವುಗೊಳಿಸಿ",
             "emptyMsgPlaceholder": "ಈ ಅವಧಿಯಲ್ಲಿ ಯಾವುದೇ ಸಂದೇಶಗಳನ್ನು ಕಳುಹಿಸಲಾಗಿಲ್ಲ ಅಥವಾ ಸ್ವೀಕರಿಸಲಾಗಿಲ್ಲ.",
-            "navItemHome": "ರಾಡಾರ್",
+            "navItemHome": "ಮುಖಪುಟ",
             "navItemModels": "ಮಾದರಿಗಳು",
             "identityModalTitle": "ನೋಡ್ ಗುರುತು ಮತ್ತು ಹಾರ್ಡ್‌ವೇರ್",
             "callsignLabel": "ಕಾಲ್‌ಸೈನ್ / ಬಳಕೆದಾರ ಹೆಸರು",
@@ -5892,7 +5928,7 @@
             "btnDownload": "ಡೌನ್‌ಲೋಡ್",
             "tapToConnect": "ಸಂಪರ್ಕಿಸಲು ಟ್ಯಾಪ್ ಮಾಡಿ",
             "tagInstalled": "ಸ್ಥಾಪಿಸಲಾಗಿದೆ",
-            "tagPreBundled": "ಮೊದಲೇ ಸೇರಿಸಲಾಗಿದೆ",
+            "tagPreBundled": "ಪೂರ್ವ-ಸ್ಥಾಪಿತ",
             "onboardingStep1Title": "ಆದ್ಯತೆಯ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ",
             "onboardingStep1Sub": "ನಿಮ್ಮ ಪ್ರಾಥಮಿಕ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ. ಸಂಪೂರ್ಣ ಅಪ್ಲಿಕೇಶನ್ ತಕ್ಷಣವೇ ಈ ಭಾಷೆಗೆ ಹೊಂದಿಕೊಳ್ಳುತ್ತದೆ.",
             "onboardingStep2Title": "ನಿಮ್ಮ ಬಳಕೆದಾರ ಹೆಸರನ್ನು ನಮೂದಿಸಿ",
@@ -5906,9 +5942,18 @@
             "obIndicator1": "ಹಂತ 1 / 3: ಆದ್ಯತೆಯ ಭಾಷೆ",
             "obIndicator2": "ಹಂತ 2 / 3: ಬಳಕೆದಾರ ಹೆಸರು",
             "obIndicator3": "ಹಂತ 3 / 3: ಆಫ್‌ಲೈನ್ AI ಧ್ವನಿ ಮಾದರಿ",
-            "setupComplete": "ಸೆಟಪ್ ಪೂರ್ಣಗೊಂಡಿದೆ! LinC ಆಫ್‌ಲೈನ್ ಮೆಶ್ ಟ್ರಾನ್ಸಿವರ್ ಸಿದ್ಧವಾಗಿದೆ."
+            "setupComplete": "ಸೆಟಪ್ ಪೂರ್ಣಗೊಂಡಿದೆ! LinC ಆಫ್‌ಲೈನ್ ಮೆಶ್ ಟ್ರಾನ್ಸಿವರ್ ಸಿದ್ಧವಾಗಿದೆ.",
+            "navItemHome": "ಮುಖಪುಟ",
+            "tagInstalled": "ಸ್ಥಾಪಿಸಲಾಗಿದೆ",
+            "tagPreBundled": "ಪೂರ್ವ-ಸ್ಥಾಪಿತ",
+            "tagRecommended": "ಶಿಫಾರಸು ಮಾಡಲಾಗಿದೆ",
+            "nodesDetected": "ಸಾಧನಗಳು ಪತ್ತೆಯಾಗಿವೆ",
+            "scanningRadar": "2.4/5GHz ಸ್ಕ್ಯಾನ್ ಮಾಡಲಾಗುತ್ತಿದೆ...",
+            "peersLocked": "ಸಾಧನಗಳು ರಾಡಾರ್‌ನಲ್ಲಿ ಸಿದ್ಧವಾಗಿವೆ. ಸಂಪರ್ಕಿಸಲು ಟ್ಯಾಪ್ ಮಾಡಿ.",
+            "btnConnect": "ಸಂಪರ್ಕಿಸಿ",
+            "activeSpeechLabel": "ಸಕ್ರಿಯ ಮಾತು:"
       }
-};
+    };
 
     const NATIVE_LANG_NAMES = {
       hi: 'हिन्दी',
@@ -5964,6 +6009,8 @@
 
     window.applyAppLanguage = function (lang) {
       if (!LINC_I18N[lang]) lang = 'en';
+      currentLanguage = lang;
+      safeSet('linc_preferred_lang', lang);
       const dict = LINC_I18N[lang];
       document.documentElement.lang = lang;
 
@@ -6041,21 +6088,31 @@
         btn.classList.toggle('active', btn.getAttribute('data-ob-lang') === lang);
       });
 
-      // Update radar status label if present
+      // Update radar status label
       if ($('radarStatusSub')) {
+        const prefix = dict.activeSpeechLabel || 'Active Speech:';
         const label = langNames[lang] || lang;
-        $('radarStatusSub').innerHTML = `Active Speech: <b>${label}</b> · <span style="color:#0f172a">AI4Bharat Indic-TTS</span>`;
+        $('radarStatusSub').innerHTML = `${prefix} <b>${label}</b> · <span style="color:#0f172a">AI4Bharat Indic-TTS</span>`;
       }
 
+      // Update Page Headers
       if (typeof updatePageHeaderTitles === 'function' && typeof currentViewId !== 'undefined' && currentViewId) {
         updatePageHeaderTitles(currentViewId);
       }
 
+      // Re-render model catalog in the selected language!
       if (typeof renderModels === 'function') {
         renderModels();
       }
 
+      // Re-render radar peers with localized tap string
+      if (typeof renderDiscoveredPeers === 'function') {
+        renderDiscoveredPeers();
+      }
+
+      // Update Onboarding strings
       updateOnboardingStepDisplay();
+      updateOnboardingModelPreview();
     };
 
 
@@ -6188,14 +6245,14 @@
     }
 
     const MODEL_NAMES_BY_LANG = {
-      hi: { name: 'Hindi Neural Voice & ASR Pack', meta: 'AI4Bharat IndicConformer + IndicTTS · ~155 MB' },
+      hi: { name: 'हिन्दी न्यूरल वॉयस और ASR पैक', meta: 'AI4Bharat IndicConformer + IndicTTS · ~155 MB' },
       en: { name: 'Indian English Neural Voice & ASR Pack', meta: 'AI4Bharat IndicConformer + IndicTTS · ~46 MB' },
-      mr: { name: 'Marathi Neural Voice & ASR Pack', meta: 'AI4Bharat IndicConformer + IndicTTS · ~155 MB' },
-      bn: { name: 'Bengali Neural Voice & ASR Pack', meta: 'AI4Bharat IndicConformer + IndicTTS · ~153 MB' },
-      gu: { name: 'Gujarati Neural Voice & ASR Pack', meta: 'AI4Bharat IndicConformer + IndicTTS · ~155 MB' },
-      ta: { name: 'Tamil Neural Voice & ASR Pack', meta: 'AI4Bharat IndicConformer + IndicTTS · ~155 MB' },
-      te: { name: 'Telugu Neural Voice & ASR Pack', meta: 'AI4Bharat IndicConformer + IndicTTS · ~154 MB' },
-      kn: { name: 'Kannada Neural Voice & ASR Pack', meta: 'AI4Bharat IndicConformer + IndicTTS · ~155 MB' }
+      mr: { name: 'मराठी न्यूरल व्हॉइस आणि ASR पॅक', meta: 'AI4Bharat IndicConformer + IndicTTS · ~155 MB' },
+      bn: { name: 'বাংলা নিউরাল ভয়েস এবং ASR প্যাক', meta: 'AI4Bharat IndicConformer + IndicTTS · ~153 MB' },
+      gu: { name: 'ગુજરાતી ન્યુરલ વૉઇસ અને ASR પૅક', meta: 'AI4Bharat IndicConformer + IndicTTS · ~155 MB' },
+      ta: { name: 'தமிழ் நியூரல் குரல் மற்றும் ASR பொதி', meta: 'AI4Bharat IndicConformer + IndicTTS · ~155 MB' },
+      te: { name: 'తెలుగు న్యూరల్ వాయిస్ మరియు ASR ప్యాక్', meta: 'AI4Bharat IndicConformer + IndicTTS · ~154 MB' },
+      kn: { name: 'ಕನ್ನಡ ನ್ಯೂರಲ್ ಧ್ವನಿ ಮತ್ತು ASR ಪ್ಯಾಕ್', meta: 'AI4Bharat IndicConformer + IndicTTS · ~155 MB' }
     };
 
     function updateOnboardingModelPreview() {
@@ -6266,14 +6323,19 @@
       isBooting = false;
       document.body.classList.remove('app-booting');
 
+      const el = document.querySelector('.hero-brand-title');
+      if (el) {
+        el.style.opacity = '1';
+        el.style.visibility = 'visible';
+        el.style.transform = '';
+      }
+      if ($('btnGetStarted')) $('btnGetStarted').style.opacity = '';
+
       const isCompleted = localStorage.getItem('linc_onboarding_completed') === 'true';
       const savedLang = localStorage.getItem('linc_preferred_lang') || 'hi';
       applyAppLanguage(savedLang);
 
-      if (isCompleted) {
-        setRadarLanguage(savedLang, false);
-        switchTab('viewTransceiver');
-      } else {
+      if (!isCompleted) {
         openOnboardingModal();
       }
     };
@@ -6607,6 +6669,156 @@
       return false;
     }
 
+    const MODEL_I18N = {
+      hi: {
+        'core-vad': { title: 'सिलेरो वॉयस एक्टिविटी डिटेक्टर', desc: 'अल्ट्रा-लो लेटेंसी स्पीच डिटेक्टर (प्री-बंडल)' },
+        'core-lid': { title: 'फास्टटेक्स्ट भाषा पहचानकर्ता', desc: 'ऑन-डिवाइस ध्वनिक भाषा क्लासिफायर (प्री-बंडल)' },
+        'stt-hi': { title: 'हिन्दी भाषण पहचान (ASR)', desc: 'ऑफ़लाइन ट्रांसक्रिप्शन के लिए देवनागरी ध्वनिक मॉडल' },
+        'stt-en': { title: 'भारतीय अंग्रेज़ी भाषण पहचान', desc: 'टैक्टिकल वॉयस संचार के लिए ध्वनिक शब्दावली' },
+        'stt-mr': { title: 'मराठी भाषण पहचान (ASR)', desc: 'मराठी भाषण के लिए ऑफ़लाइन ध्वनिक मॉडल' },
+        'stt-gu': { title: 'गुजराती भाषण पहचान (ASR)', desc: 'गुजराती बोलियों के लिए ऑफ़लाइन ध्वनिक मॉडल' },
+        'stt-ta': { title: 'तमिल भाषण पहचान (ASR)', desc: 'शुद्ध ऑफ़लाइन ध्वनिकी के साथ द्रविड़ियन मॉडल' },
+        'stt-te': { title: 'तेलुगु भाषण पहचान (ASR)', desc: 'ऑफ़लाइन तेलुगु ध्वनिक शब्दावली और मॉडल' },
+        'stt-kn': { title: 'कन्नड़ भाषण पहचान (ASR)', desc: 'कन्नड़ क्षेत्रीय बोली स्पीच-टू-टेक्स्ट मॉडल' },
+        'stt-bn': { title: 'बंगाली भाषण पहचान (ASR)', desc: 'पूर्वी इंडिक ध्वनिक एआई मॉडल' },
+        'tts-hi': { title: 'हिन्दी न्यूरल वॉयस (IndicTTS)', desc: 'इनकमिंग ऑडियो के लिए प्राकृतिक भाषण संश्लेषण' },
+        'tts-en': { title: 'भारतीय अंग्रेज़ी न्यूरल वॉयस', desc: 'इनकमिंग रेडियो आवाज के लिए प्राकृतिक टीटीएस' },
+        'tts-mr': { title: 'मराठी न्यूरल वॉयस', desc: 'उच्च-स्पष्टता मराठी न्यूरल सिंथेसाइज़र' },
+        'tts-gu': { title: 'गुजराती न्यूरल वॉयस', desc: 'ऑन-डिवाइस हल्का ध्वनिक वॉयस पैक' },
+        'tts-ta': { title: 'तमिल न्यूरल वॉयस', desc: 'रीयल-टाइम द्रविड़ियन न्यूरल सिंथेसिस पैक' },
+        'tts-te': { title: 'तेलुगु न्यूरल वॉयस', desc: 'कम विलंबता वाला न्यूरल ऑडियो सिंथेसिस पैक' },
+        'tts-kn': { title: 'कन्नड़ न्यूरल वॉयस', desc: 'ऑफ़लाइन फोनेटिक न्यूरल ऑडियो इंजन' },
+        'tts-bn': { title: 'बंगाली न्यूरल वॉयस', desc: 'पूर्वी इंडिक ध्वनिक वॉयस सिंथेसाइज़र' }
+      },
+      mr: {
+        'core-vad': { title: 'सिलेरो व्हॉइस अ‍ॅक्टिव्हिटी डिटेक्टर', desc: 'कमी लेटन्सी स्पीच बाउंड्री डिटेक्टर (आधीपासून समाविष्ट)' },
+        'core-lid': { title: 'फास्टटेक्स्ट भाषा ओळखकर्ता', desc: 'ऑन-डिव्हाइस भाषा क्लासिफायर (आधीपासून समाविष्ट)' },
+        'stt-hi': { title: 'हिंदी भाषण ओळख (ASR)', desc: 'ऑफलाइन ट्रान्सक्रिप्शनसाठी ध्वनिक मॉडेल' },
+        'stt-en': { title: 'भारतीय इंग्रजी भाषण ओळख', desc: 'भारतीय उच्चारणासाठी ऑफलाइन व्हॉइस मॉडेल' },
+        'stt-mr': { title: 'मराठी भाषण ओळख (ASR)', desc: 'मराठी संभाषणासाठी ऑफलाइन देवनागरी मॉडेल' },
+        'stt-gu': { title: 'गुजराती भाषण ओळख (ASR)', desc: 'गुजराती बोलीभाषेसाठी ऑफलाइन व्हॉइस मॉडेल' },
+        'stt-ta': { title: 'तमिळ भाषण ओळख (ASR)', desc: 'तमिळ भाषेसाठी ऑफलाइन न्यूरल मॉडेल' },
+        'stt-te': { title: 'तेलुगू भाषण ओळख (ASR)', desc: 'तेलुगू संभाषणासाठी ऑफलाइन न्यूरल मॉडेल' },
+        'stt-kn': { title: 'कन्नड भाषण ओळख (ASR)', desc: 'ಕನ್ನಡ संभाषणासाठी ऑफलाइन व्हॉइस मॉडेल' },
+        'stt-bn': { title: 'बंगाली भाषण ओळख (ASR)', desc: 'बंगाली संभाषणासाठी ऑफलाइन मॉडेल' },
+        'tts-hi': { title: 'हिंदी न्यूरल व्हॉइस (IndicTTS)', desc: 'येणाऱ्या ऑडिओसाठी नैसर्गिक भाषण संश्लेषण' },
+        'tts-en': { title: 'भारतीय इंग्रजी न्यूरल व्हॉइस', desc: 'नैसर्गिक रेडिओ ऑडिओ प्लेबॅक' },
+        'tts-mr': { title: 'मराठी न्यूरल व्हॉइस', desc: 'उच्च-स्पष्टता मराठी न्यूरल सिंथेसायझर' },
+        'tts-gu': { title: 'गुजराती न्यूरल व्हॉइस', desc: 'हलके ऑन-डिव्हाइस व्हॉइस पॅक' },
+        'tts-ta': { title: 'तमिळ न्यूरल व्हॉइस', desc: 'रिअल-टाइम तमिळ न्यूरल ऑडिओ पॅक' },
+        'tts-te': { title: 'तेलुगू न्यूरल व्हॉइस', desc: 'कमी लेटन्सी न्यूरल ऑडिओ सिंथेसिस पॅक' },
+        'tts-kn': { title: 'कन्नड न्यूरल व्हॉइस', desc: 'ऑफलाइन न्यूरल ऑडिओ इंजिन' },
+        'tts-bn': { title: 'बंगाली न्यूरल व्हॉइस', desc: 'नैसर्गिक बंगाली व्हॉइस सिंथेसायझर' }
+      },
+      bn: {
+        'core-vad': { title: 'সিলেরো ভয়েস অ্যাক্টিভিটি ডিটেক্টর', desc: 'রিয়েল-টাইম স্পিচ বাউন্ডারি ডিটেক্টর (প্রাক-ইনস্টল করা)' },
+        'core-lid': { title: 'ফাস্টটেক্সট ল্যাঙ্গুয়েজ আইডেন্টিফায়ার', desc: 'অন-ডিভাইস ভাষা ক্লাসিফায়ার (প্রাক-ইনস্টল করা)' },
+        'stt-hi': { title: 'হিন্দি স্পিচ রিকগনিশন (ASR)', desc: 'হিন্দি কথার জন্য অফলাইন এআই মডেল' },
+        'stt-en': { title: 'ভারতীয় ইংরেজি স্পিচ রিকগনিশন', desc: 'ভারতীয় উচ্চারণের জন্য অন-ডিভাইস স্পিচ মডেল' },
+        'stt-mr': { title: 'মারাঠি স্পিচ রিকগনিশন (ASR)', desc: 'মারাঠি কথার জন্য অফলাইন মডেল' },
+        'stt-gu': { title: 'ગુજરાતી স্পিচ রিকগনিশন (ASR)', desc: 'গুজরাটি কথার জন্য অফলাইন এআই মডেল' },
+        'stt-ta': { title: 'তামিল স্পিচ রিকগনিশন (ASR)', desc: 'তামিল ভাষার জন্য অফলাইন স্পিচ মডেল' },
+        'stt-te': { title: 'তেলেগু স্পিচ রিকগনিশন (ASR)', desc: 'তেলেগু ভাষার জন্য অফলাইন স্পিচ মডেল' },
+        'stt-kn': { title: 'কন্নড় স্পিচ রিকগনিশন (ASR)', desc: 'কন্নড় আঞ্চলিক ভাষার অফলাইন স্পিচ মডেল' },
+        'stt-bn': { title: 'বাংলা স্পিচ রিকগনিশন (ASR)', desc: 'বাংলা কথোপকথনের জন্য অন-ডিভাইস এআই মডেল' },
+        'tts-hi': { title: 'হিন্দি নিউরাল ভয়েস (IndicTTS)', desc: 'প্রাকৃতিক হিন্দি ভয়েস সিন্থেসিস' },
+        'tts-en': { title: 'ভারতীয় ইংরেজি নিউরাল ভয়েস', desc: 'স্বাভাবিক ইংরেজি ভয়েস প্লেব্যাক' },
+        'tts-mr': { title: 'মারাঠি নিউরাল ভয়েস', desc: 'উচ্চ-স্পষ্টতা মারাঠি নিউরাল সিন্থেসাইজার' },
+        'tts-gu': { title: 'গুজরাটি নিউরাল ভয়েস', desc: 'হালকা অন-ডিভাইস ভয়েস প্যাক' },
+        'tts-ta': { title: 'তামিল নিউরাল ভয়েস', desc: 'রিয়েল-টাইম তামিল নিউরাল সিন্থেসিস প্যাক' },
+        'tts-te': { title: 'তেলেগু নিউরাল ভয়েস', desc: 'কম লেটেন্সি নিউরাল অডিও সিন্থেসিস' },
+        'tts-kn': { title: 'কন্নড় নিউরাল ভয়েস', desc: 'অফলাইন নিউরাল ভয়েস ইঞ্জিন' },
+        'tts-bn': { title: 'বাংলা নিউরাল ভয়েস (IndicTTS)', desc: 'প্রাকৃতিক বাংলা অডিও ভয়েস সিন্থেসিস' }
+      },
+      gu: {
+        'core-vad': { title: 'સિલેરો વૉઇસ એક્ટિવિટી ડિટેક્ટર', desc: 'અલ્ટ્રા-લો લેટન્સી સ્પીચ ડિટેક્ટર (પૂર્વ-ઇન્સ્ટોલ કરેલ)' },
+        'core-lid': { title: 'ફાસ્ટટેક્સ્ટ લેંગ્વેજ આઇડેન્ટિફાયર', desc: 'ઑન-ડિવાઇસ ભાષા ક્લાસિફાયર (પૂર્વ-ઇન્સ્ટોલ કરેલ)' },
+        'stt-hi': { title: 'હિન્દી વાણી ઓળખ (ASR)', desc: 'ઑફલાઇન લખાણ માટેનું એઆઈ મોડેલ' },
+        'stt-en': { title: 'ભારતીય અંગ્રેજી વાણી ઓળખ', desc: 'ભારતીય ઉચ્ચારો માટે ઑન-ડિવાઇસ મોડેલ' },
+        'stt-mr': { title: 'મરાઠી વાણી ઓળખ (ASR)', desc: 'મરાઠી બોલી માટે ઑફલાઇન મોડેલ' },
+        'stt-gu': { title: 'ગુજરાતી વાણી ઓળખ (ASR)', desc: 'ગુજરાતી વાણી ઓળખ માટે ઑફલાઇન એઆઈ મોડેલ' },
+        'stt-ta': { title: 'તમિલ વાણી ઓળખ (ASR)', desc: 'તમિલ ભાષા માટે ઑફલાઇન મોડેલ' },
+        'stt-te': { title: 'તેલુગુ વાણી ઓળખ (ASR)', desc: 'તેલુગુ ભાષા માટે ઑફલાઇન મોડેલ' },
+        'stt-kn': { title: 'કન્નડ વાણી ઓળખ (ASR)', desc: 'કન્નડ પ્રાદેશિક બોલી વાણી મોડેલ' },
+        'stt-bn': { title: 'બંગાળી વાણી ઓળખ (ASR)', desc: 'બંગાળી ભાષા માટે ઑફલાઇન મોડેલ' },
+        'tts-hi': { title: 'હિન્દી ન્યુરલ વૉઇસ (IndicTTS)', desc: 'કુદરતી હિન્દી અવાજ સિન્થેસિસ' },
+        'tts-en': { title: 'ભારતીય અંગ્રેજી ન્યુરલ વૉઇસ', desc: 'કુદરતી અંગ્રેજી અવાજ પ્લેબૅક' },
+        'tts-mr': { title: 'મરાઠી ન્યુરલ વૉઇસ', desc: 'ઉચ્ચ-સ્પષ્ટતા મરાઠી ન્યુરલ સિન્થેસાઇઝર' },
+        'tts-gu': { title: 'ગુજરાતી ન્યુરલ વૉઇસ (IndicTTS)', desc: 'કુદરતી ગુજરાતી અવાજ સિન્થેસિસ પૅક' },
+        'tts-ta': { title: 'તમિલ ન્યુરલ વૉઇસ', desc: 'રીઅલ-ટાઇમ તમિલ ન્યુરલ સિન્થેસિસ પૅક' },
+        'tts-te': { title: 'તેલુગુ ન્યુરલ વૉઇસ', desc: 'લો-લેટન્સી ન્યુરલ ઑડિયો સિન્થેસિસ પૅક' },
+        'tts-kn': { title: 'કન્નડ ન્યુરલ વૉઇસ', desc: 'ઑફલાઇન ન્યુરલ ઑડિયો એન્જિન' },
+        'tts-bn': { title: 'બંગાળી ન્યુરલ વૉઇસ', desc: 'કુદરતી બંગાળી વૉઇસ સિન્થેસાઇઝર' }
+      },
+      ta: {
+        'core-vad': { title: 'சைலெரோ குரல் செயல்பாட்டுக் கண்டறிதல்', desc: 'அதிவேக நிகழ்நேர பேச்சு கண்டறிதல் (முன்பே நிறுவப்பட்டது)' },
+        'core-lid': { title: 'FastText மொழி அடையாளங்காட்டி', desc: 'சாதனத்தின் நேரடி மொழி வகைப்படுத்தி (முன்பே நிறுவப்பட்டது)' },
+        'stt-hi': { title: 'இந்தி பேச்சு அறிதல் (ASR)', desc: 'ஆஃப்லைன் பேச்சு அறிதல் மாதிரி' },
+        'stt-en': { title: 'இந்திய ஆங்கில பேச்சு அறிதல்', desc: 'இந்திய உச்சரிப்பு பேச்சு மாதிரி' },
+        'stt-mr': { title: 'மராத்தி பேச்சு அறிதல் (ASR)', desc: 'மராத்தி பேச்சு அறிதல் மாதிரி' },
+        'stt-gu': { title: 'குஜராத்தி பேச்சு அறிதல் (ASR)', desc: 'குஜராத்தி பேச்சு அறிதல் மாதிரி' },
+        'stt-ta': { title: 'தமிழ் பேச்சு அறிதல் (ASR)', desc: 'தூய ஆஃப்லைன் தமிழ் பேச்சு அறிதல் நியூரல் மாதிரி' },
+        'stt-te': { title: 'தெலுங்கு பேச்சு அறிதல் (ASR)', desc: 'தெலுங்கு பேச்சு அறிதல் மாதிரி' },
+        'stt-kn': { title: 'கன்னட பேச்சு அறிதல் (ASR)', desc: 'கன்னட பிராந்திய பேச்சு அறிதல் மாதிரி' },
+        'stt-bn': { title: 'வங்காள பேச்சு அறிதல் (ASR)', desc: 'வங்காள பேச்சு அறிதல் மாதிரி' },
+        'tts-hi': { title: 'இந்தி நியூரல் குரல் (IndicTTS)', desc: 'இயற்கையான இந்தி ஆடியோ தொகுப்பு' },
+        'tts-en': { title: 'இந்திய ஆங்கில நியூரல் குரல்', desc: 'இயற்கையான ஆங்கில பேச்சு தொகுப்பு' },
+        'tts-mr': { title: 'மராத்தி நியூரல் குரல்', desc: 'உயர்-தெளிவு மராத்தி நியூரல் தொகுப்பான்' },
+        'tts-gu': { title: 'குஜராத்தி நியூரல் குரல்', desc: 'குறைந்த எடை சாதன குரல் தொகுப்பு' },
+        'tts-ta': { title: 'தமிழ் நியூரல் குரல் (IndicTTS)', desc: 'நிகழ்நேர தமிழ் நியூரல் குரல் தொகுப்பு பொதி' },
+        'tts-te': { title: 'தெலுங்கு நியூரல் குரல்', desc: 'குறைந்த தாமத நியூரல் ஆடியோ பொதி' },
+        'tts-kn': { title: 'கன்னட நியூரல் குரல்', desc: 'ஆஃப்லைன் நியூரல் ஆடியோ பொறி' },
+        'tts-bn': { title: 'வங்காள நியூரல் குரல்', desc: 'இயற்கையான வங்காள குரல் தொகுப்பான்' }
+      },
+      te: {
+        'core-vad': { title: 'సిలెరో వాయిస్ యాక్టివిటీ డిటెక్టర్', desc: 'అల్ట్రా-తక్కువ లేటెన్సీ స్పీచ్ డిటెక్టర్ (ముందుగానే ఇన్‌స్టాల్ చేయబడింది)' },
+        'core-lid': { title: 'FastText భాషా గుర్తింపు', desc: 'ఆన్-డివైస్ భాషా వర్గీకరణ (ముందుగానే ఇన్‌స్టాల్ చేయబడింది)' },
+        'stt-hi': { title: 'హిందీ సంభాషణ గుర్తింపు (ASR)', desc: 'ఆఫ్‌లైన్ స్పీచ్ రికగ్నిషన్ మోడల్' },
+        'stt-en': { title: 'భారతీయ ఇంగ్లీష్ సంభాషణ గుర్తింపు', desc: 'భారతీయ ఉచ్చారణ స్పీచ్ మోడల్' },
+        'stt-mr': { title: 'మరాఠీ సంభాషణ గుర్తింపు (ASR)', desc: 'మరాఠీ సంభాషణ గుర్తింపు మోడల్' },
+        'stt-gu': { title: 'గుజరాతీ సంభాషణ గుర్తింపు (ASR)', desc: 'గుజరాతీ సంభాషణ గుర్తింపు మోడల్' },
+        'stt-ta': { title: 'తమిళ సంభాషణ గుర్తింపు (ASR)', desc: 'తమిళ సంభాషణ గుర్తింపు మోడల్' },
+        'stt-te': { title: 'తెలుగు సంభాషణ గుర్తింపు (ASR)', desc: 'ఆఫ్‌లైన్ తెలుగు ధ్వని గుర్తింపు మరియు ప్రోసోడీ మోడల్' },
+        'stt-kn': { title: 'కన్నడ సంభాషణ గుర్తింపు (ASR)', desc: 'కన్నడ ప్రాంతీయ భాషా స్పీచ్ మోడల్' },
+        'stt-bn': { title: 'బెంగాలీ సంభాషణ గుర్తింపు (ASR)', desc: 'బెంగాలీ సంభాషణ గుర్తింపు మోడల్' },
+        'tts-hi': { title: 'హిందీ న్యూరల్ వాయిస్ (IndicTTS)', desc: 'సహజమైన హిందీ ఆడియో సింథసిస్' },
+        'tts-en': { title: 'భారతీయ ఇంగ్లీష్ న్యూరల్ వాయిస్', desc: 'సహజమైన ఇంగ్లీష్ ఆడియో ప్లేబ్యాక్' },
+        'tts-mr': { title: 'మరాఠీ న్యూరల్ వాయిస్', desc: 'హై-క్లారిటీ మరాఠీ న్యూరల్ సింథసైజర్' },
+        'tts-gu': { title: 'గుజరాతీ న్యూరల్ వాయిస్', desc: 'లైట్ వెయిట్ ఆన్-డివైస్ వాయిస్ ప్యాక్' },
+        'tts-ta': { title: 'తమిళ న్యూరల్ వాయిస్', desc: 'రియల్-టైమ్ తమిళ న్యూరల్ సింథసిస్ ప్యాక్' },
+        'tts-te': { title: 'తెలుగు న్యూరల్ వాయిస్ (IndicTTS)', desc: 'తక్కువ లేటెన్సీ తెలుగు న్యూరల్ ఆడియో సింథసిస్ ప్యాక్' },
+        'tts-kn': { title: 'కన్నడ న్యూరಲ್ వాయిస్', desc: 'ఆఫ్‌లైన్ న్యూరల్ ఆడియో ఇంజిన్' },
+        'tts-bn': { title: 'బెంగాలీ న్యూరల్ వాయిస్', desc: 'సహజమైన బెంగాలీ వాయిస్ సింథసైజర్' }
+      },
+      kn: {
+        'core-vad': { title: 'ಸಿಲೆರೋ ಧ್ವನಿ ಚಟುವಟಿಕೆ ಪತ್ತೆಕಾರಕ', desc: 'ಅಲ್ಟ್ರಾ-ಕಡಿಮೆ ಲೇಟೆನ್ಸಿ ಧ್ವನಿ ಪತ್ತೆಕಾರಕ (ಪೂರ್ವ-ಸ್ಥಾಪಿತ)' },
+        'core-lid': { title: 'FastText ಭಾಷಾ ಗುರುತಿಸುವಿಕೆ', desc: 'ಆನ್-ಡಿವೈಸ್ ಅಕೌಸ್ಟಿಕ್ ಭಾಷಾ ವರ್ಗೀಕರಣ (ಪೂರ್ವ-ಸ್ಥಾಪಿತ)' },
+        'stt-hi': { title: 'ಹಿಂದಿ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ (ASR)', desc: 'ಆಫ್‌ಲೈನ್ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ ಮಾದರಿ' },
+        'stt-en': { title: 'ಭಾರತೀಯ ಇಂಗ್ಲಿಷ್ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ', desc: 'ಭಾರತೀಯ ಉಚ್ಚಾರಣೆ ಧ್ವನಿ ಮಾದರಿ' },
+        'stt-mr': { title: 'ಮರಾಠಿ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ (ASR)', desc: 'ಮರಾಠಿ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ ಮಾದರಿ' },
+        'stt-gu': { title: 'ಗುಜರಾತಿ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ (ASR)', desc: 'ಗುಜರಾತಿ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ ಮಾದರಿ' },
+        'stt-ta': { title: 'ತಮಿಳು ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ (ASR)', desc: 'ತಮಿಳು ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ ಮಾದರಿ' },
+        'stt-te': { title: 'ತೆಲುಗು ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ (ASR)', desc: 'ತೆಲುಗು ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ ಮಾದರಿ' },
+        'stt-kn': { title: 'ಕನ್ನಡ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ (ASR)', desc: 'ಕರ್ನಾಟಕ ಪ್ರಾದೇಶಿಕ ಉಪಭಾಷಾ ಧ್ವನಿ-ಪಠ್ಯ ಮಾದರಿ' },
+        'stt-bn': { title: 'ಬಂಗಾಳಿ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ (ASR)', desc: 'ಬಂಗಾಳಿ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ ಮಾದರಿ' },
+        'tts-hi': { title: 'ಹಿಂದಿ ನ್ಯೂರಲ್ ಧ್ವನಿ (IndicTTS)', desc: 'ನೈಸರ್ಗಿಕ ಹಿಂದಿ ಆಡಿಯೋ ಸಂಶ್ಲೇಷಣೆ' },
+        'tts-en': { title: 'ಭಾರತೀಯ ಇಂಗ್ಲಿಷ್ ನ್ಯೂರಲ್ ಧ್ವನಿ', desc: 'ನೈಸರ್ಗಿಕ ಇಂಗ್ಲಿಷ್ ಆಡಿಯೋ ಪ್ಲೇಬ್ಯಾಕ್' },
+        'tts-mr': { title: 'ಮರಾಠಿ ನ್ಯೂರಲ್ ಧ್ವನಿ', desc: 'ಹೆಚ್ಚಿನ ಸ್ಪಷ್ಟತೆಯ ಮರಾಠಿ ನ್ಯೂರಲ್ ಸಿಂಥಸೈಜರ್' },
+        'tts-gu': { title: 'ಗುಜರಾತಿ ನ್ಯೂರಲ್ ಧ್ವನಿ', desc: 'ಹಗುರವಾದ ಸಾಧನದಲ್ಲಿನ ಧ್ವನಿ ಪ್ಯಾಕ್' },
+        'tts-ta': { title: 'ತಮಿಳು ನ್ಯೂರಲ್ ಧ್ವನಿ', desc: 'ನೈಜ ಸಮಯದ ತಮಿಳು ನ್ಯೂರಲ್ ಸಂಶ್ಲೇಷಣೆ ಪ್ಯಾಕ್' },
+        'tts-te': { title: 'ತೆಲುಗು ನ್ಯೂರಲ್ ಧ್ವನಿ', desc: 'ಕಡಿಮೆ ಲೇಟೆನ್ಸಿ ನ್ಯೂರಲ್ ಆಡಿಯೋ ಸಂಶ್ಲೇಷಣೆ ಪ್ಯಾಕ್' },
+        'tts-kn': { title: 'ಕನ್ನಡ ನ್ಯೂರಲ್ ಧ್ವನಿ (IndicTTS)', desc: 'ಆಫ್‌ಲೈನ್ ಫೋನೆಟಿಕ್ ನ್ಯೂರಲ್ ಎಂಜಿನ್' },
+        'tts-bn': { title: 'ಬಂಗಾಳಿ ನ್ಯೂರಲ್ ಧ್ವನಿ', desc: 'ನೈಸರ್ಗಿಕ ಬಂಗಾಳಿ ಧ್ವನಿ ಸಿಂಥಸೈಜರ್' }
+      }
+    };
+
+    function getModelDisplay(m, lang) {
+      if (MODEL_I18N[lang] && MODEL_I18N[lang][m.id]) {
+        return MODEL_I18N[lang][m.id];
+      }
+      return { title: m.title, desc: m.desc };
+    }
+
     function renderModels() {
       const coreContainer = $('coreModelsContainer');
       const sttContainer = $('sttModelsContainer');
@@ -6638,6 +6850,8 @@
         const pct = (prog && typeof prog.pct === 'number') ? prog.pct : 0;
         const isIndeterminate = Boolean(prog && prog.status === 'extracting');
 
+        const dict = LINC_I18N[currentLanguage] || LINC_I18N['en'];
+        const disp = getModelDisplay(m, currentLanguage);
         const card = document.createElement('div');
         let cardClass = 'model-card';
         if (isInstalled) cardClass += ' installed';
@@ -6691,12 +6905,12 @@
         // Right side action / badge
         let rightActionHtml = '';
         if (isCore) {
-          rightActionHtml = `<span class="model-badge badge-bundled">${(LINC_I18N[currentLanguage] || LINC_I18N['en']).tagPreBundled || 'Pre-bundled'}</span>`;
+          rightActionHtml = `<span class="model-badge badge-bundled">${dict.tagPreBundled || 'Pre-bundled'}</span>`;
         } else if (isInstalled) {
           rightActionHtml = `
             <span class="model-badge badge-installed">
               <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              ${(LINC_I18N[currentLanguage] || LINC_I18N['en']).tagInstalled || 'Installed'}
+              ${dict.tagInstalled || 'Installed'}
             </span>
           `;
         } else if (isDownloading) {
@@ -6734,7 +6948,7 @@
           }
         }
 
-        let descHtml = `${m.desc} · <span class="model-size">${m.size} MB</span>`;
+        let descHtml = `${disp.desc} · <span class="model-size">${m.size} MB</span>`;
         if (isDownloading) {
           if (prog && prog.status === 'extracting') {
             descHtml = `<span style="color:#0f172a; font-weight:600;">Extracting model files into engine...</span>`;
@@ -6751,9 +6965,9 @@
             ${iconContainerHtml}
             <div class="model-info">
               <div class="model-title-row">
-                <span class="model-title">${m.title}</span>
+                <span class="model-title">${disp.title}</span>
                 <span class="model-tag">${m.tag}</span>
-                ${m.recommended ? '<span class="model-rec-pill">Recommended</span>' : ''}
+                ${m.recommended ? `<span class="model-rec-pill">${dict.tagRecommended || 'Recommended'}</span>` : ''}
               </div>
               <div class="model-desc" id="dl-desc-${m.id}">${descHtml}</div>
             </div>
@@ -7843,7 +8057,7 @@
                 <div class="device-detail">WI-FI DIRECT / HOTSPOT · ${p.address} · Port ${p.port || 8988}</div>
               </div>
             </div>
-            <button class="btn-pill" style="padding:6px 14px; font-size:11px; background:#111827;">Connect</button>
+            <button class="btn-pill" style="padding:6px 14px; font-size:11px; background:#111827;">${(LINC_I18N[currentLanguage] || LINC_I18N['en']).btnConnect || 'Connect'}</button>
           `;
           item.onclick = (e) => {
             e.stopPropagation();

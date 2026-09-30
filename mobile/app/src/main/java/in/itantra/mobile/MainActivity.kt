@@ -340,7 +340,7 @@ class MainActivity : Activity() {
         fullSequence.playSequentially(intro, outro)
         fullSequence.addListener(object : AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: Animator) {
-                web?.evaluateJavascript("if (window.onBootCompleted) window.onBootCompleted(); const el = document.querySelector('.hero-brand-title'); if(el) el.style.opacity = '1';", null)
+                web?.evaluateJavascript("const el = document.querySelector('.hero-brand-title'); if(el) { el.style.opacity = '1'; el.style.visibility = 'visible'; } if (window.onBootCompleted) window.onBootCompleted();", null)
                 splash?.let { sp ->
                     (sp.parent as? FrameLayout)?.removeView(sp)
                 }
