@@ -121,6 +121,7 @@ class MainActivity : Activity() {
                 override fun onPageFinished(v: WebView, url: String) {
                     loaded = true
                     event("device", LocalTransport.json("name", Build.MODEL, "android", Build.VERSION.RELEASE))
+                    transport.requestSelfP2pInfo()
                     speech.status()
                     handleIntent(intent)
 
@@ -468,6 +469,7 @@ class MainActivity : Activity() {
             val allGranted = grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
             if (allGranted) {
                 Log.i("LinC", "WiFi Direct permissions granted by user; discovering peers")
+                transport.requestSelfP2pInfo()
                 transport.discoverP2pPeers()
             } else {
                 Log.w("LinC", "WiFi Direct permissions denied by user")

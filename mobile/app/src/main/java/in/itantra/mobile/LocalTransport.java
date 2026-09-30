@@ -161,12 +161,43 @@ public final class LocalTransport {
                         }
                     });
                     Log.i(TAG, "WiFi P2P initialized successfully");
+                    if (Build.VERSION.SDK_INT >= 29) {
+                        try {
+                            p2pManager.requestDeviceInfo(p2pChannel, device -> {
+                                if (device != null && device.deviceAddress != null) {
+                                    myP2pAddress = device.deviceAddress;
+                                    Log.i(TAG, "Self P2P device initialized: " + myP2pAddress);
+                                    event("self_p2p", "p2pAddress", device.deviceAddress, "name", device.deviceName != null ? device.deviceName : "");
+                                }
+                            });
+                        } catch (Exception ignored) {}
+                    }
                 } else {
                     Log.w(TAG, "WifiP2pManager is null; WiFi Direct not supported on this device");
                 }
             }
         } catch (Exception e) {
             Log.w(TAG, "Failed to initialize WiFi Direct: " + e.getMessage());
+        }
+    }
+
+    public String getMyP2pAddress() {
+        return myP2pAddress;
+    }
+
+    public void requestSelfP2pInfo() {
+        if (myP2pAddress != null && !myP2pAddress.isEmpty()) {
+            event("self_p2p", "p2pAddress", myP2pAddress);
+        } else if (Build.VERSION.SDK_INT >= 29 && p2pManager != null && p2pChannel != null) {
+            try {
+                p2pManager.requestDeviceInfo(p2pChannel, device -> {
+                    if (device != null && device.deviceAddress != null) {
+                        myP2pAddress = device.deviceAddress;
+                        Log.i(TAG, "Self P2P device initialized via request: " + myP2pAddress);
+                        event("self_p2p", "p2pAddress", device.deviceAddress, "name", device.deviceName != null ? device.deviceName : "");
+                    }
+                });
+            } catch (Exception ignored) {}
         }
     }
 
@@ -236,18 +267,24 @@ public final class LocalTransport {
                             for (WifiP2pDevice device : deviceList) {
                                 String p2pAddr = device.deviceAddress;
                                 String devName = device.deviceName;
-                                if (p2pAddr != null && !p2pAddr.equals(myP2pAddress)) {
-                                    Log.i(TAG, "P2P peer found: " + devName + " (" + p2pAddr + ") status=" + p2pDeviceStatus(device.status));
-                                    event("peer",
-                                        "name", devName != null && !devName.isEmpty() ? devName : "WiFi Direct Peer",
-                                        "model", devName != null ? devName : "",
-                                        "address", "",
-                                        "p2pAddress", p2pAddr,
-                                        "port", 8988,
-                                        "source", "p2p",
-                                        "status", p2pDeviceStatus(device.status)
-                                    );
+                                if (p2pAddr == null) continue;
+                                if (myP2pAddress != null && p2pAddr.equalsIgnoreCase(myP2pAddress)) continue;
+
+                                if (device.status == WifiP2pDevice.UNAVAILABLE || device.status == WifiP2pDevice.FAILED) {
+                                    event("peerLost", "name", devName != null ? devName : "", "p2pAddress", p2pAddr);
+                                    continue;
                                 }
+
+                                Log.i(TAG, "P2P peer found: " + devName + " (" + p2pAddr + ") status=" + p2pDeviceStatus(device.status));
+                                event("peer",
+                                    "name", devName != null && !devName.isEmpty() ? devName : "WiFi Direct Peer",
+                                    "model", devName != null ? devName : "",
+                                    "address", "",
+                                    "p2pAddress", p2pAddr,
+                                    "port", 8988,
+                                    "source", "p2p",
+                                    "status", p2pDeviceStatus(device.status)
+                                );
                             }
                         });
                     } catch (SecurityException se) {
@@ -306,9 +343,10 @@ public final class LocalTransport {
 
             case WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION -> {
                 WifiP2pDevice thisDevice = intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE);
-                if (thisDevice != null) {
+                if (thisDevice != null && thisDevice.deviceAddress != null) {
                     myP2pAddress = thisDevice.deviceAddress;
                     Log.i(TAG, "This device P2P address: " + thisDevice.deviceAddress + " (" + thisDevice.deviceName + ")");
+                    event("self_p2p", "p2pAddress", thisDevice.deviceAddress, "name", thisDevice.deviceName != null ? thisDevice.deviceName : "");
                 }
             }
         }
@@ -494,10 +532,15 @@ public final class LocalTransport {
                             String beaconSession = parts[2];
                             String beaconCallsign = parts[3];
                             String beaconModel = parts.length >= 5 ? parts[4] : "";
+                            String beaconP2p = parts.length >= 6 ? parts[5] : "";
                             String senderIp = packet.getAddress() != null ? packet.getAddress().getHostAddress() : "";
                             if (!session.toString().equals(beaconSession) && !isSelfAddress(senderIp)) {
-                                Log.i(TAG, "Discovered LinC peer via UDP beacon: " + beaconCallsign + " (" + senderIp + ")");
-                                event("peer", "name", beaconCallsign, "model", beaconModel, "address", senderIp, "port", 8988, "source", "beacon");
+                                Log.i(TAG, "Discovered LinC peer via UDP beacon: " + beaconCallsign + " (" + senderIp + ")" + (!beaconP2p.isEmpty() ? " [p2p:" + beaconP2p + "]" : ""));
+                                if (!beaconP2p.isEmpty()) {
+                                    event("peer", "name", beaconCallsign, "model", beaconModel, "address", senderIp, "p2pAddress", beaconP2p, "port", 8988, "source", "beacon");
+                                } else {
+                                    event("peer", "name", beaconCallsign, "model", beaconModel, "address", senderIp, "port", 8988, "source", "beacon");
+                                }
                             }
                         }
                     }
@@ -512,7 +555,8 @@ public final class LocalTransport {
         if (connected) return;
         io.execute(() -> {
             try {
-                String payloadStr = "LINC_BEACON:8988:" + session.toString() + ":" + callsign + ":" + Build.MODEL;
+                String p2pSuffix = (myP2pAddress != null && !myP2pAddress.isEmpty()) ? ":" + myP2pAddress : "";
+                String payloadStr = "LINC_BEACON:8988:" + session.toString() + ":" + callsign + ":" + Build.MODEL + p2pSuffix;
                 byte[] payload = payloadStr.getBytes(StandardCharsets.UTF_8);
                 DatagramSocket sender = new DatagramSocket();
                 sender.setBroadcast(true);

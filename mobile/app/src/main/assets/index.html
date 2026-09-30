@@ -4841,8 +4841,12 @@
 
     // Central Language & Radar State
     let isBooting = true;
-    let currentLanguage = 'hi';
+    let currentLanguage = safeGet('linc_preferred_lang', 'hi'); // App UI Language
+    let currentSpeechLanguage = safeGet('linc_speech_lang', 'hi'); // Speech Language below radar
     let selectedDropdownLang = 'mr';
+    let myP2pAddress = '';
+    let currentConnectedPeer = '';
+    let currentConnectedIp = '';
 
     const LANG_META = {
       hi: { primary: 'हिन्दी', code: 'hi-IN' },
@@ -6258,7 +6262,8 @@
 
     window.pickAppLanguage = function (lang) {
       closeLanguageChangeModal();
-      setRadarLanguage(lang, true);
+      applyAppLanguage(lang);
+      setRadarLanguage(lang);
       const dict = LINC_I18N[lang] || LINC_I18N['en'];
       const msg = dict.langChangedToast || `App language changed to ${langNames[lang] || lang}`;
       showToast(msg);
@@ -6310,26 +6315,27 @@
         }
       }
 
-      // Update Radar language pills / dropdown active state
+      // Update Radar speech language pills / dropdown active state based on currentSpeechLanguage
+      const speechLang = currentSpeechLanguage || lang;
       const hiBtn = $('radarLangHi');
       const enBtn = $('radarLangEn');
       const ddBtn = $('radarLangDropdownBtn');
-      if (hiBtn) hiBtn.classList.toggle('active', lang === 'hi');
-      if (enBtn) enBtn.classList.toggle('active', lang === 'en');
+      if (hiBtn) hiBtn.classList.toggle('active', speechLang === 'hi');
+      if (enBtn) enBtn.classList.toggle('active', speechLang === 'en');
       if (ddBtn) {
-        ddBtn.classList.toggle('active', lang !== 'hi' && lang !== 'en');
-        if (lang !== 'hi' && lang !== 'en' && LANG_META[lang]) {
+        ddBtn.classList.toggle('active', speechLang !== 'hi' && speechLang !== 'en');
+        if (speechLang !== 'hi' && speechLang !== 'en' && LANG_META[speechLang]) {
           const ddPrimary = $('radarLangDropdownPrimary');
           const ddCode = $('radarLangDropdownCode');
-          if (ddPrimary) ddPrimary.textContent = LANG_META[lang].primary;
-          if (ddCode) ddCode.textContent = LANG_META[lang].code;
-          ddBtn.setAttribute('data-lang', lang);
+          if (ddPrimary) ddPrimary.textContent = LANG_META[speechLang].primary;
+          if (ddCode) ddCode.textContent = LANG_META[speechLang].code;
+          ddBtn.setAttribute('data-lang', speechLang);
         }
       }
 
       // Update dropdown items active check
       document.querySelectorAll('.radar-dropdown-item').forEach(item => {
-        item.classList.toggle('active', item.getAttribute('data-lang') === lang);
+        item.classList.toggle('active', item.getAttribute('data-lang') === speechLang);
       });
 
       // Update Node Identity current language badge
@@ -6347,10 +6353,10 @@
         btn.classList.toggle('active', btn.getAttribute('data-ob-lang') === lang);
       });
 
-      // Update radar status label
+      // Update radar status label (using UI language prefix + speech language name)
       if ($('radarStatusSub')) {
         const prefix = dict.activeSpeechLabel || 'Active Speech:';
-        const label = langNames[lang] || lang;
+        const label = langNames[speechLang] || speechLang;
         $('radarStatusSub').innerHTML = `${prefix} <b>${label}</b> · <span style="color:#0f172a">AI4Bharat Indic-TTS</span>`;
       }
 
@@ -6373,7 +6379,6 @@
       updateOnboardingStepDisplay();
       updateOnboardingModelPreview();
     };
-
 
     window.toggleLanguageDropdown = function (e) {
       if (e) e.stopPropagation();
@@ -6400,7 +6405,7 @@
       });
 
       if (dd) dd.classList.add('hidden');
-      setRadarLanguage(lang, true);
+      setRadarLanguage(lang);
     };
 
     // Close language dropdown on outside click
@@ -6414,27 +6419,40 @@
       }
     });
 
-    window.setRadarLanguage = function (lang, syncUI = true) {
-      currentLanguage = lang;
-      safeSet('linc_preferred_lang', lang);
+    window.setRadarLanguage = function (lang) {
+      currentSpeechLanguage = lang;
+      safeSet('linc_speech_lang', lang);
 
-      if (syncUI) {
-        applyAppLanguage(lang);
+      // Update radar speech pills
+      const hiBtn = $('radarLangHi');
+      const enBtn = $('radarLangEn');
+      const ddBtn = $('radarLangDropdownBtn');
+      if (hiBtn) hiBtn.classList.toggle('active', lang === 'hi');
+      if (enBtn) enBtn.classList.toggle('active', lang === 'en');
+      if (ddBtn) {
+        ddBtn.classList.toggle('active', lang !== 'hi' && lang !== 'en');
+        if (lang !== 'hi' && lang !== 'en' && LANG_META[lang]) {
+          const ddPrimary = $('radarLangDropdownPrimary');
+          const ddCode = $('radarLangDropdownCode');
+          if (ddPrimary) ddPrimary.textContent = LANG_META[lang].primary;
+          if (ddCode) ddCode.textContent = LANG_META[lang].code;
+          ddBtn.setAttribute('data-lang', lang);
+        }
       }
+      document.querySelectorAll('.radar-dropdown-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-lang') === lang);
+      });
 
       command('language', { language: lang });
 
+      const dict = LINC_I18N[currentLanguage] || LINC_I18N['en'];
+      const prefix = dict.activeSpeechLabel || 'Active Speech:';
       const label = langNames[lang] || lang;
       if ($('radarStatusSub')) {
-        $('radarStatusSub').innerHTML = `Active Speech: <b>${label}</b> · <span style="color:#0f172a">AI4Bharat Indic-TTS</span>`;
+        $('radarStatusSub').innerHTML = `${prefix} <b>${label}</b> · <span style="color:#0f172a">AI4Bharat Indic-TTS</span>`;
       }
 
-      if ($('pttMainLabel') && !isPttLocked) {
-        const dict = LINC_I18N[lang] || LINC_I18N['en'];
-        $('pttMainLabel').textContent = dict.pttMainLabel || 'PUSH TO TALK';
-      }
-
-      showToast(`Language set to ${label}. Using AI4Bharat Indic-TTS.`);
+      showToast(`Speech language set to ${label}. Using AI4Bharat Indic-TTS.`);
       checkCurrentSpeechModelStatus();
     };
 
@@ -8104,6 +8122,12 @@
           command('callsign', { callsign });
           break;
 
+        case 'self_p2p':
+          if (data.p2pAddress) {
+            myP2pAddress = data.p2pAddress.toLowerCase().trim();
+          }
+          break;
+
         case 'connection_request':
           showIncomingRequest(data);
           break;
@@ -8131,6 +8155,8 @@
             const peerName = data.peer || ($('outgoingTargetName') ? $('outgoingTargetName').textContent : 'Peer Node');
             pill.textContent = 'CONNECTED · ' + peerName;
             showToast('Mesh Link Established with ' + peerName);
+            currentConnectedPeer = peerName;
+            currentConnectedIp = data.address || '';
             addSessionConnectedDevice(peerName, data.address, data.port);
           } else if (data.state === 'WAITING_APPROVAL') {
             pill.className = 'header-pill pill-neutral';
@@ -8140,7 +8166,10 @@
             $('outgoingRequestModal').classList.add('hidden');
             pill.className = 'header-pill pill-neutral';
             pill.textContent = data.state;
+            currentConnectedPeer = '';
+            currentConnectedIp = '';
           }
+          renderDiscoveredPeers();
           break;
 
         case 'host':
@@ -8158,28 +8187,63 @@
         case 'peer': {
           const ip = (data.address || '').trim();
           const p2pAddress = (data.p2pAddress || '').trim();
+
+          // 1. Strict self-device filtering
           if (ip && myAddresses.has(ip)) break;
+          if (myP2pAddress && p2pAddress && p2pAddress.toLowerCase() === myP2pAddress.toLowerCase()) break;
 
           const rawName = (data.name || '').trim();
           const cleaned = cleanPeerDisplayName(rawName) || rawName || (p2pAddress ? 'Direct Peer' : 'Nearby Device');
-          const peerKey = ip || p2pAddress || cleaned;
-          if (!peerKey) break;
+
+          const selfCallsignNorm = normalizeDeviceIdentifier(callsign);
+          const rawNameNorm = normalizeDeviceIdentifier(rawName);
+          if (selfCallsignNorm && rawNameNorm && selfCallsignNorm === rawNameNorm && (!ip || myAddresses.has(ip))) {
+            break;
+          }
+          if (myModel && rawNameNorm && rawNameNorm === myModel && (!ip || myAddresses.has(ip))) {
+            break;
+          }
 
           const now = Date.now();
-          let existing = peers.get(peerKey);
 
-          // If not found by key, search by IP or p2pAddress across all peers to merge
+          // 2. Search for existing peer across all discovery sources (Beacon, mDNS, P2P) to merge
+          let existing = null;
+          let existingKey = null;
+
+          // A) Try exact IP or exact P2P MAC match
+          for (const [k, p] of peers.entries()) {
+            const matchIp = (ip && p.address && p.address === ip);
+            const matchP2p = (p2pAddress && p.p2pAddress && p.p2pAddress.toLowerCase() === p2pAddress.toLowerCase());
+            if (matchIp || matchP2p) {
+              existing = p;
+              existingKey = k;
+              break;
+            }
+          }
+
+          // B) Try matching by normalized device model/name when one is P2P-only and the other has IP
           if (!existing) {
-            for (const [k, p] of peers.entries()) {
-              if ((ip && p.address === ip) || (p2pAddress && p.p2pAddress === p2pAddress)) {
-                existing = p;
-                peers.delete(k);
-                break;
+            const incomingModelNorm = normalizeDeviceIdentifier(data.model || rawName);
+            if (incomingModelNorm && !isGenericName(incomingModelNorm)) {
+              for (const [k, p] of peers.entries()) {
+                const existingModelNorm = normalizeDeviceIdentifier(p.model || p.rawName || p.name);
+                if (existingModelNorm && existingModelNorm === incomingModelNorm) {
+                  if (!p.address || !ip || !p.p2pAddress || !p2pAddress) {
+                    existing = p;
+                    existingKey = k;
+                    break;
+                  }
+                }
               }
             }
           }
 
+          const canonicalKey = ip || p2pAddress || cleaned;
+
           if (existing) {
+            if (existingKey && existingKey !== canonicalKey) {
+              peers.delete(existingKey);
+            }
             existing.lastSeen = now;
             if (data.port) existing.port = data.port;
             if (ip) existing.address = ip;
@@ -8195,13 +8259,13 @@
 
             if (newIsBeacon || (existingIsGeneric && !newIsGeneric)) {
               existing.name = cleaned;
-            } else if (!existing.name || existing.name === 'Nearby Device' || existing.name === 'Direct Peer') {
+            } else if (!existing.name || existing.name === 'Nearby Device' || existing.name === 'Direct Peer' || existing.name === 'WiFi Direct Peer') {
               existing.name = cleaned;
             }
-            peers.set(peerKey, existing);
+            peers.set(canonicalKey, existing);
           } else {
-            peers.set(peerKey, {
-              id: peerKey,
+            peers.set(canonicalKey, {
+              id: canonicalKey,
               name: cleaned,
               rawName: rawName,
               serviceName: data.serviceName || rawName,
@@ -8215,13 +8279,21 @@
             });
           }
 
-          // Strict deduplication: remove any other entries that share this IP or p2pAddress
+          // Strict deduplication: remove any duplicate peer entry sharing IP, P2P MAC, or model
           for (const [k, p] of peers.entries()) {
-            if (k !== peerKey) {
+            if (k !== canonicalKey) {
               if (ip && p.address === ip) {
                 peers.delete(k);
-              } else if (p2pAddress && p.p2pAddress === p2pAddress) {
+              } else if (p2pAddress && p.p2pAddress && p.p2pAddress.toLowerCase() === p2pAddress.toLowerCase()) {
                 peers.delete(k);
+              } else {
+                const normP = normalizeDeviceIdentifier(p.model || p.name);
+                const normCurrent = normalizeDeviceIdentifier((existing ? existing.model : data.model) || cleaned);
+                if (normP && normCurrent && normP === normCurrent && !isGenericName(normP)) {
+                  if (ip && !p.address) {
+                    peers.delete(k);
+                  }
+                }
               }
             }
           }
@@ -8234,13 +8306,22 @@
           const lostRaw = (data.name || '').trim();
           const cleanLost = cleanPeerDisplayName(lostRaw);
           const lostIp = (data.address || '').trim();
+          const lostP2p = (data.p2pAddress || '').trim().toLowerCase();
 
           for (const [k, p] of peers.entries()) {
-            const matchKey = (k === lostRaw || k === cleanLost || (lostIp && k === lostIp));
+            const matchP2p = (lostP2p && p.p2pAddress && p.p2pAddress.toLowerCase() === lostP2p);
             const matchIp = (lostIp && p.address === lostIp);
+            const matchKey = (k === lostRaw || k === cleanLost || (lostIp && k === lostIp) || (lostP2p && k.toLowerCase() === lostP2p));
             const matchService = (p.serviceName && (p.serviceName === lostRaw || p.serviceName === data.serviceName));
             const matchName = (p.rawName === lostRaw || p.name === cleanLost || p.name === lostRaw);
-            if (matchKey || matchIp || matchService || matchName) {
+
+            if (matchP2p) {
+              if (p.address) {
+                p.p2pAddress = '';
+              } else {
+                peers.delete(k);
+              }
+            } else if (matchIp || matchKey || matchService || matchName) {
               peers.delete(k);
             }
           }
@@ -8350,6 +8431,21 @@
       return s.trim();
     }
 
+    function normalizeDeviceIdentifier(s) {
+      if (!s) return '';
+      return String(s)
+        .toLowerCase()
+        .replace(/^(linc|itantra)[-_.\s]*/i, '')
+        .replace(/[-_][0-9a-f]{4}$/i, '')
+        .replace(/[^a-z0-9]/g, '');
+    }
+
+    function isGenericName(s) {
+      if (!s) return true;
+      const clean = String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+      return /^(nearbydevice|directpeer|wifidirectpeer|wifidirect|androidhandset|android|phone|hotspothost|devicenode|peernode)$/i.test(clean);
+    }
+
     function isGenericDeviceModel(str) {
       if (!str) return true;
       const s = str.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -8396,22 +8492,53 @@
         }
       }
 
-      // 2. Filter self address & deduplicate strictly by IP or P2P address
+      // 2. Strict deduplication & self / connected peer filtering
+      // Sort so peers with IP addresses are processed first to prioritize direct TCP connectivity
+      const sortedPeers = Array.from(peers.values()).sort((a, b) => (b.address ? 1 : 0) - (a.address ? 1 : 0));
+
       const seenIps = new Set();
       const seenP2p = new Set();
+      const seenNames = new Set();
       const list = [];
-      for (const p of peers.values()) {
+
+      for (const p of sortedPeers) {
+        // Filter self IP
         if (p.address && myAddresses.has(p.address)) continue;
+        // Filter self P2P MAC
+        if (myP2pAddress && p.p2pAddress && p.p2pAddress.toLowerCase() === myP2pAddress.toLowerCase()) continue;
+
+        // Filter self callsign & model
+        const cleanPeerName = (p.name || '').replace(/^(iTantra|LinC\.)-?/, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const selfCallsignClean = (callsign || '').replace(/^(iTantra|LinC\.)-?/, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        if (selfCallsignClean && cleanPeerName === selfCallsignClean) continue;
+        if (myModel && cleanPeerName === myModel && (!p.address || myAddresses.has(p.address))) continue;
+
+        // Filter connected peer (don't display unconnected bubble for the node we are already connected with)
+        if (connected) {
+          if (currentConnectedIp && p.address === currentConnectedIp) continue;
+          if (currentConnectedPeer) {
+            const connClean = currentConnectedPeer.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
+            if (cleanPeerName && cleanPeerName === connClean) continue;
+          }
+        }
+
+        // Deduplication across the list
         if (p.address) {
           if (seenIps.has(p.address)) continue;
-          seenIps.add(p.address);
         }
-        if (p.p2pAddress && !p.address) {
-          if (seenP2p.has(p.p2pAddress)) continue;
-          seenP2p.add(p.p2pAddress);
+        if (p.p2pAddress) {
+          if (seenP2p.has(p.p2pAddress.toLowerCase())) continue;
         }
-        const cleanPeerName = (p.name || '').replace(/^(iTantra|LinC\.)-?/, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        if (myModel && cleanPeerName === myModel && (!p.address || myAddresses.has(p.address))) continue;
+        const normIdentity = normalizeDeviceIdentifier(p.model || p.name);
+        if (normIdentity && !isGenericName(normIdentity)) {
+          if (seenNames.has(normIdentity)) continue;
+        }
+
+        // Add to seen sets
+        if (p.address) seenIps.add(p.address);
+        if (p.p2pAddress) seenP2p.add(p.p2pAddress.toLowerCase());
+        if (normIdentity && !isGenericName(normIdentity)) seenNames.add(normIdentity);
+
         list.push(p);
       }
 
