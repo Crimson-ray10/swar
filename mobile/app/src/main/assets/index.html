@@ -3247,6 +3247,13 @@
       background: #f1f5f9;
       transform: scale(0.95);
     }
+    .header-chat-btn.active {
+      background: var(--text);
+      border-color: var(--text);
+    }
+    .header-chat-btn.active svg {
+      stroke: #ffffff;
+    }
     .header-chat-btn svg {
       width: 15px;
       height: 15px;
@@ -4959,6 +4966,15 @@
         }
       }
 
+      // Chat Header Button State
+      if ($('btnHeaderChat')) {
+        if (viewId === 'viewMessages') {
+          $('btnHeaderChat').classList.add('active');
+        } else {
+          $('btnHeaderChat').classList.remove('active');
+        }
+      }
+
       // Update Universal Header text and STANDBY capsule position according to screen
       const pill = $('connectionPill');
       if (viewId === 'viewHome' || viewId === 'viewTransceiver') {
@@ -4979,6 +4995,7 @@
       if (viewId === 'viewTransceiver') {
         command('discover');
         renderDiscoveredPeers();
+        checkCurrentSpeechModelStatus();
       }
 
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -6879,6 +6896,7 @@
       if (!isCompleted) {
         openOnboardingModal();
       }
+      checkCurrentSpeechModelStatus();
     };
 
     // Failsafe timer: unblock after 3.8s if running outside Android or splash ended early
@@ -6948,10 +6966,10 @@
       if (Array.isArray(saved) && saved.length > 0) {
         selectedModelIds = new Set(saved);
       } else {
-        selectedModelIds = new Set(['stt-hi', 'stt-en', 'tts-hi', 'tts-en']);
+        selectedModelIds = new Set();
       }
     } catch (e) {
-      selectedModelIds = new Set(['stt-hi', 'stt-en', 'tts-hi', 'tts-en']);
+      selectedModelIds = new Set();
     }
 
     window.filterModelCategory = function (cat) {
@@ -7503,8 +7521,8 @@
         } else {
           if (isSelected) {
             rightActionHtml = `
-              <button type="button" class="model-action-btn selected" title="Selected for download">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <button type="button" class="model-action-btn selected" title="Selected for batch download">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M5 11l7 7 7-7"></path></svg>
               </button>
             `;
           } else {
@@ -7563,6 +7581,7 @@
       const activeLang = (lang || currentLanguage || safeGet('linc_preferred_lang', 'en')).toLowerCase().split('-')[0];
       const dict = LINC_I18N[activeLang] || LINC_I18N['en'];
 
+      let installedMb = 0;
       let selectedMb = 0;
       let selectedCount = 0;
 
@@ -7570,19 +7589,21 @@
         if (!m.bundled) {
           const isInstalled = (m.category === 'stt' && (installedSttLanguages.has(m.tag.toLowerCase()) || installedSttLanguages.has(m.lang))) ||
             (m.category === 'tts' && (installedTtsVoices.has(m.tag.toLowerCase()) || installedTtsVoices.has(m.lang)));
-          if (isInstalled || selectedModelIds.has(m.id)) {
+          if (isInstalled) {
+            installedMb += m.size;
+          } else if (selectedModelIds.has(m.id)) {
             selectedMb += m.size;
             selectedCount++;
           }
         }
       });
 
-      const savedMb = Math.max(0, TOTAL_BUNDLE_SIZE_MB - selectedMb);
+      const savedMb = Math.max(0, TOTAL_BUNDLE_SIZE_MB - installedMb);
       const savedPct = Math.round((savedMb / TOTAL_BUNDLE_SIZE_MB) * 100);
-      const usedPct = Math.min(100, Math.max(5, Math.round((selectedMb / TOTAL_BUNDLE_SIZE_MB) * 100)));
+      const usedPct = Math.min(100, Math.max(0, Math.round((installedMb / TOTAL_BUNDLE_SIZE_MB) * 100)));
 
-      if ($('statSelectedSize')) $('statSelectedSize').textContent = formatStorage(selectedMb);
-      if ($('barSelectedLabel')) $('barSelectedLabel').textContent = formatStorage(selectedMb);
+      if ($('statSelectedSize')) $('statSelectedSize').textContent = formatStorage(installedMb);
+      if ($('barSelectedLabel')) $('barSelectedLabel').textContent = formatStorage(installedMb);
       if ($('statSavingsMb')) $('statSavingsMb').textContent = `-${formatStorage(savedMb)}`;
       if ($('statSavingsText')) $('statSavingsText').textContent = `${dict.storageInstalled || 'installed'} · ${dict.storageSaves || 'Saves'} ${formatStorage(savedMb)} (${savedPct}%)`;
       if ($('barSavedPercent')) $('barSavedPercent').textContent = `${savedPct}% ${dict.storageSaved || 'Saved'}`;
@@ -7822,7 +7843,7 @@
         }
       }
 
-      if (missing && (hasCheckedModelSupport || installedSttLanguages.size > 0)) {
+      if (missing) {
         text.textContent = `Offline speech model for ${missingLabel} is not installed.`;
         banner.classList.remove('hidden');
       } else {
@@ -7887,7 +7908,7 @@
         }
       }
 
-      if (hasCheckedModelSupport && isMissing) {
+      if (isMissing) {
         window.showSpeechModelOfflineModal(lang, lang + '-IN', `Offline speech recognition model for ${langNames[lang] || lang} is not installed on this phone.`);
         showToast(`Offline speech model for ${lang.toUpperCase()} missing. Choose & download to save app size.`);
         return;
@@ -8138,11 +8159,7 @@
     // Current Session Connected Devices & Past Paired Devices History
     const sessionDevices = new Map();
 
-    const DEFAULT_PAST_DEVICES = [
-      { id: 'dev-1', name: 'realme 13+ 5G', type: 'phone', detail: 'BLUETOOTH · Previously Paired · -68dBm', address: '192.168.43.1', port: 8988 },
-      { id: 'dev-2', name: 'motorola edge 60', type: 'phone', detail: 'BLUETOOTH · Previously Paired · -72dBm', address: '192.168.43.1', port: 8988 },
-      { id: 'dev-3', name: 'Pixel 9 Pro', type: 'phone', detail: 'WIFI DIRECT · Previously Paired · -65dBm', address: '192.168.43.1', port: 8988 }
-    ];
+    const DEFAULT_PAST_DEVICES = [];
 
     function getPastDevices() {
       try {
@@ -8425,10 +8442,14 @@
             $('outgoingRequestModal').classList.remove('hidden');
           } else {
             $('outgoingRequestModal').classList.add('hidden');
+            $('incomingRequestModal').classList.add('hidden');
+            clearInterval(reqTimer);
             pill.className = 'header-pill pill-neutral';
-            pill.textContent = data.state;
+            pill.textContent = 'STANDBY';
             currentConnectedPeer = '';
             currentConnectedIp = '';
+            sessionDevices.clear();
+            renderSessionDevices();
           }
           renderDiscoveredPeers();
           break;
@@ -9126,14 +9147,16 @@
     }
 
     // ═══════════════ HEADER CHAT BUTTON ═══════════════
+    let previousViewBeforeChat = 'viewTransceiver';
     if ($('btnHeaderChat')) {
       $('btnHeaderChat').onclick = () => {
-        renderChatHistory();
-        // Navigate to messages view
-        const navItems = document.querySelectorAll('.nav-item');
-        navItems.forEach(n => n.classList.remove('active'));
-        document.querySelectorAll('.view-page').forEach(v => v.classList.add('hidden'));
-        $('viewMessages').classList.remove('hidden');
+        if (currentViewId === 'viewMessages') {
+          switchTab(previousViewBeforeChat || 'viewTransceiver');
+        } else {
+          previousViewBeforeChat = currentViewId || 'viewTransceiver';
+          renderChatHistory();
+          switchTab('viewMessages');
+        }
       };
     }
   </script>

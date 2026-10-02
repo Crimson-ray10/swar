@@ -158,6 +158,35 @@ public final class LocalTransport {
     private volatile String lastPeerP2p = "";
     private volatile boolean userExplicitDisconnect = false;
     private volatile boolean p2pConnecting = false;
+    private volatile ScheduledFuture<?> outgoingApprovalTimer = null;
+    private volatile boolean switchingToWifi = false;
+
+    private synchronized void startOutgoingApprovalTimer() {
+        if (outgoingApprovalTimer != null) {
+            outgoingApprovalTimer.cancel(false);
+            outgoingApprovalTimer = null;
+        }
+        outgoingApprovalTimer = clock.schedule(() -> {
+            synchronized (LocalTransport.this) {
+                if (!connected && ("WAITING_APPROVAL".equals(state) || "CONNECTING".equals(state))) {
+                    Log.w(TAG, "Outgoing connection request timed out waiting for peer response. Resetting to STANDBY.");
+                    event("request_declined", "peer", peer != null ? peer : "Peer", "reason", "Connection request timed out. Peer did not respond.");
+                    if (!btFallbackActive && !"bluetooth".equals(currentTransport)) {
+                        triggerBluetoothFallback();
+                    } else {
+                        resetToStandby();
+                    }
+                }
+            }
+        }, 15, TimeUnit.SECONDS);
+    }
+
+    private boolean isMatchingPeer(String a, String b) {
+        if (a == null || b == null) return false;
+        String na = a.replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
+        String nb = b.replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
+        return !na.isEmpty() && !nb.isEmpty() && (na.contains(nb) || nb.contains(na));
+    }
 
     public LocalTransport(Context context, Listener listener) {
         this.context = context;
@@ -643,6 +672,7 @@ public final class LocalTransport {
         btConnecting = true;
         userExplicitDisconnect = false;
         state("WAITING_APPROVAL");
+        startOutgoingApprovalTimer();
         Log.i(TAG, "Connecting to Bluetooth peer at " + targetAddr + " via RFCOMM...");
 
         io.execute(() -> {
@@ -891,6 +921,18 @@ public final class LocalTransport {
                                     if (p2pAddr.equalsIgnoreCase(lastPeerP2p) && device.status == WifiP2pDevice.AVAILABLE) {
                                         Log.i(TAG, "Known P2P peer available: " + devName + " -> Auto-reconnecting P2P!");
                                         connectP2p(lastPeerP2p);
+                                    }
+                                }
+
+                                // If currently on Bluetooth fallback, and this peer is detected on Wi-Fi Direct: upgrade to Wi-Fi Direct!
+                                if (connected && "bluetooth".equals(currentTransport) && !p2pConnecting && !switchingToWifi) {
+                                    boolean matchesPeer = (lastPeerP2p != null && p2pAddr.equalsIgnoreCase(lastPeerP2p)) ||
+                                                          (peer != null && !peer.isEmpty() && devName != null && isMatchingPeer(devName, peer)) ||
+                                                          (lastPeerCallsign != null && !lastPeerCallsign.isEmpty() && devName != null && isMatchingPeer(devName, lastPeerCallsign));
+                                    if (matchesPeer && device.status == WifiP2pDevice.AVAILABLE) {
+                                        Log.i(TAG, "[Wi-Fi Recovery] Connected peer detected on Wi-Fi Direct (" + devName + ")! Upgrading from Bluetooth fallback to Wi-Fi Direct...");
+                                        switchingToWifi = true;
+                                        connectP2p(p2pAddr);
                                     }
                                 }
                             }
@@ -1417,6 +1459,7 @@ public final class LocalTransport {
         io.execute(() -> {
             if (closed || hosting || connected || address.isEmpty() || cycle != generation) return;
             state(retry == 0 ? "WAITING_APPROVAL" : "RECONNECTING");
+            startOutgoingApprovalTimer();
             Socket next = new Socket();
             try {
                 Log.i(TAG, "Connecting to peer at " + address + ":" + port + "...");
@@ -1441,6 +1484,7 @@ public final class LocalTransport {
         remoteSequence = 0;
         currentTransport = next.getTransportType();
         state(accepted ? "CONNECTING" : "WAITING_APPROVAL");
+        if (!accepted) startOutgoingApprovalTimer();
 
         if (!accepted) {
             String myBtName = getBluetoothName();
@@ -1505,23 +1549,13 @@ public final class LocalTransport {
                 }
 
                 String clientAddr = (activeSocket != null) ? activeSocket.getRemoteAddress() : address;
-                boolean isKnownReconnect = (!lastPeerCallsign.isEmpty() && reqCallsign.equals(lastPeerCallsign)) ||
-                                           (!lastPeerAddress.isEmpty() && !clientAddr.isEmpty() && lastPeerAddress.equals(clientAddr)) ||
-                                           (p2pGroupConnected && clientAddr.startsWith("192.168.49.")) ||
-                                           ("bluetooth".equals(currentTransport));
-
-                if (isKnownReconnect && (pin.isEmpty() || pin.equals(incomingPin))) {
-                    Log.i(TAG, "Auto-accepting seamless reconnection from known peer (" + currentTransport + "): " + reqCallsign);
-                    respondRequest(true);
-                    return;
-                }
-
                 state("PENDING_APPROVAL");
                 Log.i(TAG, "Incoming connection request from " + reqCallsign + " (" + clientAddr + "). Showing Accept/Decline modal on receiver.");
                 event("connection_request", "peer", reqCallsign, "name", reqName, "callsign", reqCallsign, "address", clientAddr, "pin", incomingPin, "transport", currentTransport);
                 if (approvalTimer != null) approvalTimer.cancel(false);
                 approvalTimer = clock.schedule(() -> {
                     if (pendingSocket != null && !connected) {
+                        Log.i(TAG, "Incoming request from " + reqCallsign + " timed out after 30s. Declining.");
                         respondRequest(false);
                     }
                 }, 30, TimeUnit.SECONDS);
@@ -1548,15 +1582,15 @@ public final class LocalTransport {
                 String reason = data.optString("reason", "Connection request was declined by " + peer);
                 event("request_declined", "peer", peer, "reason", reason);
                 retry = 99;
+                userExplicitDisconnect = true;
                 address = "";
-                lost(activeSocket, reason);
+                resetToStandby();
                 return;
             }
             if (accepted && type.equals("CANCEL")) {
                 if (approvalTimer != null) { approvalTimer.cancel(false); approvalTimer = null; }
                 event("request_cancelled", "peer", peer);
-                if (pendingSocket != null) { try { pendingSocket.close(); } catch (Exception ignored) {} pendingSocket = null; }
-                lost(activeSocket, "Request cancelled by peer");
+                resetToStandby();
                 return;
             }
             throw new IOException(type.equals("REJECT") ? "Connection rejected" : "Invalid handshake");
@@ -1571,7 +1605,16 @@ public final class LocalTransport {
                     event("delivery", "sequence", sequence, "state", "Decoded by peer", "ackMs", now() - start);
                 }
             }
-            case "BYE" -> throw new IOException("Peer disconnected");
+            case "BYE" -> {
+                Log.i(TAG, "Remote peer explicitly disconnected (" + currentTransport + "): " + peer);
+                userExplicitDisconnect = true;
+                retry = 99;
+                address = "";
+                event("notice", "message", (peer.isEmpty() ? "Peer" : peer) + " disconnected the link.");
+                disconnectP2pGroup();
+                resetToStandby();
+                return;
+            }
             default -> throw new IOException("Unknown control message");
         }
     }
@@ -1596,10 +1639,14 @@ public final class LocalTransport {
                     ready();
                 } else {
                     activeSocket = s;
-                    control(json("type", "REJECT", "reason", "Connection declined by " + (callsign.isEmpty() ? Build.MODEL : callsign)));
+                    try {
+                        control(json("type", "REJECT", "reason", "Connection declined by " + (callsign.isEmpty() ? Build.MODEL : callsign)));
+                    } catch (Exception ignored) {}
                     pendingSocket = null;
+                    activeSocket = null;
                     retry = 99;
-                    lost(s, "Connection declined by user");
+                    userExplicitDisconnect = true;
+                    resetToStandby();
                 }
             } catch (Exception e) {
                 lost(s, e.getMessage());
@@ -1608,22 +1655,33 @@ public final class LocalTransport {
     }
 
     public void cancelRequest() {
-        if (!connected && activeSocket != null) {
-            io.execute(() -> {
-                try { control(json("type", "CANCEL")); } catch (Exception ignored) {}
-                disconnect();
-            });
-        }
+        io.execute(() -> {
+            try {
+                if (activeSocket != null) control(json("type", "CANCEL"));
+            } catch (Exception ignored) {}
+            resetToStandby();
+        });
     }
 
     private void ready() {
+        if (approvalTimer != null) { approvalTimer.cancel(false); approvalTimer = null; }
+        if (outgoingApprovalTimer != null) { outgoingApprovalTimer.cancel(false); outgoingApprovalTimer = null; }
         lastReceived = now();
         connected = true;
         retry = 0;
         btConnecting = false;
-        btFallbackActive = false;
         userExplicitDisconnect = false;
+        String prevTransport = currentTransport;
         currentTransport = (activeSocket != null) ? activeSocket.getTransportType() : "wifi";
+
+        if ("wifi".equals(currentTransport) && btFallbackActive) {
+            Log.i(TAG, "[Switch] Wi-Fi Direct connection established! Upgrading from Bluetooth fallback to Wi-Fi Direct.");
+            btFallbackActive = false;
+            switchingToWifi = false;
+            event("notice", "message", "Wi-Fi Direct detected! Upgraded from Bluetooth to Wi-Fi Direct.");
+        } else {
+            btFallbackActive = "bluetooth".equals(currentTransport);
+        }
 
         if (activeSocket != null && "wifi".equals(currentTransport)) {
             String remoteIp = activeSocket.getRemoteAddress();
@@ -1786,6 +1844,13 @@ public final class LocalTransport {
                     return;
                 }
                 control(json("type", "PING", "at", now()));
+
+                // If currently on Bluetooth fallback, check for Wi-Fi Direct recovery!
+                if ("bluetooth".equals(currentTransport) && p2pEnabled && !closed && !switchingToWifi) {
+                    if (now() - lastP2pDiscoveryTime >= 10000) {
+                        discoverP2pPeers();
+                    }
+                }
             } else {
                 broadcastUdpBeacon();
                 boolean isBusyConnecting = p2pConnecting || btConnecting || "WAITING_APPROVAL".equals(state) || "PENDING_APPROVAL".equals(state);
@@ -1853,6 +1918,7 @@ public final class LocalTransport {
         pendingSocket = null;
         if (p != null) try { p.close(); } catch (Exception ignored) {}
         if (approvalTimer != null) { approvalTimer.cancel(false); approvalTimer = null; }
+        if (outgoingApprovalTimer != null) { outgoingApprovalTimer.cancel(false); outgoingApprovalTimer = null; }
         if (closed) return;
         Log.i(TAG, "Connection lost (" + prevTransport + "): " + reason);
 
@@ -1860,15 +1926,17 @@ public final class LocalTransport {
             reason.contains("Declined") || reason.contains("declined") ||
             reason.contains("reject") || reason.contains("Reject") ||
             reason.contains("cancel") || reason.contains("Cancel") ||
-            reason.contains("local user")
+            reason.contains("local user") || reason.contains("explicit") ||
+            reason.contains("Peer explicitly disconnected") ||
+            reason.contains("BYE")
         );
         if (isExplicitDeclineOrCancel) {
             retry = 99;
             userExplicitDisconnect = true;
             address = "";
             releaseLocks();
-            state("DISCONNECTED");
-            startListening();
+            disconnectP2pGroup();
+            resetToStandby();
             return;
         }
 
@@ -1918,14 +1986,14 @@ public final class LocalTransport {
         } else {
             retry = 0;
             address = "";
-            state(hosting ? "DISCOVERING" : "DISCONNECTED");
-            startListening();
+            resetToStandby();
         }
     }
 
     public synchronized void disconnect() {
         userExplicitDisconnect = true;
         btFallbackActive = false;
+        switchingToWifi = false;
         releaseLocks();
         generation++;
         address = "";
@@ -1935,15 +2003,42 @@ public final class LocalTransport {
         hosting = false;
         currentTransport = "none";
         if (approvalTimer != null) { approvalTimer.cancel(false); approvalTimer = null; }
+        if (outgoingApprovalTimer != null) { outgoingApprovalTimer.cancel(false); outgoingApprovalTimer = null; }
         TransportSocket p = pendingSocket;
         pendingSocket = null;
         if (p != null) try { p.close(); } catch (Exception ignored) {}
         TransportSocket old = activeSocket;
         activeSocket = null;
-        if (old != null) try { control(json("type", "BYE")); old.close(); } catch (Exception ignored) {}
+        if (old != null) {
+            try {
+                control(json("type", "BYE", "reason", "explicit_disconnect"));
+            } catch (Exception ignored) {}
+            try { Thread.sleep(60); } catch (Exception ignored) {}
+            try { old.close(); } catch (Exception ignored) {}
+        }
         for (long id : pending.keySet()) event("delivery", "sequence", id, "state", "Disconnected; delivery uncertain");
         pending.clear();
-        state("DISCONNECTED");
+        disconnectP2pGroup();
+        resetToStandby();
+    }
+
+    public synchronized void resetToStandby() {
+        connected = false;
+        btConnecting = false;
+        p2pConnecting = false;
+        btFallbackActive = false;
+        switchingToWifi = false;
+        address = "";
+        if (approvalTimer != null) { approvalTimer.cancel(false); approvalTimer = null; }
+        if (outgoingApprovalTimer != null) { outgoingApprovalTimer.cancel(false); outgoingApprovalTimer = null; }
+        TransportSocket p = pendingSocket;
+        pendingSocket = null;
+        if (p != null) try { p.close(); } catch (Exception ignored) {}
+        TransportSocket old = activeSocket;
+        activeSocket = null;
+        if (old != null) try { old.close(); } catch (Exception ignored) {}
+        currentTransport = "none";
+        state("STANDBY");
         startListening();
     }
 

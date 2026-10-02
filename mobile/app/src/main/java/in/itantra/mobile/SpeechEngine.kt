@@ -161,30 +161,14 @@ class SpeechEngine(
         if (primaryModel.exists() && primaryModel.length() > 0) return primary
 
         val persistent = File(persistentPacksDir, tag)
-        if (File(persistent, "stt/indicconformer_int8.onnx").exists()) {
+        if (File(persistent, "stt/indicconformer_int8.onnx").let { it.exists() && it.length() > 0 }) {
             try { copyRecursively(persistent, primary) } catch (ignored: Throwable) {}
-            if (File(primary, "stt/indicconformer_int8.onnx").exists()) return primary
+            if (File(primary, "stt/indicconformer_int8.onnx").let { it.exists() && it.length() > 0 }) return primary
         }
         val altPersistent = File(altPersistentPacksDir, tag)
-        if (File(altPersistent, "stt/indicconformer_int8.onnx").exists()) {
+        if (File(altPersistent, "stt/indicconformer_int8.onnx").let { it.exists() && it.length() > 0 }) {
             try { copyRecursively(altPersistent, primary) } catch (ignored: Throwable) {}
-            if (File(primary, "stt/indicconformer_int8.onnx").exists()) return primary
-        }
-        val secondary = File("/data/local/tmp/language-packs", tag)
-        if (File(secondary, "stt/indicconformer_int8.onnx").exists()) {
-            try { copyRecursively(secondary, primary) } catch (ignored: Throwable) {}
-            if (File(primary, "stt/indicconformer_int8.onnx").exists()) return primary
-            return secondary
-        }
-        // Fallback to hi-IN or en-IN if requested tag model is not yet installed
-        if (tag != "hi-IN") {
-            val hiDir = File(packsDir, "hi-IN")
-            if (File(hiDir, "stt/indicconformer_int8.onnx").exists() && File(hiDir, "stt/indicconformer_int8.onnx").length() > 0) {
-                Log.i(TAG, "Using hi-IN model fallback for tag $tag")
-                return hiDir
-            }
-            val hiSecondary = File("/data/local/tmp/language-packs/hi-IN")
-            if (File(hiSecondary, "stt/indicconformer_int8.onnx").exists()) return hiSecondary
+            if (File(primary, "stt/indicconformer_int8.onnx").let { it.exists() && it.length() > 0 }) return primary
         }
         return null
     }
@@ -195,7 +179,7 @@ class SpeechEngine(
 
     private fun bootstrapPrebundledPacks() {
         try {
-            // 1. Restore previously downloaded models from persistent storage (survives app uninstall!)
+            // Restore previously downloaded models from persistent storage (survives app uninstall!)
             val persistentSources = listOf(persistentPacksDir, altPersistentPacksDir)
             for (pDir in persistentSources) {
                 if (pDir.exists() && pDir.isDirectory) {
@@ -207,21 +191,6 @@ class SpeechEngine(
                                 Log.i(TAG, "Restoring voice model ${src.name} from persistent storage across uninstall...")
                                 copyRecursively(src, dest)
                             }
-                        }
-                    }
-                }
-            }
-            // 2. Check /data/local/tmp
-            val tmpDir = File("/data/local/tmp/language-packs")
-            if (tmpDir.exists() && tmpDir.isDirectory) {
-                val list = tmpDir.listFiles()
-                if (list != null) {
-                    for (src in list) {
-                        val dest = File(packsDir, src.name)
-                        val model = File(dest, "stt/indicconformer_int8.onnx")
-                        if (!dest.exists() || !model.exists() || model.length() == 0L) {
-                            Log.i(TAG, "Bootstrapping voice model ${src.name} from /data/local/tmp/language-packs...")
-                            copyRecursively(src, dest)
                         }
                     }
                 }
@@ -301,7 +270,7 @@ class SpeechEngine(
         for (p in downloadingPacks) pendingArr.put(p)
 
         val availableArr = JSONArray()
-        for (av in arrayOf("mr-IN", "gu-IN", "ta-IN", "te-IN", "kn-IN", "bn-IN")) {
+        for (av in arrayOf("hi-IN", "en-IN", "mr-IN", "gu-IN", "ta-IN", "te-IN", "kn-IN", "bn-IN")) {
             if (!installed.contains(av)) availableArr.put(av)
         }
 
@@ -338,16 +307,18 @@ class SpeechEngine(
     private fun getInstalledTags(): List<String> {
         val tags = mutableSetOf<String>()
         packsDir.listFiles()?.forEach { d ->
-            if (d.isDirectory && File(d, "stt/indicconformer_int8.onnx").exists()) {
+            if (d.isDirectory && File(d, "stt/indicconformer_int8.onnx").let { it.exists() && it.length() > 0 }) {
                 tags.add(d.name)
             }
         }
-        val tmpDir = File("/data/local/tmp/language-packs")
-        if (tmpDir.exists() && tmpDir.isDirectory) {
-            tmpDir.listFiles()?.forEach { d ->
-                if (d.isDirectory && File(d, "stt/indicconformer_int8.onnx").exists()) {
-                    tags.add(d.name)
-                }
+        persistentPacksDir.listFiles()?.forEach { d ->
+            if (d.isDirectory && File(d, "stt/indicconformer_int8.onnx").let { it.exists() && it.length() > 0 }) {
+                tags.add(d.name)
+            }
+        }
+        altPersistentPacksDir.listFiles()?.forEach { d ->
+            if (d.isDirectory && File(d, "stt/indicconformer_int8.onnx").let { it.exists() && it.length() > 0 }) {
+                tags.add(d.name)
             }
         }
         return tags.toList()

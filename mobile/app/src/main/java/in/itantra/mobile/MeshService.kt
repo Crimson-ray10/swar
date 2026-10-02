@@ -73,20 +73,78 @@ class MeshService : Service(), LocalTransport.Listener {
                 Log.w(TAG, "Failed to start MeshService: ${t.message}")
             }
         }
+
+        fun onAppForegrounded() {
+            instance?.handleAppForegrounded()
+        }
+
+        fun onAppBackgrounded() {
+            instance?.handleAppBackgrounded()
+        }
     }
 
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
 
+    private val timeoutHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val INACTIVITY_TIMEOUT_MS = 15L * 60L * 1000L // 15 minutes
+
+    @Volatile
+    private var isAppForeground: Boolean = false
+
+    @Volatile
+    private var isScreenOn: Boolean = true
+
+    private val backgroundDisconnectRunnable = Runnable {
+        Log.i(TAG, "15-minute background/screen-off timeout reached: disconnecting active mesh connection")
+        sharedTransport?.let { t ->
+            if (t.isConnected) {
+                t.disconnect()
+                updateNotification("LinC Standby", "Disconnected after 15 min inactive in background")
+            }
+        }
+    }
+
+    private fun handleAppForegrounded() {
+        isAppForeground = true
+        Log.i(TAG, "App foregrounded: evaluating timeout")
+        evaluateBackgroundTimer()
+    }
+
+    private fun handleAppBackgrounded() {
+        isAppForeground = false
+        Log.i(TAG, "App backgrounded: evaluating timeout")
+        evaluateBackgroundTimer()
+    }
+
+    private fun evaluateBackgroundTimer() {
+        timeoutHandler.removeCallbacks(backgroundDisconnectRunnable)
+        // If app is in background OR screen is turned off, start 15 min countdown
+        if (!isAppForeground || !isScreenOn) {
+            sharedTransport?.let { t ->
+                if (t.isConnected) {
+                    Log.i(TAG, "Scheduling 15-minute background disconnect timeout (appForeground=$isAppForeground, screenOn=$isScreenOn)")
+                    timeoutHandler.postDelayed(backgroundDisconnectRunnable, INACTIVITY_TIMEOUT_MS)
+                }
+            }
+        } else {
+            Log.i(TAG, "App active in foreground with screen ON: background disconnect timer cancelled")
+        }
+    }
+
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val action = intent?.action
             if (action == Intent.ACTION_SCREEN_OFF) {
-                Log.i(TAG, "Screen turned OFF: maintaining persistent WakeLock & WifiLock")
+                isScreenOn = false
+                Log.i(TAG, "Screen turned OFF: maintaining persistent WakeLock & WifiLock; evaluating 15m timeout")
                 ensureLocksHeld()
+                evaluateBackgroundTimer()
             } else if (action == Intent.ACTION_SCREEN_ON) {
-                Log.i(TAG, "Screen turned ON")
+                isScreenOn = true
+                Log.i(TAG, "Screen turned ON: evaluating 15m timeout")
                 ensureLocksHeld()
+                evaluateBackgroundTimer()
             }
         }
     }
@@ -200,6 +258,7 @@ class MeshService : Service(), LocalTransport.Listener {
 
     override fun onDestroy() {
         Log.i(TAG, "LinC Mesh Foreground Service destroying")
+        timeoutHandler.removeCallbacks(backgroundDisconnectRunnable)
         try {
             unregisterReceiver(screenReceiver)
         } catch (_: Exception) {}
@@ -229,10 +288,12 @@ class MeshService : Service(), LocalTransport.Listener {
             if (st == "CONNECTED") {
                 val suffix = if (transportType == "bluetooth") " (Bluetooth RFCOMM)" else ""
                 updateNotification("LinC Connected$suffix", if (peerName.isNotEmpty()) "Connected to $peerName$suffix" else "Mesh connection active$suffix")
+                evaluateBackgroundTimer()
             } else if (st == "RECONNECTING") {
                 updateNotification("LinC Reconnecting", "Reconnecting to offline peer...")
-            } else if (st == "DISCONNECTED") {
+            } else if (st == "STANDBY" || st == "DISCONNECTED") {
                 updateNotification("LinC Mesh Active", "Waiting for nearby peers...")
+                timeoutHandler.removeCallbacks(backgroundDisconnectRunnable)
             }
         }
         uiListener?.event(type, data)

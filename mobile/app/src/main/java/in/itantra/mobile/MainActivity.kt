@@ -522,11 +522,17 @@ class MainActivity : Activity() {
     override fun onPause() {
         super.onPause()
         speech.pause()
-        // Keep WiFi Direct receiver registered so mesh link remains alive when backgrounded
+        MeshService.onAppBackgrounded()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        MeshService.onAppBackgrounded()
     }
 
     override fun onResume() {
         super.onResume()
+        MeshService.onAppForegrounded()
         speech.resume()
         attachUiListener()
         if (transport.isConnected) {
