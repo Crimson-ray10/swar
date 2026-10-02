@@ -87,6 +87,7 @@ mobile/app/src/main/assets/generated/
 *.jks
 *.keystore
 *.jar
+*.exe
 *.mp4
 
 # Local agent artifacts

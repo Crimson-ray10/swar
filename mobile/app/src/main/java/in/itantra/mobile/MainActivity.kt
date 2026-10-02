@@ -7,6 +7,7 @@ import android.animation.ArgbEvaluator
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.Manifest
@@ -14,6 +15,8 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.os.SystemClock
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
@@ -53,6 +56,13 @@ class MainActivity : Activity() {
     private var splash: FrameLayout? = null
     private var gravitas: Typeface? = null
 
+    private val commandReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: Intent?) {
+            Log.i("LinC", "Broadcast command received: ${intent?.getStringExtra("action")}")
+            handleIntent(intent)
+        }
+    }
+
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -72,6 +82,13 @@ class MainActivity : Activity() {
             Typeface.createFromAsset(assets, "GravitasOne.ttf")
         } catch (e: Exception) {
             Typeface.create("serif", Typeface.BOLD)
+        }
+
+        try {
+            MeshService.start(this)
+            checkBatteryOptimizations()
+        } catch (e: Exception) {
+            Log.w("MainActivity", "MeshService start error: ${e.message}")
         }
 
         web = WebView(this)
@@ -106,6 +123,12 @@ class MainActivity : Activity() {
             settings.blockNetworkLoads = true
             addJavascriptInterface(Bridge(), "iTantra")
             addJavascriptInterface(Bridge(), "LinC")
+            webChromeClient = object : android.webkit.WebChromeClient() {
+                override fun onConsoleMessage(cm: android.webkit.ConsoleMessage?): Boolean {
+                    Log.d("WebViewConsole", "[${cm?.messageLevel()}] ${cm?.message()} (${cm?.sourceId()}:${cm?.lineNumber()})")
+                    return true
+                }
+            }
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = true
 
@@ -154,25 +177,8 @@ class MainActivity : Activity() {
             }
         }
 
-        transport = LocalTransport(this, object : LocalTransport.Listener {
-            override fun event(type: String, data: JSONObject) {
-                this@MainActivity.event(type, data)
-            }
-
-            override fun received(message: ItpPacket.Decoded) {
-                Log.i("LinC", "MainActivity received message from peer: '${message.text()}', dispatching to TTS")
-                event(
-                    "received",
-                    LocalTransport.json(
-                        "text", message.text(),
-                        "language", message.language(),
-                        "sequence", message.sequence(),
-                        "fecCorrected", message.correctedCodewords()
-                    )
-                )
-                runOnUiThread { speech.receive(message) }
-            }
-        })
+        transport = MeshService.getTransport(applicationContext)
+        attachUiListener()
 
         speech = SpeechEngine(this, object : SpeechEngine.Listener {
             override fun event(type: String, data: JSONObject) {
@@ -189,6 +195,14 @@ class MainActivity : Activity() {
         transport.discover()
         requestP2pPermissions()
         transport.registerP2pReceiver()
+
+        val cmdFilter = android.content.IntentFilter("in.itantra.mobile.COMMAND")
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(commandReceiver, cmdFilter, android.content.Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(commandReceiver, cmdFilter)
+        }
+
         web?.loadUrl("https://app.itantra.local/")
     }
 
@@ -380,7 +394,14 @@ class MainActivity : Activity() {
                             data.optString("pin"),
                             data.optString("callsign")
                         )
-                        "connectP2p" -> transport.connectP2p(data.optString("p2pAddress"))
+                        "connectP2p" -> {
+                            val cs = data.optString("callsign")
+                            if (cs.isNotEmpty()) transport.callsign(cs)
+                            transport.connectP2p(data.optString("p2pAddress"))
+                        }
+                        "connectBluetooth" -> transport.connectBluetooth(data.optString("btAddress"))
+                        "discoverBluetooth" -> transport.discoverBluetoothPeers()
+                        "fallbackBluetooth" -> transport.triggerBluetoothFallback()
                         "disconnectP2p" -> transport.disconnectP2pGroup()
                         "respondConnection" -> transport.respondRequest(data.optBoolean("accept", false))
                         "cancelRequest" -> transport.cancelRequest()
@@ -433,6 +454,10 @@ class MainActivity : Activity() {
                             }
                         }
                         "wifiSettings" -> startActivity(Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS))
+                        "sendEmergency" -> transport.sendEmergency(
+                            data.optString("text", "EMERGENCY ALERT"),
+                            data.optString("language", "hi")
+                        )
                         else -> throw IllegalArgumentException("Unknown action: $action")
                     }
                 } catch (e: Exception) {
@@ -446,6 +471,17 @@ class MainActivity : Activity() {
 
     private fun requestP2pPermissions() {
         val permissions = mutableListOf<String>()
+        if (Build.VERSION.SDK_INT >= 31) {
+            if (checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+            }
+            if (checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.BLUETOOTH_SCAN)
+            }
+            if (checkSelfPermission(Manifest.permission.BLUETOOTH_ADVERTISE) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.BLUETOOTH_ADVERTISE)
+            }
+        }
         if (Build.VERSION.SDK_INT >= 33) {
             if (checkSelfPermission(Manifest.permission.NEARBY_WIFI_DEVICES) != PackageManager.PERMISSION_GRANTED) {
                 permissions.add(Manifest.permission.NEARBY_WIFI_DEVICES)
@@ -468,26 +504,38 @@ class MainActivity : Activity() {
         if (requestCode == P2P_PERMISSION_REQUEST_CODE) {
             val allGranted = grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
             if (allGranted) {
-                Log.i("LinC", "WiFi Direct permissions granted by user; discovering peers")
+                Log.i("LinC", "Permissions granted by user; discovering peers via Wi-Fi and Bluetooth")
                 transport.requestSelfP2pInfo()
                 transport.discoverP2pPeers()
+                transport.discoverBluetoothPeers()
             } else {
-                Log.w("LinC", "WiFi Direct permissions denied by user")
+                Log.w("LinC", "Permissions partially denied by user")
             }
         }
+    }
+
+    override fun onBackPressed() {
+        // Move task to background instead of finishing, keeping mesh connection alive
+        moveTaskToBack(true)
     }
 
     override fun onPause() {
         super.onPause()
         speech.pause()
-        transport.unregisterP2pReceiver()
+        // Keep WiFi Direct receiver registered so mesh link remains alive when backgrounded
     }
 
     override fun onResume() {
         super.onResume()
         speech.resume()
-        transport.registerP2pReceiver()
-        transport.discoverP2pPeers()
+        attachUiListener()
+        if (transport.isConnected) {
+            event("connection", LocalTransport.json("state", "CONNECTED", "peer", transport.peer, "transport", transport.transportType))
+        } else {
+            transport.discover()
+            transport.discoverP2pPeers()
+            transport.discoverBluetoothPeers()
+        }
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -517,7 +565,7 @@ class MainActivity : Activity() {
             "speak" -> {
                 val text = intent.getStringExtra("text") ?: "परीक्षण सफल रहा"
                 val lang = intent.getStringExtra("language") ?: "hi"
-                speech.receive(ItpPacket.Decoded(java.util.UUID.randomUUID(), 1L, lang, text, 0, text.length, text.length))
+                speech.receive(ItpPacket.Decoded(java.util.UUID.randomUUID(), 1L, lang, text, false, 0, text.length, text.length))
             }
             "send" -> {
                 val text = intent.getStringExtra("text") ?: "नमस्ते"
@@ -525,14 +573,58 @@ class MainActivity : Activity() {
                 Log.i("LinC", "Sending message to peer from intent: '$text' ($lang)")
                 transport.sendText(text, lang)
             }
+            "connectP2p" -> {
+                val p2p = intent.getStringExtra("p2pAddress")
+                if (!p2p.isNullOrEmpty()) {
+                    Log.i("LinC", "Connecting to P2P peer from intent: $p2p")
+                    transport.connectP2p(p2p)
+                }
+            }
+            "host" -> {
+                Log.i("LinC", "Hosting from intent")
+                transport.host()
+            }
+            "disconnectP2p" -> {
+                Log.i("LinC", "Disconnecting P2P group from intent")
+                transport.disconnectP2pGroup()
+            }
+            "connect" -> {
+                val addr = intent.getStringExtra("address") ?: ""
+                val port = intent.getIntExtra("port", 8988)
+                val pin = intent.getStringExtra("pin") ?: ""
+                val callsign = intent.getStringExtra("callsign") ?: ""
+                if (addr.isNotEmpty()) {
+                    Log.i("LinC", "Connecting to peer from intent: $addr:$port")
+                    transport.connect(addr, port, pin, callsign)
+                }
+            }
+            "emergency" -> {
+                val text = intent.getStringExtra("text") ?: "EMERGENCY ALERT"
+                val lang = intent.getStringExtra("language") ?: "hi"
+                Log.i("LinC", "Sending emergency from intent: $text ($lang)")
+                transport.sendEmergency(text, lang)
+            }
+            "connectBluetooth" -> {
+                val bt = intent.getStringExtra("btAddress") ?: ""
+                if (bt.isNotEmpty()) {
+                    Log.i("LinC", "Connecting to Bluetooth peer from intent: $bt")
+                    transport.connectBluetooth(bt)
+                }
+            }
+            "discoverBluetooth" -> transport.discoverBluetoothPeers()
+            "fallbackBluetooth" -> transport.triggerBluetoothFallback()
         }
     }
 
     override fun onDestroy() {
         loaded = false
         speech.close()
-        transport.unregisterP2pReceiver()
-        transport.close()
+        try {
+            unregisterReceiver(commandReceiver)
+        } catch (ignored: Exception) {}
+        MeshService.uiListener = null
+        // DO NOT close transport or unregister P2P receiver here!
+        // MeshService keeps the connection alive when app is closed or backgrounded.
         web?.apply {
             removeJavascriptInterface("iTantra")
             removeJavascriptInterface("LinC")
@@ -540,5 +632,58 @@ class MainActivity : Activity() {
         }
         web = null
         super.onDestroy()
+    }
+
+    private fun attachUiListener() {
+        MeshService.uiListener = object : LocalTransport.Listener {
+            override fun event(type: String, data: JSONObject) {
+                this@MainActivity.event(type, data)
+            }
+
+            override fun received(message: ItpPacket.Decoded) {
+                if (message.emergency()) {
+                    Log.i("LinC", "🚨 EMERGENCY message from peer: '${message.text()}', dispatching to emergency pipeline")
+                    event(
+                        "received",
+                        LocalTransport.json(
+                            "text", message.text(),
+                            "language", message.language(),
+                            "sequence", message.sequence(),
+                            "fecCorrected", message.correctedCodewords(),
+                            "emergency", true
+                        )
+                    )
+                    runOnUiThread { speech.receiveEmergency(message) }
+                } else {
+                    Log.i("LinC", "MainActivity received message from peer: '${message.text()}', dispatching to TTS")
+                    event(
+                        "received",
+                        LocalTransport.json(
+                            "text", message.text(),
+                            "language", message.language(),
+                            "sequence", message.sequence(),
+                            "fecCorrected", message.correctedCodewords()
+                        )
+                    )
+                    runOnUiThread { speech.receive(message) }
+                }
+            }
+        }
+    }
+
+    private fun checkBatteryOptimizations() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
+            if (pm != null && !pm.isIgnoringBatteryOptimizations(packageName)) {
+                try {
+                    val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = android.net.Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Log.w("LinC", "Could not request ignore battery optimizations: ${e.message}")
+                }
+            }
+        }
     }
 }

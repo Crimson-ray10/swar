@@ -11,10 +11,30 @@ import java.util.zip.*;
 public final class ItpPacket {
     public static final int MAX_TEXT = 8192;
     public record Decoded(UUID session, long sequence, String language, String text,
-                          int correctedCodewords, int sourceBytes, int payloadBytes) {}
+                          boolean emergency,
+                          int correctedCodewords, int sourceBytes, int payloadBytes) {
+        /** Backward-compatible constructor for non-emergency callers. */
+        public Decoded(UUID session, long sequence, String language, String text,
+                       int correctedCodewords, int sourceBytes, int payloadBytes) {
+            this(session, sequence, language, text, false, correctedCodewords, sourceBytes, payloadBytes);
+        }
+
+        /** Convenience accessor for non-emergency legacy callers. */
+        public String text() { return text; }
+        public String language() { return language; }
+        public UUID session() { return session; }
+        public long sequence() { return sequence; }
+        public int correctedCodewords() { return correctedCodewords; }
+    }
     public record Encoded(byte[] wire, int sourceBytes, int payloadBytes) {}
 
+    /** Encode a normal (non-emergency) packet. */
     public static Encoded encode(UUID session, long sequence, String language, String text) throws IOException {
+        return encode(session, sequence, language, text, false);
+    }
+
+    /** Encode a packet with optional emergency flag. */
+    public static Encoded encode(UUID session, long sequence, String language, String text, boolean emergency) throws IOException {
         byte[] source = text.getBytes(StandardCharsets.UTF_8);
         if (source.length == 0 || source.length > MAX_TEXT || sequence < 1) throw new IOException("Invalid text size or sequence");
         int lang = switch(language) { case "hi" -> 1; case "en" -> 2; case "hinglish" -> 3; default -> throw new IOException("Unsupported language"); };
@@ -26,7 +46,7 @@ public final class ItpPacket {
         DataOutputStream out = new DataOutputStream(body);
         out.writeInt(0x49545031); // ITP1
         out.writeLong(session.getMostSignificantBits()); out.writeLong(session.getLeastSignificantBits());
-        out.writeLong(sequence); out.writeByte(lang); out.writeByte(useZip ? 1 : 0);
+        out.writeLong(sequence); out.writeByte(lang); out.writeByte((useZip ? 1 : 0) | (emergency ? 0x80 : 0));
         out.writeInt(source.length); out.writeInt(payload.length); out.write(payload); out.flush();
         CRC32 crc = new CRC32(); crc.update(body.toByteArray()); out.writeInt((int)crc.getValue()); out.flush();
         byte[] raw = body.toByteArray(), fec = new byte[raw.length * 2];
@@ -47,7 +67,10 @@ public final class ItpPacket {
         if (in.readInt()!=0x49545031) throw new IOException("Unsupported ITP version");
         UUID session=new UUID(in.readLong(),in.readLong()); long sequence=in.readLong();
         String language=switch(in.readUnsignedByte()) {case 1->"hi";case 2->"en";case 3->"hinglish";default->throw new IOException("Invalid language");};
-        int codec=in.readUnsignedByte(), sourceLength=in.readInt(), length=in.readInt();
+        int codecRaw=in.readUnsignedByte();
+        boolean emergency = (codecRaw & 0x80) != 0;
+        int codec = codecRaw & 0x7F;
+        int sourceLength=in.readInt(), length=in.readInt();
         if(sequence<1 || codec>1 || sourceLength<1 || sourceLength>MAX_TEXT || length<1 || length!=raw.length-42) throw new IOException("Invalid ITP metadata");
         byte[] payload=new byte[length]; in.readFully(payload);
         byte[] source=payload;
@@ -61,7 +84,7 @@ public final class ItpPacket {
         }
         if(source.length!=sourceLength) throw new IOException("Source length mismatch");
         String text=StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(source)).toString();
-        return new Decoded(session,sequence,language,text,corrected,source.length,payload.length);
+        return new Decoded(session,sequence,language,text,emergency,corrected,source.length,payload.length);
     }
 
     static int hammingEncode(int n) {

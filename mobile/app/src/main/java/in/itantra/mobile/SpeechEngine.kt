@@ -157,19 +157,35 @@ class SpeechEngine(
 
     fun resolvePackDir(tag: String): File? {
         val primary = File(packsDir, tag)
-        if (File(primary, "stt/indicconformer_int8.onnx").exists()) return primary
+        val primaryModel = File(primary, "stt/indicconformer_int8.onnx")
+        if (primaryModel.exists() && primaryModel.length() > 0) return primary
+
         val persistent = File(persistentPacksDir, tag)
         if (File(persistent, "stt/indicconformer_int8.onnx").exists()) {
             try { copyRecursively(persistent, primary) } catch (ignored: Throwable) {}
-            return primary
+            if (File(primary, "stt/indicconformer_int8.onnx").exists()) return primary
         }
         val altPersistent = File(altPersistentPacksDir, tag)
         if (File(altPersistent, "stt/indicconformer_int8.onnx").exists()) {
             try { copyRecursively(altPersistent, primary) } catch (ignored: Throwable) {}
-            return primary
+            if (File(primary, "stt/indicconformer_int8.onnx").exists()) return primary
         }
         val secondary = File("/data/local/tmp/language-packs", tag)
-        if (File(secondary, "stt/indicconformer_int8.onnx").exists()) return secondary
+        if (File(secondary, "stt/indicconformer_int8.onnx").exists()) {
+            try { copyRecursively(secondary, primary) } catch (ignored: Throwable) {}
+            if (File(primary, "stt/indicconformer_int8.onnx").exists()) return primary
+            return secondary
+        }
+        // Fallback to hi-IN or en-IN if requested tag model is not yet installed
+        if (tag != "hi-IN") {
+            val hiDir = File(packsDir, "hi-IN")
+            if (File(hiDir, "stt/indicconformer_int8.onnx").exists() && File(hiDir, "stt/indicconformer_int8.onnx").length() > 0) {
+                Log.i(TAG, "Using hi-IN model fallback for tag $tag")
+                return hiDir
+            }
+            val hiSecondary = File("/data/local/tmp/language-packs/hi-IN")
+            if (File(hiSecondary, "stt/indicconformer_int8.onnx").exists()) return hiSecondary
+        }
         return null
     }
 
@@ -186,7 +202,8 @@ class SpeechEngine(
                     pDir.listFiles()?.forEach { src ->
                         if (src.isDirectory) {
                             val dest = File(packsDir, src.name)
-                            if (!dest.exists() || !File(dest, "stt/indicconformer_int8.onnx").exists()) {
+                            val model = File(dest, "stt/indicconformer_int8.onnx")
+                            if (!dest.exists() || !model.exists() || model.length() == 0L) {
                                 Log.i(TAG, "Restoring voice model ${src.name} from persistent storage across uninstall...")
                                 copyRecursively(src, dest)
                             }
@@ -201,7 +218,9 @@ class SpeechEngine(
                 if (list != null) {
                     for (src in list) {
                         val dest = File(packsDir, src.name)
-                        if (!dest.exists()) {
+                        val model = File(dest, "stt/indicconformer_int8.onnx")
+                        if (!dest.exists() || !model.exists() || model.length() == 0L) {
+                            Log.i(TAG, "Bootstrapping voice model ${src.name} from /data/local/tmp/language-packs...")
                             copyRecursively(src, dest)
                         }
                     }
@@ -785,7 +804,12 @@ class SpeechEngine(
         recognizer?.release()
         recognizer = null
 
-        val packDir = resolvePackDir(tag) ?: File(packsDir, tag)
+        val packDir = resolvePackDir(tag) ?: resolvePackDir("hi-IN") ?: resolvePackDir("en-IN")
+        if (packDir == null) {
+            Log.w(TAG, "Voice model pack directory not found for $tag")
+            event("notice", "message", "Voice model not found for $tag. Please download it via language settings.")
+            return
+        }
         val modelFile = File(packDir, "stt/indicconformer_int8.onnx")
         val tokensFile = File(packDir, "stt/tokens.txt")
         if (!tokensFile.exists()) {
@@ -795,11 +819,15 @@ class SpeechEngine(
             }
         }
 
-        if (!modelFile.exists()) {
-            throw IllegalStateException("Model file not found: ${modelFile.absolutePath}")
+        if (!modelFile.exists() || modelFile.length() == 0L) {
+            Log.w(TAG, "Voice model file missing: ${modelFile.absolutePath}")
+            event("notice", "message", "Voice model not found for $tag. Please download it via language settings.")
+            return
         }
-        if (!tokensFile.exists()) {
-            throw IllegalStateException("Tokens file not found: ${tokensFile.absolutePath}")
+        if (!tokensFile.exists() || tokensFile.length() == 0L) {
+            Log.w(TAG, "Tokens file missing: ${tokensFile.absolutePath}")
+            event("notice", "message", "Tokens file missing for $tag.")
+            return
         }
 
         // Ensure ONNX metadata has required fields before Sherpa-ONNX C++ initializes
@@ -1064,6 +1092,188 @@ class SpeechEngine(
         playback.add(message)
         playNext()
     }
+
+    /**
+     * Emergency receive pipeline — bypasses mute/silent/DND:
+     * 1. Force volume to max on STREAM_ALARM
+     * 2. Play a loud 2-second siren (800Hz→2400Hz→800Hz sweep)
+     * 3. Play the emergency TTS message on STREAM_ALARM
+     * 4. Trigger vibration
+     * 5. Restore original volume/ringer state
+     */
+    fun receiveEmergency(message: ItpPacket.Decoded) {
+        Log.i(TAG, "🚨 EMERGENCY received: '${message.text()}'")
+        event("emergency_received", "text", message.text(), "language", message.language())
+
+        asyncPool.execute {
+            val am = activity.getSystemService(android.content.Context.AUDIO_SERVICE) as? AudioManager
+            val vibrator = if (android.os.Build.VERSION.SDK_INT >= 31) {
+                val vm = activity.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager
+                vm?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                activity.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+            }
+
+            // Save original state
+            val origAlarmVol = am?.getStreamVolume(AudioManager.STREAM_ALARM) ?: 0
+            val origRingerMode = am?.ringerMode ?: AudioManager.RINGER_MODE_NORMAL
+
+            try {
+                // 1. Force volume to max on alarm stream
+                am?.let {
+                    val maxAlarm = it.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+                    it.setStreamVolume(AudioManager.STREAM_ALARM, maxAlarm, 0)
+                    // Try to set ringer to normal (may fail without DND permission, that's OK)
+                    try { it.ringerMode = AudioManager.RINGER_MODE_NORMAL } catch (_: Throwable) {}
+                }
+
+                // 2. Trigger vibration pattern: short-short-long
+                try {
+                    val pattern = longArrayOf(0, 300, 200, 300, 200, 500)
+                    if (android.os.Build.VERSION.SDK_INT >= 26) {
+                        vibrator?.vibrate(android.os.VibrationEffect.createWaveform(pattern, -1))
+                    } else {
+                        @Suppress("DEPRECATION")
+                        vibrator?.vibrate(pattern, -1)
+                    }
+                } catch (_: Throwable) {}
+
+                // 3. Play siren on STREAM_ALARM (2 seconds, 800Hz→2400Hz→800Hz)
+                playSiren()
+
+                // 4. Play the actual message TTS on alarm stream
+                playEmergencyTts(message.text(), message.language())
+
+            } catch (t: Throwable) {
+                Log.e(TAG, "Emergency playback error", t)
+                main.post { event("error", "message", "Emergency playback failed: ${t.message}") }
+            } finally {
+                // 5. Restore original state
+                try {
+                    am?.setStreamVolume(AudioManager.STREAM_ALARM, origAlarmVol, 0)
+                    am?.ringerMode = origRingerMode
+                } catch (_: Throwable) {}
+
+                main.post {
+                    event("speech", "state", if (locked || conversation) "Listening · on-device" else "Idle")
+                }
+            }
+        }
+    }
+
+    /**
+     * Generate and play a procedural siren sound (2 seconds).
+     * Frequency sweeps 800Hz → 2400Hz → 800Hz using STREAM_ALARM.
+     */
+    private fun playSiren() {
+        val sampleRate = 22050
+        val durationMs = 2000
+        val totalSamples = sampleRate * durationMs / 1000
+        val pcm = FloatArray(totalSamples)
+
+        val freqLow = 800.0
+        val freqHigh = 2400.0
+        val halfSamples = totalSamples / 2
+
+        for (i in 0 until totalSamples) {
+            val t = i.toDouble() / sampleRate
+            // Sweep up in first half, sweep down in second half
+            val freq = if (i < halfSamples) {
+                freqLow + (freqHigh - freqLow) * i.toDouble() / halfSamples
+            } else {
+                freqHigh - (freqHigh - freqLow) * (i - halfSamples).toDouble() / halfSamples
+            }
+            val phase = 2.0 * kotlin.math.PI * freq * t
+            pcm[i] = (0.9 * kotlin.math.sin(phase)).toFloat()
+        }
+
+        val minBuf = AudioTrack.getMinBufferSize(
+            sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT
+        )
+        val track = AudioTrack.Builder()
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setSampleRate(sampleRate)
+                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                    .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
+                    .build()
+            )
+            .setTransferMode(AudioTrack.MODE_STREAM)
+            .setBufferSizeInBytes(minBuf.coerceAtLeast(sampleRate * 4))
+            .build()
+
+        try {
+            track.play()
+            var offset = 0
+            while (offset < pcm.size && !closed) {
+                val chunkSize = 2048.coerceAtMost(pcm.size - offset)
+                val written = track.write(pcm, offset, chunkSize, AudioTrack.WRITE_BLOCKING)
+                if (written <= 0) break
+                offset += written
+            }
+        } finally {
+            try { track.stop() } catch (_: Throwable) {}
+            try { track.release() } catch (_: Throwable) {}
+        }
+    }
+
+    /**
+     * Play emergency TTS on STREAM_ALARM so it's audible even when phone is muted.
+     */
+    private fun playEmergencyTts(text: String, lang: String) {
+        var wait = 0
+        while (!ttsReady && wait < 20) {
+            Thread.sleep(100)
+            wait++
+        }
+
+        if (ttsReady && tts != null) {
+            val targetLocale = when {
+                lang.startsWith("en", ignoreCase = true) -> java.util.Locale("en", "IN")
+                lang.startsWith("mr", ignoreCase = true) -> java.util.Locale("mr", "IN")
+                lang.startsWith("gu", ignoreCase = true) -> java.util.Locale("gu", "IN")
+                lang.startsWith("ta", ignoreCase = true) -> java.util.Locale("ta", "IN")
+                lang.startsWith("te", ignoreCase = true) -> java.util.Locale("te", "IN")
+                lang.startsWith("kn", ignoreCase = true) -> java.util.Locale("kn", "IN")
+                lang.startsWith("bn", ignoreCase = true) -> java.util.Locale("bn", "IN")
+                else -> java.util.Locale("hi", "IN")
+            }
+            try {
+                val avail = tts?.isLanguageAvailable(targetLocale) ?: -1
+                if (avail >= android.speech.tts.TextToSpeech.LANG_AVAILABLE) {
+                    tts?.language = targetLocale
+                } else {
+                    tts?.language = java.util.Locale("hi", "IN")
+                }
+            } catch (_: Throwable) {}
+
+            // Use STREAM_ALARM for emergency TTS
+            val params = android.os.Bundle().apply {
+                putInt(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_ALARM)
+                putFloat(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f)
+            }
+            val utteranceId = "LinC_EMERGENCY_" + SystemClock.elapsedRealtime()
+            val res = tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, utteranceId)
+            Log.i(TAG, "Emergency TTS spoken via STREAM_ALARM: '$text' (result=$res)")
+            if (res == android.speech.tts.TextToSpeech.SUCCESS) {
+                val durationMs = (text.length * 90L).coerceIn(1500L, 10000L)
+                Thread.sleep(durationMs)
+                return
+            }
+        }
+
+        // Fallback: play PCM siren again if TTS not available
+        Log.w(TAG, "Emergency TTS unavailable, replaying siren as fallback")
+        playSiren()
+    }
+
 
     @Synchronized
     private fun playNext() {

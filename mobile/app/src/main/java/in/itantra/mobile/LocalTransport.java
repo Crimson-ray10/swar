@@ -1,19 +1,29 @@
 package in.itantra.mobile;
 
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothClass;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
+import android.bluetooth.BluetoothServerSocket;
+import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.NetworkInfo;
 import android.net.nsd.*;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WpsInfo;
 import android.net.wifi.p2p.*;
 import android.net.wifi.p2p.WifiP2pManager.*;
 import android.os.Build;
+import android.os.PowerManager;
 import android.util.Log;
 import org.json.*;
 import java.io.*;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -21,15 +31,67 @@ import java.util.concurrent.*;
 import java.security.SecureRandom;
 
 /**
- * Foreground, two-peer LAN and WiFi Direct transport.
- * Supports WiFi Direct (P2P), mDNS DNS-SD, UDP Broadcast Beacon (port 8989), and TCP direct streaming (port 8988).
- * Auto-links walkie-talkie devices in proximity with zero friction.
+ * Foreground, multi-link local transport with Wi-Fi Direct (P2P), LAN TCP, and Bluetooth Classic RFCOMM Fallback.
+ * Primary: Wi-Fi Direct / Wi-Fi LAN streaming on port 8988.
+ * Fallback: Bluetooth Classic RFCOMM with unified ITP frame stream.
+ * Automatically switches to Bluetooth RFCOMM if Wi-Fi link drops, keeping speech flowing seamlessly.
  */
 public final class LocalTransport {
     private static final String TAG = "LocalTransport";
-    public interface Listener { void event(String type, JSONObject data); void received(ItpPacket.Decoded message); }
+    public static final UUID LINC_BT_UUID = UUID.fromString("6a4b1234-9876-4321-b1c2-123456789abc");
+
+    public interface Listener {
+        void event(String type, JSONObject data);
+        void received(ItpPacket.Decoded message);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Unified Transport Socket Abstraction
+    // ─────────────────────────────────────────────────────────────────────────────
+    public interface TransportSocket extends Closeable {
+        InputStream getInputStream() throws IOException;
+        OutputStream getOutputStream() throws IOException;
+        void close() throws IOException;
+        boolean isConnected();
+        boolean isClosed();
+        String getRemoteAddress();
+        String getTransportType(); // "wifi" or "bluetooth"
+    }
+
+    public static final class TcpTransportSocket implements TransportSocket {
+        private final Socket socket;
+        public TcpTransportSocket(Socket socket) { this.socket = socket; }
+        @Override public InputStream getInputStream() throws IOException { return socket.getInputStream(); }
+        @Override public OutputStream getOutputStream() throws IOException { return socket.getOutputStream(); }
+        @Override public void close() throws IOException { socket.close(); }
+        @Override public boolean isConnected() { return socket != null && socket.isConnected() && !socket.isClosed(); }
+        @Override public boolean isClosed() { return socket == null || socket.isClosed(); }
+        @Override public String getRemoteAddress() {
+            return (socket != null && socket.getInetAddress() != null) ? socket.getInetAddress().getHostAddress() : "";
+        }
+        @Override public String getTransportType() { return "wifi"; }
+        public Socket getRawSocket() { return socket; }
+    }
+
+    public static final class BtTransportSocket implements TransportSocket {
+        private final BluetoothSocket socket;
+        public BtTransportSocket(BluetoothSocket socket) { this.socket = socket; }
+        @Override public InputStream getInputStream() throws IOException { return socket.getInputStream(); }
+        @Override public OutputStream getOutputStream() throws IOException { return socket.getOutputStream(); }
+        @Override public void close() throws IOException { socket.close(); }
+        @Override public boolean isConnected() { return socket != null && socket.isConnected(); }
+        @Override public boolean isClosed() { return socket == null || !socket.isConnected(); }
+        @Override public String getRemoteAddress() {
+            try {
+                return (socket != null && socket.getRemoteDevice() != null) ? socket.getRemoteDevice().getAddress() : "";
+            } catch (Exception ignored) { return ""; }
+        }
+        @Override public String getTransportType() { return "bluetooth"; }
+        public BluetoothSocket getRawSocket() { return socket; }
+    }
+
     private final Context context;
-    private final Listener listener;
+    private volatile Listener listener;
     private final NsdManager nsd;
     private final WifiManager.MulticastLock multicast;
     private final ExecutorService io = Executors.newCachedThreadPool();
@@ -52,8 +114,23 @@ public final class LocalTransport {
     private volatile boolean p2pIsGroupOwner = false;
     private volatile String p2pGroupOwnerAddress = null;
     private volatile String myP2pAddress = null;
+    private volatile long lastP2pDiscoveryTime = 0;
 
-    private volatile Socket socket;
+    // Bluetooth Classic RFCOMM fields
+    private final BluetoothAdapter bluetoothAdapter;
+    private volatile BluetoothServerSocket btServer;
+    private BroadcastReceiver btReceiver;
+    private volatile boolean btReceiverRegistered = false;
+    private volatile String lastPeerBtAddress = "";
+    private volatile String lastPeerBtName = "";
+    private volatile boolean btConnecting = false;
+    private volatile boolean btFallbackActive = false;
+    private volatile long lastBtDiscoveryTime = 0;
+
+    // Transport Stream State
+    private volatile TransportSocket activeSocket = null;
+    private volatile TransportSocket pendingSocket = null;
+    private volatile String currentTransport = "none"; // "wifi", "bluetooth", or "none"
     private volatile ServerSocket server;
     private volatile DatagramSocket udpSocket;
     private volatile boolean connected = false, closed = false, hosting = false;
@@ -71,8 +148,16 @@ public final class LocalTransport {
     private NsdManager.RegistrationListener registration;
     private NsdManager.DiscoveryListener discovery;
     private final Set<String> resolving = ConcurrentHashMap.newKeySet();
-    private volatile Socket pendingSocket = null;
     private volatile ScheduledFuture<?> approvalTimer = null;
+    private final WifiManager.WifiLock wifiLock;
+    private final PowerManager.WakeLock wakeLock;
+    private volatile String lastPeerAddress = "";
+    private volatile int lastPeerPort = 8988;
+    private volatile String lastPeerPin = "";
+    private volatile String lastPeerCallsign = "";
+    private volatile String lastPeerP2p = "";
+    private volatile boolean userExplicitDisconnect = false;
+    private volatile boolean p2pConnecting = false;
 
     public LocalTransport(Context context, Listener listener) {
         this.context = context;
@@ -81,10 +166,50 @@ public final class LocalTransport {
         WifiManager wifi = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         multicast = wifi.createMulticastLock("linc-discovery");
         multicast.setReferenceCounted(false);
+        PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        wakeLock = pm != null ? pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "LinC:MeshWakeLock") : null;
+        if (wakeLock != null) wakeLock.setReferenceCounted(false);
+        wifiLock = wifi.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "LinC:MeshWifiLock");
+        wifiLock.setReferenceCounted(false);
+
+        BluetoothManager bm = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
+        bluetoothAdapter = bm != null ? bm.getAdapter() : BluetoothAdapter.getDefaultAdapter();
+
+        android.content.SharedPreferences prefs = context.getSharedPreferences("linc_transport_prefs", Context.MODE_PRIVATE);
+        String savedP2p = prefs.getString("last_peer_p2p", "");
+        if (isValidP2pAddress(savedP2p)) {
+            lastPeerP2p = savedP2p;
+        } else {
+            lastPeerP2p = "";
+            prefs.edit().remove("last_peer_p2p").apply();
+        }
+        lastPeerAddress = prefs.getString("last_peer_address", "");
+        lastPeerCallsign = prefs.getString("last_peer_callsign", "");
+        lastPeerBtAddress = prefs.getString("last_peer_bt_address", "");
+        lastPeerBtName = prefs.getString("last_peer_bt_name", "");
+        Log.i(TAG, "Restored peer cache: P2P=" + lastPeerP2p + ", IP=" + lastPeerAddress + ", Callsign=" + lastPeerCallsign + ", BT=" + lastPeerBtAddress + " (" + lastPeerBtName + ")");
+
         initWifiP2p();
-        clock.scheduleWithFixedDelay(this::tick, 2, 2, TimeUnit.SECONDS);
+        registerBtReceiver();
+        startBtServer();
+
+        clock.scheduleWithFixedDelay(this::tick, 1, 1, TimeUnit.SECONDS);
         startListening();
         startUdpBeaconListener();
+    }
+
+    private void acquireLocks() {
+        try {
+            if (wifiLock != null && !wifiLock.isHeld()) wifiLock.acquire();
+            if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire();
+        } catch (Exception ignored) {}
+    }
+
+    private void releaseLocks() {
+        try {
+            if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
+            if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+        } catch (Exception ignored) {}
     }
 
     private static long now() { return android.os.SystemClock.elapsedRealtime(); }
@@ -100,21 +225,39 @@ public final class LocalTransport {
     }
 
     private void event(String type, Object... fields) {
-        listener.event(type, json(fields));
+        Listener l = listener;
+        if (l != null) {
+            l.event(type, json(fields));
+        }
     }
 
     private void state(String value) {
         state = value;
-        Log.i(TAG, "Transport state changed -> " + value + " (peer=" + peer + ")");
-        event("connection", "state", value, "peer", peer);
+        Log.i(TAG, "Transport state changed -> " + value + " (peer=" + peer + ", transport=" + currentTransport + ")");
+        event("connection", "state", value, "peer", peer, "transport", currentTransport);
+    }
+
+    public synchronized void setListener(Listener listener) {
+        this.listener = listener;
+    }
+
+    public Listener getListener() {
+        return listener;
     }
 
     public boolean isConnected() { return connected; }
+    public String getState() { return state; }
+    public String getPeer() { return peer; }
+    public String getAddress() { return address; }
+    public String getCallsign() { return callsign; }
+    public String getTransportType() { return currentTransport; }
+
     public void bitrate(int value) {
         if (value == 500 || value == 1000 || value == 2000 || value == 4000 || value == 8000 || value == 16000) {
             bitrate = value;
         }
     }
+
     public void callsign(String name) {
         if (name != null && !name.trim().isEmpty()) {
             String trimmed = name.trim();
@@ -141,6 +284,457 @@ public final class LocalTransport {
             }
         } catch (Exception ignored) {}
         return false;
+    }
+
+    // ==========================================
+    // Bluetooth Classic (RFCOMM) Implementation
+    // ==========================================
+
+    public String getBluetoothName() {
+        try {
+            if (bluetoothAdapter != null) {
+                String name = bluetoothAdapter.getName();
+                if (name != null && !name.isEmpty()) return name;
+            }
+        } catch (SecurityException ignored) {}
+        return Build.MODEL;
+    }
+
+    public String getBluetoothAddress() {
+        try {
+            if (bluetoothAdapter == null) return "";
+            String addr = bluetoothAdapter.getAddress();
+            if (addr != null && !addr.equals("02:00:00:00:00:00")) return addr;
+
+            Field mServiceField = bluetoothAdapter.getClass().getDeclaredField("mService");
+            mServiceField.setAccessible(true);
+            Object btManagerService = mServiceField.get(bluetoothAdapter);
+            if (btManagerService != null) {
+                Method getAddressMethod = btManagerService.getClass().getMethod("getAddress");
+                Object res = getAddressMethod.invoke(btManagerService);
+                if (res instanceof String s && !s.equals("02:00:00:00:00:00")) return s;
+            }
+
+            String secureAddr = android.provider.Settings.Secure.getString(context.getContentResolver(), "bluetooth_address");
+            if (secureAddr != null && !secureAddr.isEmpty()) return secureAddr;
+        } catch (Exception ignored) {}
+        return "";
+    }
+
+    public void startBtServer() {
+        if (closed || btServer != null || bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) return;
+        io.execute(() -> {
+            try {
+                BluetoothServerSocket server = bluetoothAdapter.listenUsingInsecureRfcommWithServiceRecord("LinC_Voice_Bridge", LINC_BT_UUID);
+                btServer = server;
+                Log.i(TAG, "Bluetooth RFCOMM Server listening with UUID " + LINC_BT_UUID);
+                while (!closed && btServer == server) {
+                    BluetoothSocket client = server.accept();
+                    if (client == null) continue;
+                    String remoteName = "";
+                    String remoteAddr = "";
+                    try {
+                        if (client.getRemoteDevice() != null) {
+                            remoteName = client.getRemoteDevice().getName();
+                            remoteAddr = client.getRemoteDevice().getAddress();
+                        }
+                    } catch (Exception ignored) {}
+                    Log.i(TAG, "Accepted incoming Bluetooth RFCOMM connection from " + remoteName + " (" + remoteAddr + ")");
+
+                    if (connected && "wifi".equals(currentTransport)) {
+                        Log.i(TAG, "Rejecting incoming BT connection because primary Wi-Fi is actively connected");
+                        try { client.close(); } catch (Exception ignored) {}
+                        continue;
+                    }
+
+                    if (pendingSocket != null) {
+                        try { pendingSocket.close(); } catch (Exception ignored) {}
+                        pendingSocket = null;
+                    }
+                    attach(new BtTransportSocket(client), true);
+                }
+            } catch (SecurityException se) {
+                Log.w(TAG, "SecurityException in Bluetooth RFCOMM server: " + se.getMessage());
+            } catch (Exception e) {
+                Log.d(TAG, "Bluetooth RFCOMM server exit: " + e.getMessage());
+            }
+        });
+    }
+
+    public void closeBtServer() {
+        BluetoothServerSocket old = btServer;
+        btServer = null;
+        if (old != null) {
+            try { old.close(); } catch (Exception ignored) {}
+        }
+    }
+
+    public synchronized void registerBtReceiver() {
+        if (context == null || bluetoothAdapter == null || btReceiverRegistered) return;
+        try {
+            if (btReceiver == null) {
+                btReceiver = new BroadcastReceiver() {
+                    @Override
+                    public void onReceive(Context ctx, Intent intent) {
+                        handleBtIntent(intent);
+                    }
+                };
+            }
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(BluetoothDevice.ACTION_FOUND);
+            filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+            filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+
+            if (Build.VERSION.SDK_INT >= 33) {
+                context.registerReceiver(btReceiver, filter, Context.RECEIVER_EXPORTED);
+            } else {
+                context.registerReceiver(btReceiver, filter);
+            }
+            btReceiverRegistered = true;
+            Log.i(TAG, "Bluetooth BroadcastReceiver registered");
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to register BT receiver: " + e.getMessage());
+        }
+    }
+
+    public synchronized void unregisterBtReceiver() {
+        if (!btReceiverRegistered || context == null || btReceiver == null) return;
+        try {
+            context.unregisterReceiver(btReceiver);
+            btReceiverRegistered = false;
+            Log.i(TAG, "Bluetooth BroadcastReceiver unregistered");
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to unregister BT receiver: " + e.getMessage());
+        }
+    }
+
+    private void handleBtIntent(Intent intent) {
+        if (intent == null) return;
+        String action = intent.getAction();
+        if (action == null) return;
+
+        if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {
+            int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1);
+            if (state == BluetoothAdapter.STATE_ON) {
+                Log.i(TAG, "Bluetooth enabled by system -> starting RFCOMM server");
+                startBtServer();
+            } else if (state == BluetoothAdapter.STATE_OFF) {
+                Log.i(TAG, "Bluetooth disabled by system");
+                closeBtServer();
+            }
+        } else if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+            try {
+                BluetoothDevice dev = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                if (dev == null) return;
+                String dName = intent.getStringExtra(BluetoothDevice.EXTRA_NAME);
+                if (dName == null || dName.isEmpty()) dName = dev.getName();
+                String dAddr = dev.getAddress();
+                if (dAddr == null || dAddr.isEmpty()) return;
+
+                boolean isTarget = (lastPeerBtAddress != null && dAddr.equalsIgnoreCase(lastPeerBtAddress)) ||
+                                   (lastPeerBtName != null && !lastPeerBtName.isEmpty() && lastPeerBtName.equalsIgnoreCase(dName)) ||
+                                   (lastPeerCallsign != null && !lastPeerCallsign.isEmpty() && lastPeerCallsign.equalsIgnoreCase(dName));
+
+                boolean isPhone = isTarget || isMobilePhone(dev);
+                if (!isPhone) {
+                    Log.d(TAG, "Ignoring non-phone Bluetooth device: " + dName + " [" + dAddr + "]");
+                    return;
+                }
+
+                Log.d(TAG, "Discovered BT mobile phone: " + dName + " [" + dAddr + "]");
+
+                if (dName != null && !dName.isEmpty()) {
+                    event("peer",
+                        "name", dName,
+                        "model", dName,
+                        "address", "",
+                        "btAddress", dAddr,
+                        "source", "bluetooth",
+                        "deviceType", "phone",
+                        "status", "Available"
+                    );
+                }
+
+                // If this is our target fallback peer and fallback is active, auto-connect!
+                if (!connected && !btConnecting && !userExplicitDisconnect) {
+                    if (isTarget && btFallbackActive) {
+                        Log.i(TAG, "Discovered target Bluetooth peer: " + dName + " (" + dAddr + ") -> Connecting Bluetooth fallback!");
+                        connectBluetooth(dAddr);
+                    }
+                }
+            } catch (SecurityException se) {
+                Log.w(TAG, "SecurityException in BT ACTION_FOUND: " + se.getMessage());
+            } catch (Exception ignored) {}
+        } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
+            Log.d(TAG, "Bluetooth discovery finished");
+        }
+    }
+
+    public static boolean isNonPhoneName(String name) {
+        if (name == null || name.trim().isEmpty()) return false;
+        String s = name.toLowerCase(Locale.US);
+        // Audio & headphones
+        if (s.contains("buds") || s.contains("earphone") || s.contains("headphone") || 
+            s.contains("headset") || s.contains("earbuds") || s.contains("airpod") || 
+            s.contains("airdope") || s.contains("soundbar") || s.contains("speaker") || 
+            s.contains("subwoofer") || s.contains("amplifier") || s.contains("tws") || 
+            s.contains("neckband") || s.contains("wireless z") || s.contains("tune ") || 
+            s.contains("jbl") || s.contains("boat") || s.contains("noise") || 
+            s.contains("boult") || s.contains("mivi") || s.contains("ptron") || 
+            s.contains("ahuja") || s.contains("aavante") || s.contains("philips tax") ||
+            s.contains("bs-311") || s.contains("coend-aio") || s.contains("audio")) {
+            return true;
+        }
+        // Wearables / Smartwatches
+        if (s.contains("watch") || s.contains("band") || s.contains("fitbit") || 
+            s.contains("garmin") || s.contains("amazfit") || s.contains("strap") || 
+            s.contains("tracker") || s.contains("ring")) {
+            return true;
+        }
+        // TVs & Displays
+        if (s.contains("[tv]") || s.contains("smart tv") || s.contains("bravia") || 
+            s.contains("television") || s.contains("firetv") || s.contains("roku") || 
+            s.contains("chromecast") || s.contains("projector") || s.contains("webos") || 
+            s.contains("tizen") || s.contains("oled") || s.contains("qled")) {
+            return true;
+        }
+        // Computers & Printers
+        if (s.contains("desktop") || s.contains("laptop") || s.contains("macbook") || 
+            s.contains("printer") || s.contains("deskjet") || s.contains("laserjet") || 
+            s.contains("epson") || s.contains("canon") || s.contains("brother") || 
+            s.contains("keyboard") || s.contains("mouse")) {
+            return true;
+        }
+        // Appliances, Smart Home & IoT
+        if (s.contains("fridge") || s.contains("refrigerator") || s.contains("washer") ||
+            s.contains("dryer") || s.contains("oven") || s.contains("microwave") ||
+            s.contains("cooler") || s.contains("air conditioner") || s.contains("vacuum") ||
+            s.contains("camera") || s.contains("door") || s.contains("lock") ||
+            s.contains("sensor") || s.contains("beacon") || s.contains("tag") ||
+            s.contains("hub") || s.contains("router") || s.contains("gateway") ||
+            s.contains("bridge") || s.contains("iot")) {
+            return true;
+        }
+        return false;
+    }
+
+    public static boolean isPhoneName(String name) {
+        if (name == null || name.trim().isEmpty()) return false;
+        String s = name.toLowerCase(Locale.US);
+        if (s.startsWith("linc") || s.startsWith("itantra")) return true;
+        return s.contains("phone") || s.contains("mobile") || s.contains("handset") ||
+               s.contains("realme") || s.contains("motorola") || s.contains("moto ") ||
+               s.contains("samsung") || s.contains("galaxy") || s.contains("pixel") ||
+               s.contains("redmi") || s.contains("xiaomi") || s.contains("oneplus") ||
+               s.contains("iphone") || s.contains("oppo") || s.contains("vivo") ||
+               s.contains("iqoo") || s.contains("poco") || s.contains("infinix") ||
+               s.contains("tecno") || s.contains("honor") || s.contains("huawei") ||
+               s.contains("nokia") || s.contains("xperia") || s.contains("zenfone") ||
+               s.contains("c100x") || s.contains("fusion") || s.contains("edge");
+    }
+
+    public static boolean isMobilePhone(BluetoothDevice dev) {
+        if (dev == null) return false;
+        try {
+            String name = dev.getName();
+            BluetoothClass btClass = dev.getBluetoothClass();
+            if (btClass != null) {
+                int major = btClass.getMajorDeviceClass();
+                if (major == BluetoothClass.Device.Major.AUDIO_VIDEO ||
+                    major == BluetoothClass.Device.Major.WEARABLE ||
+                    major == BluetoothClass.Device.Major.COMPUTER ||
+                    major == BluetoothClass.Device.Major.PERIPHERAL ||
+                    major == BluetoothClass.Device.Major.IMAGING ||
+                    major == BluetoothClass.Device.Major.TOY ||
+                    major == BluetoothClass.Device.Major.HEALTH) {
+                    return false;
+                }
+                if (major == BluetoothClass.Device.Major.PHONE) {
+                    if (isNonPhoneName(name)) return false;
+                    return true;
+                }
+            }
+
+            if (name == null || name.trim().isEmpty()) return false;
+            if (isNonPhoneName(name)) return false;
+            if (isPhoneName(name)) return true;
+        } catch (SecurityException ignored) {
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+    public static boolean isMobilePhoneP2p(WifiP2pDevice device) {
+        if (device == null) return false;
+        String primaryType = device.primaryDeviceType;
+        if (primaryType != null && !primaryType.isEmpty()) {
+            if (primaryType.startsWith("10-") || primaryType.startsWith("10:")) {
+                return true;
+            }
+            if (primaryType.startsWith("2-") || primaryType.startsWith("3-") ||
+                primaryType.startsWith("4-") || primaryType.startsWith("5-") ||
+                primaryType.startsWith("6-") || primaryType.startsWith("7-") ||
+                primaryType.startsWith("8-") || primaryType.startsWith("9-") ||
+                primaryType.startsWith("11-")) {
+                return false;
+            }
+        }
+
+        String name = device.deviceName;
+        if (name == null || name.trim().isEmpty()) return false;
+        if (isNonPhoneName(name)) return false;
+        if (isPhoneName(name)) return true;
+
+        return !name.startsWith("DIRECT-") && !name.contains("Print") && !name.contains("TV");
+    }
+
+    public void discoverBluetoothPeers() {
+        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) return;
+        long currentTime = now();
+        if (currentTime - lastBtDiscoveryTime < 12000) return;
+        lastBtDiscoveryTime = currentTime;
+        try {
+            Set<BluetoothDevice> bonded = bluetoothAdapter.getBondedDevices();
+            if (bonded != null) {
+                for (BluetoothDevice dev : bonded) {
+                    if (!isMobilePhone(dev)) {
+                        Log.d(TAG, "Skipping non-phone bonded BT device: " + dev.getName());
+                        continue;
+                    }
+                    String bName = dev.getName();
+                    String bAddr = dev.getAddress();
+                    Log.d(TAG, "Bonded BT phone: " + bName + " [" + bAddr + "]");
+                    event("peer",
+                        "name", bName != null ? bName : "Paired Mobile Phone",
+                        "model", bName != null ? bName : "",
+                        "address", "",
+                        "btAddress", bAddr,
+                        "source", "bluetooth",
+                        "deviceType", "phone",
+                        "status", "Paired"
+                    );
+                }
+            }
+
+            if (bluetoothAdapter.isDiscovering()) {
+                bluetoothAdapter.cancelDiscovery();
+            }
+            bluetoothAdapter.startDiscovery();
+        } catch (SecurityException se) {
+            Log.w(TAG, "SecurityException in discoverBluetoothPeers: " + se.getMessage());
+        } catch (Exception e) {
+            Log.w(TAG, "discoverBluetoothPeers error: " + e.getMessage());
+        }
+    }
+
+    public void connectBluetooth(String btAddress) {
+        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
+            event("error", "message", "Bluetooth is disabled or unsupported");
+            return;
+        }
+        if (btAddress == null || btAddress.trim().isEmpty()) {
+            event("error", "message", "Invalid Bluetooth address");
+            return;
+        }
+        final String targetAddr = btAddress.trim();
+        if (connected && "bluetooth".equals(currentTransport)) {
+            Log.d(TAG, "Already connected via Bluetooth; skipping duplicate connect");
+            return;
+        }
+        btConnecting = true;
+        userExplicitDisconnect = false;
+        state("WAITING_APPROVAL");
+        Log.i(TAG, "Connecting to Bluetooth peer at " + targetAddr + " via RFCOMM...");
+
+        io.execute(() -> {
+            try {
+                try {
+                    if (bluetoothAdapter.isDiscovering()) bluetoothAdapter.cancelDiscovery();
+                } catch (Exception ignored) {}
+
+                BluetoothDevice device = bluetoothAdapter.getRemoteDevice(targetAddr);
+                BluetoothSocket clientSocket = null;
+
+                // Attempt 1: Insecure RFCOMM with LinC UUID (bypasses pairing prompts)
+                try {
+                    clientSocket = device.createInsecureRfcommSocketToServiceRecord(LINC_BT_UUID);
+                    clientSocket.connect();
+                    Log.i(TAG, "Insecure RFCOMM connection established to " + targetAddr);
+                } catch (Exception e1) {
+                    Log.w(TAG, "Insecure RFCOMM failed: " + e1.getMessage() + "; trying Secure RFCOMM...");
+                    // Attempt 2: Secure RFCOMM with LinC UUID
+                    try {
+                        clientSocket = device.createRfcommSocketToServiceRecord(LINC_BT_UUID);
+                        clientSocket.connect();
+                        Log.i(TAG, "Secure RFCOMM connection established to " + targetAddr);
+                    } catch (Exception e2) {
+                        Log.w(TAG, "Secure RFCOMM failed: " + e2.getMessage() + "; trying reflection port 1 fallback...");
+                        // Attempt 3: Standard RFCOMM channel 1 reflection fallback
+                        Method m = device.getClass().getMethod("createRfcommSocket", int.class);
+                        clientSocket = (BluetoothSocket) m.invoke(device, 1);
+                        if (clientSocket != null) clientSocket.connect();
+                        Log.i(TAG, "Reflection RFCOMM channel 1 connection established to " + targetAddr);
+                    }
+                }
+
+                if (clientSocket != null && clientSocket.isConnected()) {
+                    btConnecting = false;
+                    btFallbackActive = false;
+                    lastPeerBtAddress = targetAddr;
+                    try {
+                        String rName = device.getName();
+                        if (rName != null && !rName.isEmpty()) lastPeerBtName = rName;
+                    } catch (Exception ignored) {}
+                    persistPeerInfo(lastPeerP2p, lastPeerAddress, lastPeerCallsign, lastPeerBtAddress, lastPeerBtName);
+                    attach(new BtTransportSocket(clientSocket), false);
+                } else {
+                    throw new IOException("Failed to establish RFCOMM socket");
+                }
+            } catch (Exception e) {
+                btConnecting = false;
+                Log.w(TAG, "Bluetooth connect error to " + targetAddr + ": " + e.getMessage());
+                event("error", "message", "Bluetooth connect failed: " + e.getMessage());
+                lost(null, "Bluetooth connection failed: " + e.getMessage());
+            }
+        });
+    }
+
+    public void triggerBluetoothFallback() {
+        if (connected || closed || userExplicitDisconnect) return;
+        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
+            Log.i(TAG, "[Fallback] Bluetooth unavailable or turned off; cannot fallback to BT");
+            return;
+        }
+        btFallbackActive = true;
+        Log.i(TAG, "[Fallback] Wi-Fi lost/failed. Initiating automatic Bluetooth Classic fallback!");
+        event("notice", "message", "Wi-Fi link lost. Switching to Bluetooth fallback...");
+
+        // 1. Direct connect to cached peer Bluetooth MAC
+        if (lastPeerBtAddress != null && !lastPeerBtAddress.isEmpty()) {
+            Log.i(TAG, "[Fallback] Found cached peer BT address: " + lastPeerBtAddress + " -> connecting!");
+            connectBluetooth(lastPeerBtAddress);
+            return;
+        }
+
+        // 2. Scan bonded devices for matching peer name / callsign
+        try {
+            Set<BluetoothDevice> bonded = bluetoothAdapter.getBondedDevices();
+            if (bonded != null) {
+                for (BluetoothDevice dev : bonded) {
+                    String bName = dev.getName();
+                    if (bName != null && ((lastPeerBtName != null && bName.equalsIgnoreCase(lastPeerBtName)) ||
+                                          (lastPeerCallsign != null && bName.equalsIgnoreCase(lastPeerCallsign)))) {
+                        Log.i(TAG, "[Fallback] Found matching bonded BT peer: " + bName + " (" + dev.getAddress() + ")");
+                        lastPeerBtAddress = dev.getAddress();
+                        connectBluetooth(dev.getAddress());
+                        return;
+                    }
+                }
+            }
+        } catch (SecurityException ignored) {}
+
+        // 3. Otherwise start discovery to locate peer over Bluetooth
+        Log.i(TAG, "[Fallback] Starting Bluetooth inquiry scan to locate peer...");
+        discoverBluetoothPeers();
     }
 
     // ==========================================
@@ -275,16 +869,30 @@ public final class LocalTransport {
                                     continue;
                                 }
 
-                                Log.i(TAG, "P2P peer found: " + devName + " (" + p2pAddr + ") status=" + p2pDeviceStatus(device.status));
+                                if (!isMobilePhoneP2p(device)) {
+                                    Log.d(TAG, "Ignoring non-phone WiFi Direct device: " + devName + " (" + p2pAddr + ")");
+                                    continue;
+                                }
+
+                                Log.i(TAG, "P2P mobile phone found: " + devName + " (" + p2pAddr + ") status=" + p2pDeviceStatus(device.status));
                                 event("peer",
-                                    "name", devName != null && !devName.isEmpty() ? devName : "WiFi Direct Peer",
+                                    "name", devName != null && !devName.isEmpty() ? devName : "WiFi Direct Phone",
                                     "model", devName != null ? devName : "",
                                     "address", "",
                                     "p2pAddress", p2pAddr,
                                     "port", 8988,
                                     "source", "p2p",
+                                    "deviceType", "phone",
                                     "status", p2pDeviceStatus(device.status)
                                 );
+
+                                // Auto-reconnect to known P2P peer if disconnected
+                                if (!connected && !p2pConnecting && !userExplicitDisconnect && lastPeerP2p != null && !lastPeerP2p.isEmpty()) {
+                                    if (p2pAddr.equalsIgnoreCase(lastPeerP2p) && device.status == WifiP2pDevice.AVAILABLE) {
+                                        Log.i(TAG, "Known P2P peer available: " + devName + " -> Auto-reconnecting P2P!");
+                                        connectP2p(lastPeerP2p);
+                                    }
+                                }
                             }
                         });
                     } catch (SecurityException se) {
@@ -300,6 +908,7 @@ public final class LocalTransport {
                 boolean isP2pConn = networkInfo != null && networkInfo.isConnected();
                 Log.i(TAG, "WiFi P2P connection changed: " + (isP2pConn ? "CONNECTED" : "DISCONNECTED"));
                 if (isP2pConn && p2pManager != null && p2pChannel != null) {
+                    p2pConnecting = false;
                     try {
                         p2pManager.requestConnectionInfo(p2pChannel, info -> {
                             if (info == null) return;
@@ -317,16 +926,14 @@ public final class LocalTransport {
 
                             if (info.groupFormed) {
                                 if (p2pIsGroupOwner) {
-                                    // Group Owner hosts TCP server on port 8988
                                     Log.i(TAG, "Acting as P2P Group Owner; listening on port 8988 for incoming client TCP");
                                     startListening();
                                 } else {
-                                    // Client connects to the Group Owner's IP on port 8988
                                     if (p2pGroupOwnerAddress != null && !p2pGroupOwnerAddress.isEmpty()) {
                                         Log.i(TAG, "Acting as P2P Client; connecting to GO at " + p2pGroupOwnerAddress + ":8988");
-                                        clock.schedule(() -> {
-                                            connect(p2pGroupOwnerAddress, 8988, pin, callsign);
-                                        }, 600, TimeUnit.MILLISECONDS);
+                                        address = p2pGroupOwnerAddress;
+                                        lastPeerAddress = p2pGroupOwnerAddress;
+                                        retryP2pClientConnect(p2pGroupOwnerAddress, 0);
                                     }
                                 }
                             }
@@ -338,6 +945,14 @@ public final class LocalTransport {
                     p2pGroupConnected = false;
                     p2pIsGroupOwner = false;
                     p2pGroupOwnerAddress = null;
+                    Log.i(TAG, "WiFi P2P disconnected" + (p2pConnecting ? " (connection attempt still in progress)" : " — restarting peer discovery"));
+                    if (!p2pConnecting) {
+                        p2pDiscovering = false;
+                        lastP2pDiscoveryTime = 0;
+                        if (!closed && !userExplicitDisconnect) {
+                            discoverP2pPeers();
+                        }
+                    }
                 }
             }
 
@@ -354,12 +969,16 @@ public final class LocalTransport {
 
     public void discoverP2pPeers() {
         if (p2pManager == null || p2pChannel == null) return;
+        long currentTime = now();
+        if (p2pDiscovering || (currentTime - lastP2pDiscoveryTime < 15000)) return;
+        lastP2pDiscoveryTime = currentTime;
         try {
             p2pManager.discoverPeers(p2pChannel, new WifiP2pManager.ActionListener() {
                 @Override
                 public void onSuccess() {
                     p2pDiscovering = true;
-                    Log.i(TAG, "WiFi P2P peer discovery started");
+                    Log.i(TAG, "WiFi P2P peer discovery active");
+                    clock.schedule(() -> { p2pDiscovering = false; }, 12, TimeUnit.SECONDS);
                 }
 
                 @Override
@@ -369,8 +988,10 @@ public final class LocalTransport {
                 }
             });
         } catch (SecurityException se) {
+            p2pDiscovering = false;
             Log.w(TAG, "SecurityException on discoverP2pPeers: " + se.getMessage());
         } catch (Exception e) {
+            p2pDiscovering = false;
             Log.w(TAG, "Error on discoverP2pPeers: " + e.getMessage());
         }
     }
@@ -385,19 +1006,137 @@ public final class LocalTransport {
         } catch (Exception ignored) {}
     }
 
+    public void clearPersistentGroups() {
+        if (p2pManager == null || p2pChannel == null) return;
+        try {
+            Class<?> listenerClass = Class.forName("android.net.wifi.p2p.WifiP2pManager$PersistentGroupInfoListener");
+            Method requestPersistentGroupInfo = WifiP2pManager.class.getMethod("requestPersistentGroupInfo",
+                WifiP2pManager.Channel.class, listenerClass);
+            Method deletePersistentGroup = WifiP2pManager.class.getMethod("deletePersistentGroup",
+                WifiP2pManager.Channel.class, int.class, WifiP2pManager.ActionListener.class);
+
+            Object proxy = java.lang.reflect.Proxy.newProxyInstance(
+                listenerClass.getClassLoader(),
+                new Class<?>[]{listenerClass},
+                (proxyObj, method, args) -> {
+                    if ("onPersistentGroupInfoAvailable".equals(method.getName()) && args != null && args.length > 0 && args[0] != null) {
+                        try {
+                            Object groupListObj = args[0];
+                            Method getGroupList = groupListObj.getClass().getMethod("getGroupList");
+                            @SuppressWarnings("unchecked")
+                            Collection<WifiP2pGroup> list = (Collection<WifiP2pGroup>) getGroupList.invoke(groupListObj);
+                            if (list != null) {
+                                for (WifiP2pGroup g : list) {
+                                    try {
+                                        deletePersistentGroup.invoke(p2pManager, p2pChannel, g.getNetworkId(), new WifiP2pManager.ActionListener() {
+                                            @Override public void onSuccess() { Log.i(TAG, "Cleared stale persistent group: netId=" + g.getNetworkId()); }
+                                            @Override public void onFailure(int r) {}
+                                        });
+                                    } catch (Exception ignored) {}
+                                }
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                    return null;
+                }
+            );
+
+            requestPersistentGroupInfo.invoke(p2pManager, p2pChannel, proxy);
+        } catch (Exception e) {
+            Log.d(TAG, "Persistent groups cleanup reflection: " + e.getMessage());
+        }
+    }
+
+    public void createP2pGroup() {
+        if (p2pManager == null || p2pChannel == null) return;
+        try {
+            p2pManager.createGroup(p2pChannel, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    Log.i(TAG, "WiFi Direct autonomous group created successfully");
+                }
+                @Override
+                public void onFailure(int reason) {
+                    Log.w(TAG, "WiFi Direct createGroup failed: " + p2pFailureReason(reason));
+                }
+            });
+        } catch (SecurityException se) {
+            Log.w(TAG, "SecurityException on createGroup: " + se.getMessage());
+        } catch (Exception e) {
+            Log.w(TAG, "Exception on createGroup: " + e.getMessage());
+        }
+    }
+
+    public static boolean isValidP2pAddress(String addr) {
+        return addr != null && addr.length() == 17 && addr.contains(":") && !addr.startsWith("02:00:00");
+    }
+
+    public void persistPeerInfo(String p2p, String addr, String callsign, String btAddr, String btName) {
+        try {
+            android.content.SharedPreferences.Editor ed = context.getSharedPreferences("linc_transport_prefs", Context.MODE_PRIVATE).edit();
+            if (isValidP2pAddress(p2p)) {
+                lastPeerP2p = p2p;
+                ed.putString("last_peer_p2p", p2p);
+            }
+            if (addr != null && !addr.isEmpty() && !addr.startsWith("127.") && !addr.equals("0.0.0.0")) {
+                lastPeerAddress = addr;
+                ed.putString("last_peer_address", addr);
+            }
+            if (callsign != null && !callsign.isEmpty()) {
+                lastPeerCallsign = callsign;
+                ed.putString("last_peer_callsign", callsign);
+            }
+            if (btAddr != null && !btAddr.isEmpty() && !btAddr.equals("02:00:00:00:00:00")) {
+                lastPeerBtAddress = btAddr;
+                ed.putString("last_peer_bt_address", btAddr);
+            }
+            if (btName != null && !btName.isEmpty()) {
+                lastPeerBtName = btName;
+                ed.putString("last_peer_bt_name", btName);
+            }
+            ed.apply();
+        } catch (Exception ignored) {}
+    }
+
+    public void persistPeerInfo(String p2p, String addr, String callsign) {
+        persistPeerInfo(p2p, addr, callsign, lastPeerBtAddress, lastPeerBtName);
+    }
+
     public void connectP2p(String p2pAddress) {
+        if (!isValidP2pAddress(p2pAddress)) {
+            Log.w(TAG, "Refusing connect to invalid P2P address: " + p2pAddress);
+            return;
+        }
+        connectP2pInternal(p2pAddress, 0);
+    }
+
+    private void connectP2pInternal(String p2pAddress, int attempt) {
         if (p2pManager == null || p2pChannel == null || p2pAddress == null || p2pAddress.trim().isEmpty()) {
             event("error", "message", "WiFi Direct is unavailable or invalid address.");
             return;
         }
+        if (connected && "wifi".equals(currentTransport)) {
+            Log.d(TAG, "Already connected; skipping duplicate connectP2p");
+            return;
+        }
+        p2pConnecting = true;
+        lastPeerP2p = p2pAddress.trim();
+        persistPeerInfo(lastPeerP2p, null, null);
+        userExplicitDisconnect = false;
+
+        WifiP2pConfig config = new WifiP2pConfig();
+        config.deviceAddress = p2pAddress.trim();
+        config.wps.setup = WpsInfo.PBC;
+
+        state("WAITING_APPROVAL");
+        Log.i(TAG, "Connecting via WiFi Direct to " + p2pAddress + " (attempt " + (attempt + 1) + ")");
+
+        doP2pConnect(config, p2pAddress, attempt);
+    }
+
+    private void doP2pConnect(WifiP2pConfig config, String p2pAddress, int attempt) {
+        if (connected || closed) return;
         try {
-            WifiP2pConfig config = new WifiP2pConfig();
-            config.deviceAddress = p2pAddress.trim();
-            config.wps.setup = WpsInfo.PBC;
-
-            state("WAITING_APPROVAL");
-            Log.i(TAG, "Connecting via WiFi Direct to " + p2pAddress);
-
             p2pManager.connect(p2pChannel, config, new WifiP2pManager.ActionListener() {
                 @Override
                 public void onSuccess() {
@@ -406,19 +1145,35 @@ public final class LocalTransport {
 
                 @Override
                 public void onFailure(int reason) {
-                    Log.w(TAG, "WiFi P2P connect failed: " + p2pFailureReason(reason));
-                    event("error", "message", "WiFi Direct connect failed: " + p2pFailureReason(reason));
-                    state("DISCONNECTED");
+                    Log.w(TAG, "WiFi P2P connect failed (attempt " + (attempt + 1) + "): " + p2pFailureReason(reason));
+                    if (reason == WifiP2pManager.BUSY && attempt < 5 && !connected && !closed) {
+                        Log.i(TAG, "WiFi Direct framework busy: retrying connect #" + (attempt + 2) + " in 500ms");
+                        clock.schedule(() -> doP2pConnect(config, p2pAddress, attempt + 1), 500, TimeUnit.MILLISECONDS);
+                    } else if (reason == WifiP2pManager.ERROR && attempt < 3 && !connected && !closed) {
+                        Log.i(TAG, "WiFi Direct peer not fresh in scan cache: rediscovering and retrying #" + (attempt + 2) + " in 1000ms");
+                        discoverP2pPeers();
+                        clock.schedule(() -> doP2pConnect(config, p2pAddress, attempt + 1), 1000, TimeUnit.MILLISECONDS);
+                    } else {
+                        p2pConnecting = false;
+                        event("error", "message", "WiFi Direct connect failed: " + p2pFailureReason(reason));
+                        state("DISCONNECTED");
+                        // Fallback to Bluetooth if P2P cannot establish
+                        triggerBluetoothFallback();
+                    }
                 }
             });
         } catch (SecurityException se) {
+            p2pConnecting = false;
             Log.w(TAG, "SecurityException on connectP2p: " + se.getMessage());
             event("error", "message", "WiFi Direct permission missing: " + se.getMessage());
             state("DISCONNECTED");
+            triggerBluetoothFallback();
         } catch (Exception e) {
+            p2pConnecting = false;
             Log.w(TAG, "Exception on connectP2p: " + e.getMessage());
             event("error", "message", "WiFi Direct error: " + e.getMessage());
             state("DISCONNECTED");
+            triggerBluetoothFallback();
         }
     }
 
@@ -431,6 +1186,25 @@ public final class LocalTransport {
             });
             p2pManager.cancelConnect(p2pChannel, null);
         } catch (Exception ignored) {}
+    }
+
+    private void retryP2pClientConnect(String goAddress, int attempt) {
+        if (connected || closed || p2pIsGroupOwner) return;
+        io.execute(() -> {
+            try {
+                Log.i(TAG, "P2P Client connect attempt #" + (attempt + 1) + " to GO " + goAddress + ":8988");
+                Socket next = new Socket();
+                next.connect(new InetSocketAddress(goAddress, 8988), 3000);
+                attach(new TcpTransportSocket(next), false);
+            } catch (Exception e) {
+                Log.w(TAG, "P2P Client connect attempt #" + (attempt + 1) + " failed: " + e.getMessage());
+                if (attempt < 15 && !connected && !closed && p2pGroupConnected && !p2pIsGroupOwner) {
+                    clock.schedule(() -> retryP2pClientConnect(goAddress, attempt + 1), 1000, TimeUnit.MILLISECONDS);
+                } else if (!connected) {
+                    lost(null, "Failed to connect to P2P Group Owner: " + e.getMessage());
+                }
+            }
+        });
     }
 
     private static String p2pDeviceStatus(int status) {
@@ -468,11 +1242,11 @@ public final class LocalTransport {
                     Socket incoming = localServer.accept();
                     if (connected) {
                         String incomingIp = incoming.getInetAddress() != null ? incoming.getInetAddress().getHostAddress() : "";
-                        String currentPeerIp = socket != null && socket.getInetAddress() != null ? socket.getInetAddress().getHostAddress() : "";
+                        String currentPeerIp = (activeSocket != null) ? activeSocket.getRemoteAddress() : "";
                         if (incomingIp.equals(currentPeerIp)) {
                             Log.i(TAG, "Replacing stale connection with new incoming connection from " + incomingIp);
-                            try { if (socket != null) socket.close(); } catch (Exception ignored) {}
-                            socket = null;
+                            try { if (activeSocket != null) activeSocket.close(); } catch (Exception ignored) {}
+                            activeSocket = null;
                             connected = false;
                         } else {
                             try {
@@ -486,15 +1260,16 @@ public final class LocalTransport {
                     }
 
                     // Simultaneous connect tie-breaker
-                    if (socket != null && !connected) {
+                    if (activeSocket != null && !connected) {
                         String inIp = incoming.getInetAddress() != null ? incoming.getInetAddress().getHostAddress() : "";
-                        String myTarget = address != null ? address : "";
-                        if (inIp.compareTo(myTarget) > 0) {
-                            Log.i(TAG, "Simultaneous connect tie-breaker: yielding to incoming from " + inIp);
-                            try { socket.close(); } catch (Exception ignored) {}
-                            socket = null;
+                        String localIp = incoming.getLocalAddress() != null ? incoming.getLocalAddress().getHostAddress() : "";
+                        boolean yieldToIncoming = localIp.compareTo(inIp) < 0;
+                        if (yieldToIncoming) {
+                            Log.i(TAG, "Simultaneous connect tie-breaker: yielding outgoing in favor of incoming from " + inIp);
+                            try { activeSocket.close(); } catch (Exception ignored) {}
+                            activeSocket = null;
                         } else {
-                            Log.i(TAG, "Simultaneous connect tie-breaker: keeping outgoing to " + myTarget);
+                            Log.i(TAG, "Simultaneous connect tie-breaker: keeping outgoing to " + address + ", rejecting incoming from " + inIp);
                             try { incoming.close(); } catch (Exception ignored) {}
                             continue;
                         }
@@ -504,7 +1279,7 @@ public final class LocalTransport {
                         try { pendingSocket.close(); } catch (Exception ignored) {}
                         pendingSocket = null;
                     }
-                    attach(incoming, true);
+                    attach(new TcpTransportSocket(incoming), true);
                 }
             } catch (Exception e) {
                 Log.w(TAG, "ServerSocket error: " + e.getMessage());
@@ -534,12 +1309,23 @@ public final class LocalTransport {
                             String beaconModel = parts.length >= 5 ? parts[4] : "";
                             String beaconP2p = parts.length >= 6 ? parts[5] : "";
                             String senderIp = packet.getAddress() != null ? packet.getAddress().getHostAddress() : "";
+                            if (!beaconP2p.isEmpty()) lastPeerP2p = beaconP2p;
                             if (!session.toString().equals(beaconSession) && !isSelfAddress(senderIp)) {
                                 Log.i(TAG, "Discovered LinC peer via UDP beacon: " + beaconCallsign + " (" + senderIp + ")" + (!beaconP2p.isEmpty() ? " [p2p:" + beaconP2p + "]" : ""));
                                 if (!beaconP2p.isEmpty()) {
                                     event("peer", "name", beaconCallsign, "model", beaconModel, "address", senderIp, "p2pAddress", beaconP2p, "port", 8988, "source", "beacon");
                                 } else {
                                     event("peer", "name", beaconCallsign, "model", beaconModel, "address", senderIp, "port", 8988, "source", "beacon");
+                                }
+
+                                if (!connected && !userExplicitDisconnect && (!lastPeerAddress.isEmpty() || !lastPeerCallsign.isEmpty())) {
+                                    if (senderIp.equals(lastPeerAddress) || (!lastPeerCallsign.isEmpty() && beaconCallsign.equals(lastPeerCallsign))) {
+                                        Log.i(TAG, "Known peer reappeared on radar: " + beaconCallsign + " (" + senderIp + ") -> Instant Reconnect!");
+                                        lastPeerAddress = senderIp;
+                                        address = senderIp;
+                                        port = 8988;
+                                        connectInternal();
+                                    }
                                 }
                             }
                         }
@@ -560,12 +1346,10 @@ public final class LocalTransport {
                 byte[] payload = payloadStr.getBytes(StandardCharsets.UTF_8);
                 DatagramSocket sender = new DatagramSocket();
                 sender.setBroadcast(true);
-                
-                // 1. General broadcast
+
                 DatagramPacket p1 = new DatagramPacket(payload, payload.length, InetAddress.getByName("255.255.255.255"), 8989);
                 sender.send(p1);
 
-                // 2. Subnet directed broadcast
                 for (NetworkInterface iface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
                     for (InterfaceAddress ifaceAddr : iface.getInterfaceAddresses()) {
                         InetAddress bcast = ifaceAddr.getBroadcast();
@@ -583,10 +1367,14 @@ public final class LocalTransport {
         io.execute(() -> {
             if (server != null) { event("host", "pin", pin, "addresses", addresses(), "port", 8988); return; }
             disconnect();
+            userExplicitDisconnect = false;
             hosting = true;
             pin = String.format(Locale.US, "%06d", new SecureRandom().nextInt(1000000));
             startListening();
             state("DISCOVERING");
+            if (addresses().length() == 0 && p2pManager != null && p2pChannel != null) {
+                createP2pGroup();
+            }
             event("host", "pin", pin, "addresses", addresses(), "port", 8988);
         });
     }
@@ -611,6 +1399,7 @@ public final class LocalTransport {
         }
         if (clientCallsign != null && !clientCallsign.trim().isEmpty()) callsign = clientCallsign.trim();
         disconnect();
+        userExplicitDisconnect = false;
         hosting = false;
         address = host;
         port = requestedPort;
@@ -636,7 +1425,7 @@ public final class LocalTransport {
                     next.close();
                     return;
                 }
-                attach(next, false);
+                attach(new TcpTransportSocket(next), false);
             } catch (Exception e) {
                 try { next.close(); } catch (Exception ignored) {}
                 if (cycle == generation) lost(null, e.getMessage());
@@ -644,22 +1433,31 @@ public final class LocalTransport {
         });
     }
 
-    private void attach(Socket next, boolean accepted) throws IOException {
-        next.setTcpNoDelay(true);
-        next.setSoTimeout(45000);
-        socket = next;
+    private void attach(TransportSocket next, boolean accepted) throws IOException {
+        activeSocket = next;
         connected = false;
         lastReceived = now();
         remoteSession = null;
         remoteSequence = 0;
+        currentTransport = next.getTransportType();
         state(accepted ? "CONNECTING" : "WAITING_APPROVAL");
+
         if (!accepted) {
-            control(json("type", "HELLO", "protocol", 1, "session", session.toString(), "name", Build.MODEL, "callsign", callsign, "pin", pin, "codec", "utf8-deflate-hamming84", "languages", "hi,en,hinglish-experimental"));
+            String myBtName = getBluetoothName();
+            String myBtAddr = getBluetoothAddress();
+            control(json("type", "HELLO", "protocol", 1, "session", session.toString(),
+                "name", Build.MODEL, "callsign", callsign, "pin", pin,
+                "codec", "utf8-deflate-hamming84",
+                "p2pAddress", isValidP2pAddress(myP2pAddress) ? myP2pAddress : "",
+                "btName", myBtName, "btAddress", myBtAddr,
+                "transport", currentTransport,
+                "languages", "hi,en,hinglish-experimental"));
         }
+
         io.execute(() -> {
             try {
                 DataInputStream input = new DataInputStream(next.getInputStream());
-                while (!closed && (socket == next || pendingSocket == next)) {
+                while (!closed && (activeSocket == next || pendingSocket == next)) {
                     byte[] body = FrameIO.read(input);
                     int length = body.length;
                     synchronized (this) { bytesReceived += length + 4; }
@@ -688,17 +1486,39 @@ public final class LocalTransport {
                 remoteSession = UUID.fromString(data.getString("session"));
                 String reqName = data.optString("name", "Nearby Phone");
                 String reqCallsign = data.optString("callsign", reqName);
+                String incomingP2p = data.optString("p2pAddress", "");
+                String incomingBtName = data.optString("btName", "");
+                String incomingBtAddr = data.optString("btAddress", "");
+                if (isValidP2pAddress(incomingP2p)) {
+                    lastPeerP2p = incomingP2p;
+                }
+                if (!incomingBtAddr.isEmpty()) lastPeerBtAddress = incomingBtAddr;
+                if (!incomingBtName.isEmpty()) lastPeerBtName = incomingBtName;
+                persistPeerInfo(lastPeerP2p, lastPeerAddress, reqCallsign, lastPeerBtAddress, lastPeerBtName);
+
                 peer = reqCallsign;
-                pendingSocket = socket;
+                pendingSocket = activeSocket;
                 String incomingPin = data.optString("pin", "");
                 if (!pin.isEmpty() && !pin.equals(incomingPin)) {
                     control(json("type", "REJECT", "reason", "Incorrect PIN"));
                     throw new IOException("Incorrect PIN");
                 }
+
+                String clientAddr = (activeSocket != null) ? activeSocket.getRemoteAddress() : address;
+                boolean isKnownReconnect = (!lastPeerCallsign.isEmpty() && reqCallsign.equals(lastPeerCallsign)) ||
+                                           (!lastPeerAddress.isEmpty() && !clientAddr.isEmpty() && lastPeerAddress.equals(clientAddr)) ||
+                                           (p2pGroupConnected && clientAddr.startsWith("192.168.49.")) ||
+                                           ("bluetooth".equals(currentTransport));
+
+                if (isKnownReconnect && (pin.isEmpty() || pin.equals(incomingPin))) {
+                    Log.i(TAG, "Auto-accepting seamless reconnection from known peer (" + currentTransport + "): " + reqCallsign);
+                    respondRequest(true);
+                    return;
+                }
+
                 state("PENDING_APPROVAL");
-                String clientIp = socket != null && socket.getInetAddress() != null ? socket.getInetAddress().getHostAddress() : address;
-                Log.i(TAG, "Incoming connection request from " + reqCallsign + " (" + clientIp + "). Showing Accept/Decline modal on receiver.");
-                event("connection_request", "peer", reqCallsign, "name", reqName, "callsign", reqCallsign, "address", clientIp, "pin", incomingPin);
+                Log.i(TAG, "Incoming connection request from " + reqCallsign + " (" + clientAddr + "). Showing Accept/Decline modal on receiver.");
+                event("connection_request", "peer", reqCallsign, "name", reqName, "callsign", reqCallsign, "address", clientAddr, "pin", incomingPin, "transport", currentTransport);
                 if (approvalTimer != null) approvalTimer.cancel(false);
                 approvalTimer = clock.schedule(() -> {
                     if (pendingSocket != null && !connected) {
@@ -710,7 +1530,17 @@ public final class LocalTransport {
             if (!accepted && type.equals("READY") && data.optInt("protocol") == 1 && data.optString("codec").equals("utf8-deflate-hamming84")) {
                 remoteSession = UUID.fromString(data.getString("session"));
                 peer = data.optString("callsign", data.optString("name", "Phone"));
-                Log.i(TAG, "Connection READY received from peer: " + peer);
+                String peerP2p = data.optString("p2pAddress", "");
+                if (isValidP2pAddress(peerP2p)) {
+                    lastPeerP2p = peerP2p;
+                }
+                String peerBtName = data.optString("btName", "");
+                String peerBtAddr = data.optString("btAddress", "");
+                if (!peerBtAddr.isEmpty()) lastPeerBtAddress = peerBtAddr;
+                if (!peerBtName.isEmpty()) lastPeerBtName = peerBtName;
+                persistPeerInfo(lastPeerP2p, lastPeerAddress, peer, lastPeerBtAddress, lastPeerBtName);
+
+                Log.i(TAG, "Connection READY received from peer (" + currentTransport + "): " + peer);
                 ready();
                 return;
             }
@@ -719,14 +1549,14 @@ public final class LocalTransport {
                 event("request_declined", "peer", peer, "reason", reason);
                 retry = 99;
                 address = "";
-                lost(socket, reason);
+                lost(activeSocket, reason);
                 return;
             }
             if (accepted && type.equals("CANCEL")) {
                 if (approvalTimer != null) { approvalTimer.cancel(false); approvalTimer = null; }
                 event("request_cancelled", "peer", peer);
                 if (pendingSocket != null) { try { pendingSocket.close(); } catch (Exception ignored) {} pendingSocket = null; }
-                lost(socket, "Request cancelled by peer");
+                lost(activeSocket, "Request cancelled by peer");
                 return;
             }
             throw new IOException(type.equals("REJECT") ? "Connection rejected" : "Invalid handshake");
@@ -748,17 +1578,24 @@ public final class LocalTransport {
 
     public void respondRequest(boolean accept) {
         if (approvalTimer != null) { approvalTimer.cancel(false); approvalTimer = null; }
-        Socket s = pendingSocket != null ? pendingSocket : socket;
+        TransportSocket s = pendingSocket != null ? pendingSocket : activeSocket;
         if (s == null) return;
         io.execute(() -> {
             try {
                 if (accept) {
-                    socket = s;
+                    activeSocket = s;
                     pendingSocket = null;
-                    control(json("type", "READY", "protocol", 1, "session", session.toString(), "name", Build.MODEL, "callsign", callsign, "codec", "utf8-deflate-hamming84"));
+                    String myBtName = getBluetoothName();
+                    String myBtAddr = getBluetoothAddress();
+                    control(json("type", "READY", "protocol", 1, "session", session.toString(),
+                        "name", Build.MODEL, "callsign", callsign,
+                        "p2pAddress", isValidP2pAddress(myP2pAddress) ? myP2pAddress : "",
+                        "btName", myBtName, "btAddress", myBtAddr,
+                        "transport", currentTransport,
+                        "codec", "utf8-deflate-hamming84"));
                     ready();
                 } else {
-                    socket = s;
+                    activeSocket = s;
                     control(json("type", "REJECT", "reason", "Connection declined by " + (callsign.isEmpty() ? Build.MODEL : callsign)));
                     pendingSocket = null;
                     retry = 99;
@@ -771,7 +1608,7 @@ public final class LocalTransport {
     }
 
     public void cancelRequest() {
-        if (!connected && socket != null) {
+        if (!connected && activeSocket != null) {
             io.execute(() -> {
                 try { control(json("type", "CANCEL")); } catch (Exception ignored) {}
                 disconnect();
@@ -783,6 +1620,24 @@ public final class LocalTransport {
         lastReceived = now();
         connected = true;
         retry = 0;
+        btConnecting = false;
+        btFallbackActive = false;
+        userExplicitDisconnect = false;
+        currentTransport = (activeSocket != null) ? activeSocket.getTransportType() : "wifi";
+
+        if (activeSocket != null && "wifi".equals(currentTransport)) {
+            String remoteIp = activeSocket.getRemoteAddress();
+            if (remoteIp != null && !remoteIp.isEmpty()) {
+                lastPeerAddress = remoteIp;
+                address = remoteIp;
+            }
+        }
+        if (port > 0) lastPeerPort = port;
+        if (pin != null) lastPeerPin = pin;
+        if (peer != null) lastPeerCallsign = peer;
+
+        acquireLocks();
+        persistPeerInfo(lastPeerP2p, lastPeerAddress, lastPeerCallsign, lastPeerBtAddress, lastPeerBtName);
         state("CONNECTED");
         flushOutbox();
     }
@@ -790,7 +1645,7 @@ public final class LocalTransport {
     private void flushOutbox() {
         String[] msg;
         while ((msg = outbox.poll()) != null) {
-            Log.i(TAG, "Flushing queued speech to peer: '" + msg[0] + "' (" + msg[1] + ")");
+            Log.i(TAG, "Flushing queued speech to peer (" + currentTransport + "): '" + msg[0] + "' (" + msg[1] + ")");
             sendTextInternal(msg[0], msg[1]);
         }
     }
@@ -823,8 +1678,11 @@ public final class LocalTransport {
             corrected += message.correctedCodewords();
         }
         control(json("type", "ACK", "seq", message.sequence()));
-        Log.i(TAG, "Received ITP packet from peer: '" + message.text() + "', forwarding to listener");
-        listener.received(message);
+        Log.i(TAG, "Received ITP packet from peer (" + currentTransport + "): '" + message.text() + "', forwarding to listener");
+        Listener l = listener;
+        if (l != null) {
+            l.received(message);
+        }
     }
 
     public void sendText(String text, String language) {
@@ -841,19 +1699,28 @@ public final class LocalTransport {
         sendTextInternal(text, language);
     }
 
-    private void sendTextInternal(String text, String language) {
-        Socket target = socket;
+    public void sendEmergency(String text, String language) {
+        if (text == null || text.trim().isEmpty()) return;
+        if (!connected) {
+            event("error", "message", "Not connected. Cannot send emergency.");
+            return;
+        }
+        sendTextInternalEmergency(text, language);
+    }
+
+    private void sendTextInternalEmergency(String text, String language) {
+        TransportSocket target = activeSocket;
         sender.execute(() -> {
             try {
-                if (target != socket || !connected) throw new IOException("Connection changed before transmission");
+                if (target != activeSocket || !connected) throw new IOException("Connection changed before transmission");
                 long sequence;
                 synchronized (this) { sequence = ++seq; }
-                var packet = ItpPacket.encode(session, sequence, language, text.trim());
+                var packet = ItpPacket.encode(session, sequence, language, text.trim(), true);
                 long delay = Math.max(0, nextSend - now());
                 if (delay > 0) Thread.sleep(delay);
-                if (target != socket || !connected) throw new IOException("Connection lost while waiting for bitrate budget");
+                if (target != activeSocket || !connected) throw new IOException("Connection lost while waiting for bitrate budget");
                 nextSend = now() + Math.max(1, packet.payloadBytes() * 8000L / bitrate);
-                event("sent", "text", text.trim(), "sequence", sequence, "packetBytes", packet.wire().length + 5, "payloadBytes", packet.payloadBytes());
+                event("sent", "text", text.trim(), "sequence", sequence, "packetBytes", packet.wire().length + 5, "payloadBytes", packet.payloadBytes(), "emergency", true, "transport", currentTransport);
                 pending.put(sequence, now());
                 write((byte) 2, packet.wire());
                 synchronized (this) {
@@ -862,7 +1729,35 @@ public final class LocalTransport {
                     payloadSent += packet.payloadBytes();
                     lastPacketBytes = packet.wire().length + 5;
                 }
-                Log.i(TAG, "Successfully sent ITP packet #" + sequence + " to peer: '" + text.trim() + "'");
+                Log.i(TAG, "Successfully sent EMERGENCY ITP packet #" + sequence + " via " + currentTransport + ": '" + text.trim() + "'");
+            } catch (Exception e) {
+                event("error", "message", "Emergency not sent: " + e.getMessage());
+            }
+        });
+    }
+
+    private void sendTextInternal(String text, String language) {
+        TransportSocket target = activeSocket;
+        sender.execute(() -> {
+            try {
+                if (target != activeSocket || !connected) throw new IOException("Connection changed before transmission");
+                long sequence;
+                synchronized (this) { sequence = ++seq; }
+                var packet = ItpPacket.encode(session, sequence, language, text.trim());
+                long delay = Math.max(0, nextSend - now());
+                if (delay > 0) Thread.sleep(delay);
+                if (target != activeSocket || !connected) throw new IOException("Connection lost while waiting for bitrate budget");
+                nextSend = now() + Math.max(1, packet.payloadBytes() * 8000L / bitrate);
+                event("sent", "text", text.trim(), "sequence", sequence, "packetBytes", packet.wire().length + 5, "payloadBytes", packet.payloadBytes(), "transport", currentTransport);
+                pending.put(sequence, now());
+                write((byte) 2, packet.wire());
+                synchronized (this) {
+                    sent++;
+                    sourceSent += packet.sourceBytes();
+                    payloadSent += packet.payloadBytes();
+                    lastPacketBytes = packet.wire().length + 5;
+                }
+                Log.i(TAG, "Successfully sent ITP packet #" + sequence + " via " + currentTransport + ": '" + text.trim() + "'");
             } catch (Exception e) {
                 event("error", "message", "Message not sent: " + e.getMessage());
             }
@@ -875,7 +1770,7 @@ public final class LocalTransport {
 
     private void write(byte kind, byte[] bytes) throws IOException {
         synchronized (writeLock) {
-            Socket current = socket != null ? socket : pendingSocket;
+            TransportSocket current = activeSocket != null ? activeSocket : pendingSocket;
             if (current == null) throw new IOException("Disconnected");
             DataOutputStream out = new DataOutputStream(current.getOutputStream());
             FrameIO.write(out, kind, bytes);
@@ -886,15 +1781,19 @@ public final class LocalTransport {
     private void tick() {
         try {
             if (connected) {
-                if (now() - lastReceived > 9000) {
-                    lost(socket, "Heartbeat timeout");
+                if (now() - lastReceived > 30000) {
+                    lost(activeSocket, "Heartbeat timeout");
                     return;
                 }
                 control(json("type", "PING", "at", now()));
             } else {
                 broadcastUdpBeacon();
-                if (!p2pDiscovering && p2pEnabled) {
+                boolean isBusyConnecting = p2pConnecting || btConnecting || "WAITING_APPROVAL".equals(state) || "PENDING_APPROVAL".equals(state);
+                if (p2pEnabled && !closed && !isBusyConnecting && (now() - lastP2pDiscoveryTime >= 15000)) {
                     discoverP2pPeers();
+                }
+                if (bluetoothAdapter != null && bluetoothAdapter.isEnabled() && !closed && !isBusyConnecting && (now() - lastBtDiscoveryTime >= 20000)) {
+                    discoverBluetoothPeers();
                 }
             }
             for (var entry : pending.entrySet()) {
@@ -904,10 +1803,9 @@ public final class LocalTransport {
                 }
             }
             double seconds = Math.max(1, (now() - metricsStarted) / 1000.0);
-            event("metrics", "sent", sent, "received", received, "txBytes", bytesSent, "rxBytes", bytesReceived, "appTxBps", Math.round(bytesSent * 8 / seconds), "payloadBps", Math.round(payloadSent * 8 / seconds), "payloadBytes", payloadSent, "sourceBytes", sourceSent, "crcFailures", crcFailures, "fecFailures", fecFailures, "fecCorrected", corrected, "duplicates", duplicates, "unacknowledged", unacked, "rttMs", rtt, "configuredBps", bitrate, "lastPacketBytes", lastPacketBytes, "overheadBytes", bytesSent - payloadSent, "textCompression", payloadSent == 0 ? 0 : Math.round(sourceSent * 100.0 / payloadSent) / 100.0);
+            event("metrics", "sent", sent, "received", received, "txBytes", bytesSent, "rxBytes", bytesReceived, "appTxBps", Math.round(bytesSent * 8 / seconds), "payloadBps", Math.round(payloadSent * 8 / seconds), "payloadBytes", payloadSent, "sourceBytes", sourceSent, "crcFailures", crcFailures, "fecFailures", fecFailures, "fecCorrected", corrected, "duplicates", duplicates, "unacknowledged", unacked, "rttMs", rtt, "configuredBps", bitrate, "lastPacketBytes", lastPacketBytes, "overheadBytes", bytesSent - payloadSent, "textCompression", payloadSent == 0 ? 0 : Math.round(sourceSent * 100.0 / payloadSent) / 100.0, "transport", currentTransport);
 
-            // Auto-probe personal hotspot gateway - emit peer bubble for manual tap
-            if (!connected && !hosting && socket == null && address.isEmpty()) {
+            if (!connected && !hosting && activeSocket == null && address.isEmpty()) {
                 try {
                     for (NetworkInterface network : Collections.list(NetworkInterface.getNetworkInterfaces())) {
                         for (InetAddress ip : Collections.list(network.getInetAddresses())) {
@@ -922,58 +1820,126 @@ public final class LocalTransport {
                 } catch (Exception ignored) {}
             }
         } catch (Exception e) {
-            if (connected) lost(socket, e.getMessage());
+            Log.w(TAG, "Heartbeat tick warning: " + e.getMessage());
+            if (connected && (activeSocket == null || activeSocket.isClosed())) lost(activeSocket, e.getMessage());
         }
     }
 
-    private synchronized void lost(Socket expected, String reason) {
-        if (expected != null && socket != expected && pendingSocket != expected) return;
-        Socket old = socket;
-        socket = null;
+    public long getRtt() { return rtt > 0 ? rtt : 4; }
+
+    public int getWifiRssi() {
+        try {
+            WifiManager wm = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (wm != null) {
+                WifiInfo info = wm.getConnectionInfo();
+                if (info != null) {
+                    int r = info.getRssi();
+                    if (r != -127 && r != 0) return r;
+                }
+            }
+        } catch (Exception ignored) {}
+        return -65;
+    }
+
+    private synchronized void lost(TransportSocket expected, String reason) {
+        if (expected != null && activeSocket != expected && pendingSocket != expected) return;
+        TransportSocket old = activeSocket;
+        activeSocket = null;
         connected = false;
+        String prevTransport = currentTransport;
+        currentTransport = "none";
         if (old != null) try { old.close(); } catch (Exception ignored) {}
-        Socket p = pendingSocket;
+        TransportSocket p = pendingSocket;
         pendingSocket = null;
         if (p != null) try { p.close(); } catch (Exception ignored) {}
         if (approvalTimer != null) { approvalTimer.cancel(false); approvalTimer = null; }
         if (closed) return;
-        Log.i(TAG, "Connection lost: " + reason);
+        Log.i(TAG, "Connection lost (" + prevTransport + "): " + reason);
+
         boolean isExplicitDeclineOrCancel = reason != null && (
             reason.contains("Declined") || reason.contains("declined") ||
             reason.contains("reject") || reason.contains("Reject") ||
             reason.contains("cancel") || reason.contains("Cancel") ||
-            reason.contains("busy") || reason.contains("Busy") ||
             reason.contains("local user")
         );
         if (isExplicitDeclineOrCancel) {
             retry = 99;
+            userExplicitDisconnect = true;
             address = "";
-        } else {
-            event("error", "message", "Link: " + (reason != null && !reason.trim().isEmpty() ? reason : "Connection closed"));
+            releaseLocks();
+            state("DISCONNECTED");
+            startListening();
+            return;
         }
-        if (!hosting && !address.isEmpty() && retry < 4) {
+
+        event("error", "message", "Link interrupted: " + (reason != null && !reason.trim().isEmpty() ? reason : "Connection lost — Reconnecting"));
+
+        // Auto-reconnect or fallback
+        boolean hasValidP2p = isValidP2pAddress(lastPeerP2p);
+        String rawTargetIp = !address.isEmpty() ? address : lastPeerAddress;
+        boolean isP2pIp = rawTargetIp != null && rawTargetIp.startsWith("192.168.49.");
+
+        final String targetIp;
+        if (isP2pIp && !p2pGroupConnected) {
+            targetIp = "";
+            address = "";
+            lastPeerAddress = "";
+        } else {
+            targetIp = rawTargetIp;
+        }
+
+        if (!userExplicitDisconnect && retry < 3 && (hasValidP2p || (targetIp != null && !targetIp.isEmpty()))) {
             retry++;
             state("RECONNECTING");
+            startListening();
             long cycle = generation;
+            long delaySec = Math.min(3, Math.max(1, retry % 4));
             clock.schedule(() -> {
-                if (cycle == generation && !connected) connectInternal();
-            }, Math.min(8, retry * 2), TimeUnit.SECONDS);
+                if (cycle == generation && !connected && !closed && !userExplicitDisconnect) {
+                    if (p2pGroupConnected && p2pGroupOwnerAddress != null && !p2pIsGroupOwner) {
+                        address = p2pGroupOwnerAddress;
+                        connectInternal();
+                    } else if (hasValidP2p) {
+                        Log.i(TAG, "Auto-reconnecting P2P to " + lastPeerP2p);
+                        connectP2p(lastPeerP2p);
+                    } else if (targetIp != null && !targetIp.isEmpty()) {
+                        Log.i(TAG, "Fast auto-reconnect attempt #" + retry + " to " + targetIp);
+                        address = targetIp;
+                        port = lastPeerPort > 0 ? lastPeerPort : 8988;
+                        pin = lastPeerPin;
+                        connectInternal();
+                    }
+                }
+            }, delaySec, TimeUnit.SECONDS);
+        } else if (!userExplicitDisconnect && !btFallbackActive) {
+            // Wi-Fi connection lost/failed -> AUTOMATIC BLUETOOTH FALLBACK!
+            retry = 0;
+            triggerBluetoothFallback();
         } else {
+            retry = 0;
+            address = "";
             state(hosting ? "DISCOVERING" : "DISCONNECTED");
+            startListening();
         }
     }
 
     public synchronized void disconnect() {
+        userExplicitDisconnect = true;
+        btFallbackActive = false;
+        releaseLocks();
         generation++;
         address = "";
+        lastPeerAddress = "";
+        lastPeerCallsign = "";
         connected = false;
         hosting = false;
+        currentTransport = "none";
         if (approvalTimer != null) { approvalTimer.cancel(false); approvalTimer = null; }
-        Socket p = pendingSocket;
+        TransportSocket p = pendingSocket;
         pendingSocket = null;
         if (p != null) try { p.close(); } catch (Exception ignored) {}
-        Socket old = socket;
-        socket = null;
+        TransportSocket old = activeSocket;
+        activeSocket = null;
         if (old != null) try { control(json("type", "BYE")); old.close(); } catch (Exception ignored) {}
         for (long id : pending.keySet()) event("delivery", "sequence", id, "state", "Disconnected; delivery uncertain");
         pending.clear();
@@ -1003,8 +1969,10 @@ public final class LocalTransport {
 
     public void discover() {
         startListening();
+        startBtServer();
         broadcastUdpBeacon();
         discoverP2pPeers();
+        discoverBluetoothPeers();
         if (discovery != null) return;
         try {
             multicast.acquire();
@@ -1074,9 +2042,11 @@ public final class LocalTransport {
         closed = true;
         disconnect();
         closeServer();
+        closeBtServer();
         stopP2pDiscovery();
         disconnectP2pGroup();
         unregisterP2pReceiver();
+        unregisterBtReceiver();
         if (discovery != null) try { nsd.stopServiceDiscovery(discovery); } catch (Exception ignored) {}
         if (multicast.isHeld()) multicast.release();
         sender.shutdownNow();

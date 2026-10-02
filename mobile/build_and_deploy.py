@@ -51,8 +51,14 @@ def build():
     sherpa_src = os.path.join(APP_DIR, r"src\main\java\com\k2fsa\sherpa\onnx")
     src_kt = os.path.join(APP_DIR, r"src\main\java\in\itantra\mobile\SpeechEngine.kt")
     main_kt = os.path.join(APP_DIR, r"src\main\java\in\itantra\mobile\MainActivity.kt")
+    service_kt = os.path.join(APP_DIR, r"src\main\java\in\itantra\mobile\MeshService.kt")
+    boot_kt = os.path.join(APP_DIR, r"src\main\java\in\itantra\mobile\BootReceiver.kt")
     
     kt_sources = [src_kt, main_kt]
+    if os.path.exists(service_kt):
+        kt_sources.append(service_kt)
+    if os.path.exists(boot_kt):
+        kt_sources.append(boot_kt)
     if os.path.exists(sherpa_src):
         for f in os.listdir(sherpa_src):
             if f.endswith(".kt"):
@@ -60,8 +66,8 @@ def build():
 
     kt_cp = f"{android_jar};{classes_dir};{existing_classes}"
     kt_args = " ".join([f'"{f}"' for f in kt_sources])
-    print(f"Compiling {len(kt_sources)} Kotlin source files with kotlinc...")
-    run(f'"{KOTLINC}" -cp "{kt_cp}" -d "{classes_dir}" {kt_args}', env=env)
+    kotlin_compiler_jar = os.path.join(USER_HOME, r".kotlinc\kotlinc\lib\kotlin-compiler.jar")
+    run(f'"{JAVA_EXE}" -Xmx512m -XX:TieredStopAtLevel=1 -XX:CICompilerCount=2 -cp "{kotlin_compiler_jar}" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler -cp "{kt_cp}" -d "{classes_dir}" {kt_args}', env=env)
 
     # 3. Dex the compiled classes with D8
     print("Dexing with D8...")
@@ -91,11 +97,25 @@ def build():
     new_dex = os.path.join(dex_dir, "classes.dex")
     print(f"Generated new dex: {os.path.getsize(new_dex)} bytes")
 
-    # 4. Assemble APK
+    # 4. Assemble APK with compiled AndroidManifest.xml and assets
     base_apk = os.path.join(MOBILE_DIR, "app-signed.apk")
     unsigned_apk = os.path.join(MOBILE_DIR, "app-unsigned.apk")
     signed_apk = os.path.join(MOBILE_DIR, "app-signed.apk")
     new_html = os.path.join(APP_DIR, r"src\main\assets\index.html")
+
+    # Compile AndroidManifest.xml using aapt2
+    aapt2_exe = os.path.join(MOBILE_DIR, "aapt2.exe")
+    manifest_xml = os.path.join(APP_DIR, r"src\main\AndroidManifest.xml")
+    res_dir = os.path.join(APP_DIR, r"src\main\res")
+    compiled_res = os.path.join(SCRATCH, "compiled_res.zip")
+    manifest_apk = os.path.join(SCRATCH, "manifest_out.apk")
+
+    print("Compiling AndroidManifest.xml and resources with aapt2...")
+    run(f'"{aapt2_exe}" compile --dir "{res_dir}" -o "{compiled_res}"')
+    run(f'"{aapt2_exe}" link -o "{manifest_apk}" -I "{android_jar}" --manifest "{manifest_xml}" "{compiled_res}" --min-sdk-version 26 --target-sdk-version 34 --auto-add-overlay')
+
+    with zipfile.ZipFile(manifest_apk, "r") as mz:
+        manifest_data = mz.read("AndroidManifest.xml")
 
     with open(new_dex, "rb") as f:
         dex_data = f.read()
@@ -107,7 +127,9 @@ def build():
             # Strip v1 signature entries
             if item.filename.startswith("META-INF/") and (item.filename.endswith(".SF") or item.filename.endswith(".RSA") or item.filename.endswith(".MF")):
                 continue
-            if item.filename == "classes6.dex":
+            if item.filename == "AndroidManifest.xml":
+                zout.writestr(item, manifest_data)
+            elif item.filename == "classes6.dex":
                 zout.writestr(item, dex_data)
             elif item.filename == "assets/index.html":
                 zout.writestr(item, html_data)
@@ -156,7 +178,17 @@ def build():
     for dev in devices:
         print(f"Installing and launching on device {dev}...")
         try:
-            run(f'"{adb_bin}" -s {dev} install -r "{signed_apk}"')
+            run(f'"{adb_bin}" -s {dev} install -r -d "{signed_apk}"')
+            for perm in [
+                "android.permission.BLUETOOTH_CONNECT",
+                "android.permission.BLUETOOTH_SCAN",
+                "android.permission.BLUETOOTH_ADVERTISE",
+                "android.permission.NEARBY_WIFI_DEVICES",
+                "android.permission.ACCESS_FINE_LOCATION",
+                "android.permission.RECORD_AUDIO",
+                "android.permission.POST_NOTIFICATIONS"
+            ]:
+                subprocess.run([adb_bin, "-s", dev, "shell", "pm", "grant", "in.itantra.mobile", perm], capture_output=True)
             run(f'"{adb_bin}" -s {dev} shell am start -n in.itantra.mobile/.MainActivity')
             print(f"SUCCESS on {dev}!")
         except Exception as e:

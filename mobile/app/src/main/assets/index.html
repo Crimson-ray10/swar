@@ -3027,6 +3027,233 @@
       gap: 10px;
       margin-top: auto;
     }
+
+    /* ═══════════════ CHAT HISTORY (WhatsApp-style) ═══════════════ */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 12px;
+      min-height: 200px;
+      max-height: 60vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+    }
+    .chat-bubble {
+      max-width: 78%;
+      padding: 9px 13px;
+      border-radius: 16px;
+      font-size: 13px;
+      line-height: 1.45;
+      word-break: break-word;
+      position: relative;
+      animation: chatFadeIn 0.2s ease;
+    }
+    @keyframes chatFadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .chat-sent {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+      border: 1px solid #6ee7b7;
+      border-bottom-right-radius: 4px;
+      color: #064e3b;
+    }
+    .chat-received {
+      align-self: flex-start;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-bottom-left-radius: 4px;
+      color: #111827;
+    }
+    .chat-emergency {
+      background: linear-gradient(135deg, #fee2e2, #fecaca) !important;
+      border: 2px solid #ef4444 !important;
+      color: #7f1d1d !important;
+    }
+    .chat-emergency::before {
+      content: '🚨 EMERGENCY';
+      display: block;
+      font-size: 10px;
+      font-weight: 800;
+      color: #dc2626;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+    .chat-time {
+      font-size: 10px;
+      color: #9ca3af;
+      margin-top: 3px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .chat-sent .chat-time { justify-content: flex-end; }
+    .chat-received .chat-time { justify-content: flex-start; }
+    .chat-tick { color: #10b981; font-size: 11px; font-weight: 700; }
+    .chat-lang-badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      background: rgba(0,0,0,0.06);
+      border-radius: 4px;
+      padding: 1px 5px;
+      text-transform: uppercase;
+    }
+    .chat-date-separator {
+      text-align: center;
+      padding: 8px 0;
+    }
+    .chat-date-separator span {
+      background: #f1f5f9;
+      color: #64748b;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 12px;
+      border-radius: 10px;
+    }
+    .chat-empty {
+      text-align: center;
+      padding: 40px 16px;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    /* ═══════════════ EMERGENCY BUTTON ═══════════════ */
+    .emergency-btn-wrapper {
+      display: flex;
+      justify-content: center;
+      margin: 16px 0 8px;
+    }
+    .emergency-btn {
+      position: relative;
+      width: 100%;
+      max-width: 320px;
+      padding: 14px 20px;
+      border: 2px solid #ef4444;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #fef2f2, #fff1f2);
+      color: #dc2626;
+      font-size: 13px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: all 0.2s ease;
+      overflow: hidden;
+    }
+    .emergency-btn:active {
+      background: linear-gradient(135deg, #fee2e2, #fecaca);
+      transform: scale(0.98);
+    }
+    .emergency-btn .emergency-progress {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 0%;
+      background: rgba(239, 68, 68, 0.15);
+      border-radius: 14px;
+      transition: width 0.05s linear;
+      pointer-events: none;
+    }
+    .emergency-btn .emergency-label {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .emergency-btn-sub {
+      text-align: center;
+      font-size: 10px;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+
+    /* ═══════════════ EMERGENCY OVERLAY ═══════════════ */
+    .emergency-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(127, 29, 29, 0.92);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      animation: emergencyPulse 1s ease infinite;
+    }
+    @keyframes emergencyPulse {
+      0%, 100% { background: rgba(127, 29, 29, 0.92); }
+      50% { background: rgba(185, 28, 28, 0.95); }
+    }
+    .emergency-overlay-icon {
+      font-size: 56px;
+      margin-bottom: 16px;
+      animation: emergencyShake 0.3s ease infinite;
+    }
+    @keyframes emergencyShake {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-8deg); }
+      75% { transform: rotate(8deg); }
+    }
+    .emergency-overlay-title {
+      font-size: 22px;
+      font-weight: 900;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+    }
+    .emergency-overlay-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fef2f2;
+      text-align: center;
+      line-height: 1.5;
+      max-width: 280px;
+    }
+    .emergency-overlay-dismiss {
+      margin-top: 24px;
+      padding: 10px 28px;
+      border-radius: 12px;
+      border: 2px solid rgba(255,255,255,0.4);
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* Header chat button */
+    .header-chat-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: var(--card-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .header-chat-btn:active {
+      background: #f1f5f9;
+      transform: scale(0.95);
+    }
+    .header-chat-btn svg {
+      width: 15px;
+      height: 15px;
+      stroke: var(--text);
+      stroke-width: 2;
+      fill: none;
+    }
   </style>
 </head>
 
@@ -3043,6 +3270,9 @@
     </div>
     <div class="header-actions">
       <div id="headerActionsPillSlot"></div>
+      <button class="header-chat-btn" id="btnHeaderChat" aria-label="Chat History" title="Chat History">
+        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </button>
       <button class="header-specs-btn" id="btnHeaderSpecs" aria-label="System Architecture Specs">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -3102,10 +3332,12 @@
             data-i18n="searchingNearby">
             Searching Nearby Devices
           </div>
-          <button class="btn-outline" style="padding:4px 10px; font-size:10px; border-radius:8px;" id="btnRefreshRadar"
-            data-i18n="btnScan">
-            Scan
-          </button>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <button class="btn-outline" style="padding:4px 10px; font-size:10px; border-radius:8px;" id="btnRefreshRadar"
+              data-i18n="btnScan">
+              Scan
+            </button>
+          </div>
         </div>
 
         <div class="radar-wrapper">
@@ -3144,6 +3376,22 @@
           id="radarStatusSub" data-i18n="radarStatusSub">
           Radar scanning 2.4/5GHz local band… Tap any detected phone bubble to link.
         </div>
+
+        <!-- Emergency Button -->
+        <div class="emergency-btn-wrapper">
+          <button class="emergency-btn" id="btnEmergency" type="button">
+            <div class="emergency-progress" id="emergencyProgress"></div>
+            <div class="emergency-label">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <span>🚨 EMERGENCY</span>
+            </div>
+          </button>
+        </div>
+        <div class="emergency-btn-sub">Hold 2 seconds to send emergency alert to connected peer</div>
 
         <!-- Radar Language Selector (Hindi / English / Dropdown) -->
         <div class="radar-lang-bar">
@@ -3693,23 +3941,39 @@
       </div>
     </section>
 
-    <!-- 5. TACTICAL DISPATCH MESSAGES MODAL / DRAWER -->
+    <!-- 5. CHAT HISTORY (WhatsApp-style) -->
     <section id="viewMessages" class="view-page hidden">
       <div class="card" style="padding:14px; margin-bottom:14px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-          <div style="font-size:14px; font-weight:800;" data-i18n="dispatchLogsTitle">Dispatch Logs</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--text)" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <div style="font-size:14px; font-weight:800;" data-i18n="chatHistoryTitle">Chat History</div>
+          </div>
           <button class="btn-outline" style="font-size:10px; padding:4px 8px;" id="btnClearHistory"
-            data-i18n="btnClearLogs">Clear Logs</button>
+            data-i18n="btnClearChat">Clear Chat</button>
         </div>
-        <div id="messagesHistory" style="min-height:120px; max-height:400px; overflow-y:auto;">
-          <div id="emptyMsgPlaceholder" data-i18n="emptyMsgPlaceholder"
-            style="text-align:center; padding:30px 10px; color:var(--text-muted); font-size:12px;">
-            No messages sent or received in this session.
+        <div id="chatHistoryContainer" class="chat-container">
+          <div class="chat-empty" id="chatEmptyPlaceholder">
+            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#d1d5db" stroke-width="1.5" style="margin-bottom:10px;">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <div style="font-weight:700; margin-bottom:4px;">No messages yet</div>
+            <div>Sent and received messages will appear here like a chat conversation.</div>
           </div>
         </div>
       </div>
     </section>
   </main>
+
+  <!-- EMERGENCY OVERLAY (shown when emergency message received) -->
+  <div id="emergencyOverlay" class="emergency-overlay hidden">
+    <div class="emergency-overlay-icon">⚠️</div>
+    <div class="emergency-overlay-title">EMERGENCY MESSAGE</div>
+    <div class="emergency-overlay-text" id="emergencyOverlayText">Emergency alert received</div>
+    <button class="emergency-overlay-dismiss" id="btnDismissEmergency">TAP TO DISMISS</button>
+  </div>
 
   <!-- FIXED BOTTOM NAVIGATION DOCK (Symmetrical: Home - Radar PTT - Models) -->
   <nav class="bottom-nav" aria-label="Main Navigation">
@@ -7876,9 +8140,8 @@
 
     const DEFAULT_PAST_DEVICES = [
       { id: 'dev-1', name: 'realme 13+ 5G', type: 'phone', detail: 'BLUETOOTH · Previously Paired · -68dBm', address: '192.168.43.1', port: 8988 },
-      { id: 'dev-2', name: 'Airdopes 131', type: 'audio', detail: 'BLUETOOTH · Previously Paired · -76dBm', address: '192.168.43.1', port: 8988 },
-      { id: 'dev-3', name: 'Airdopes 219', type: 'audio', detail: 'BLUETOOTH · Previously Paired · -74dBm', address: '192.168.43.1', port: 8988 },
-      { id: 'dev-4', name: 'JBL LIVE500BT', type: 'audio', detail: 'BLUETOOTH · Previously Paired · -82dBm', address: '192.168.43.1', port: 8988 }
+      { id: 'dev-2', name: 'motorola edge 60', type: 'phone', detail: 'BLUETOOTH · Previously Paired · -72dBm', address: '192.168.43.1', port: 8988 },
+      { id: 'dev-3', name: 'Pixel 9 Pro', type: 'phone', detail: 'WIFI DIRECT · Previously Paired · -65dBm', address: '192.168.43.1', port: 8988 }
     ];
 
     function getPastDevices() {
@@ -8080,12 +8343,9 @@
     };
 
     $('btnClearHistory').onclick = () => {
-      $('messagesHistory').replaceChildren();
-      const p = document.createElement('div');
-      p.id = 'emptyMsgPlaceholder';
-      p.style.cssText = 'text-align:center; padding:30px 10px; color:var(--text-muted); font-size:12px;';
-      p.textContent = 'No messages sent or received in this session.';
-      $('messagesHistory').append(p);
+      localStorage.removeItem('linc_chat_history');
+      renderChatHistory();
+      showToast('Chat history cleared');
     };
 
     // Telemetry Metrics Grid Setup
@@ -8151,10 +8411,11 @@
             $('incomingRequestModal').classList.add('hidden');
             $('outgoingRequestModal').classList.add('hidden');
             clearInterval(reqTimer);
-            pill.className = 'header-pill pill-emerald';
+                        pill.className = 'header-pill pill-emerald';
             const peerName = data.peer || ($('outgoingTargetName') ? $('outgoingTargetName').textContent : 'Peer Node');
-            pill.textContent = 'CONNECTED · ' + peerName;
-            showToast('Mesh Link Established with ' + peerName);
+            const isBt = data.transport === 'bluetooth';
+            pill.textContent = (isBt ? 'CONNECTED (BT) • ' : 'CONNECTED • ') + peerName;
+            showToast((isBt ? 'Bluetooth Fallback Established with ' : 'Mesh Link Established with ') + peerName);
             currentConnectedPeer = peerName;
             currentConnectedIp = data.address || '';
             addSessionConnectedDevice(peerName, data.address, data.port);
@@ -8248,10 +8509,12 @@
             if (data.port) existing.port = data.port;
             if (ip) existing.address = ip;
             if (p2pAddress) existing.p2pAddress = p2pAddress;
+            if (data.btAddress) existing.btAddress = data.btAddress;
             if (data.model) existing.model = data.model;
             if (data.source) existing.source = data.source;
             if (data.status) existing.p2pStatus = data.status;
             if (data.serviceName) existing.serviceName = data.serviceName;
+            if (data.deviceType) existing.deviceType = data.deviceType;
 
             const newIsBeacon = data.source === 'beacon';
             const existingIsGeneric = isGenericDeviceModel(existing.name);
@@ -8272,7 +8535,9 @@
               model: data.model || '',
               address: ip,
               p2pAddress: p2pAddress,
+              btAddress: data.btAddress || '',
               p2pStatus: data.status || '',
+              deviceType: data.deviceType || (data.source === 'beacon' || data.source === 'mdns' ? 'phone' : ''),
               port: data.port || 8988,
               source: data.source || 'discovery',
               lastSeen: now
@@ -8346,11 +8611,20 @@
           break;
 
         case 'sent':
-          addMessageLog('Sent', data.text);
+          saveChatMessage('sent', data.text, data.language || currentLanguage, !!data.emergency);
+          renderChatHistory();
           break;
 
         case 'received':
-          addMessageLog('Received (' + (data.language || 'hi') + ')', data.text);
+          saveChatMessage('received', data.text, data.language || 'hi', !!data.emergency);
+          renderChatHistory();
+          if (data.emergency) {
+            showEmergencyOverlay(data.text);
+          }
+          break;
+
+        case 'emergency_received':
+          showEmergencyOverlay(data.text || 'Emergency alert from peer');
           break;
 
         case 'metrics':
@@ -8453,6 +8727,41 @@
       return /^(motorola|moto|realme|samsung|galaxy|redmi|xiaomi|oneplus|pixel|oppo|vivo|iqoo|apple|iphone|ipad|nokia|huawei|honor|infinix|tecno|lenovo|asus)/i.test(s);
     }
 
+    function isMobilePhonePeer(p) {
+      if (!p) return false;
+      if (p.deviceType === 'non-phone') return false;
+
+      const raw = ((p.rawName || '') + ' ' + (p.name || '') + ' ' + (p.model || '')).toLowerCase();
+
+      // Explicit non-phone keywords: audio, headphones, wearables, TVs, computers, printers, cars
+      if (/\b(buds|earphone|headphone|headset|earbuds|airpod|airdope|soundbar|speaker|subwoofer|amplifier|tws|neckband|tune\b|jbl|boat|noise|boult|mivi|ptron|ahuja|aavante|bs-311|watch|band|fitbit|garmin|amazfit|strap|tracker|ring|tv|smarttv|bravia|television|firetv|roku|chromecast|projector|webos|tizen|desktop|laptop|macbook|printer|deskjet|laserjet|epson|canon|brother|keyboard|mouse|car|mahindra|honda|hyundai|suzuki|toyota|tata|ford|audi|bmw|mercedes)\b/i.test(raw)) {
+        return false;
+      }
+
+      // If source is beacon or mdns, it is a LinC mobile handset
+      if (p.source === 'beacon' || p.source === 'mdns') return true;
+
+      // If explicitly marked as phone by native filter
+      if (p.deviceType === 'phone') return true;
+
+      // If name matches known phone brands / indicators
+      if (/\b(phone|mobile|handset|realme|motorola|moto|samsung|galaxy|pixel|redmi|xiaomi|oneplus|iphone|oppo|vivo|iqoo|poco|infinix|tecno|honor|huawei|nokia|xperia|zenfone|c100x|fusion|edge|linc|itantra)\b/i.test(raw)) {
+        return true;
+      }
+
+      // If Wi-Fi Direct peer without non-phone tags
+      if (p.p2pAddress && !raw.includes('direct-') && !raw.includes('print') && !raw.includes('tv')) {
+        return true;
+      }
+
+      // If bluetooth source without explicit phone confirmation, do not show on radar
+      if (p.source === 'bluetooth' && p.deviceType !== 'phone') {
+        return false;
+      }
+
+      return true;
+    }
+
     if ($('btnRefreshRadar')) {
       $('btnRefreshRadar').onclick = () => {
         const now = Date.now();
@@ -8522,6 +8831,9 @@
           }
         }
 
+        // Radar strictly only shows bubble for mobile phone in both wifi direct and bluetooth fall back
+        if (!isMobilePhonePeer(p)) continue;
+
         // Deduplication across the list
         if (p.address) {
           if (seenIps.has(p.address)) continue;
@@ -8548,13 +8860,13 @@
       }
 
       if ($('activePeerCounter')) {
-        $('activePeerCounter').textContent = list.length ? `${list.length} node(s) detected` : 'Scanning 2.4/5GHz...';
+        $('activePeerCounter').textContent = list.length ? `${list.length} phone(s) detected` : 'Scanning 2.4/5GHz...';
       }
 
       if ($('radarStatusSub')) {
         $('radarStatusSub').textContent = list.length
-          ? `${list.length} peer node(s) locked on radar. Tap node bubble to connect.`
-          : 'Radar scanning 2.4/5GHz local band… Tap any detected phone bubble to link.';
+          ? `${list.length} mobile phone(s) locked on radar. Tap phone bubble to connect.`
+          : 'Radar scanning for nearby phones… Tap any phone bubble to link.';
       }
 
       if ($('radarMyLabel') && callsign) {
@@ -8581,10 +8893,11 @@
           const nodeY = Math.round(cy + r * Math.sin(rad));
 
           const displayName = p.name || 'Nearby Device';
+          const isBt = p.source === 'bluetooth' || (!p.address && !p.p2pAddress && p.btAddress);
           const isP2p = p.source === 'p2p' || (!p.address && p.p2pAddress);
-          const p2pBadge = isP2p
-            ? `<div class="radar-peer-model" style="font-size:7px; color:#10b981; font-weight:700; text-shadow:0 1px 3px #000;">WIFI DIRECT</div>`
-            : '';
+          const p2pBadge = isBt
+            ? `<div class="radar-peer-model" style="font-size:7px; color:#38bdf8; font-weight:700; text-shadow:0 1px 3px #000;">BLUETOOTH RFCOMM</div>`
+            : (isP2p ? `<div class="radar-peer-model" style="font-size:7px; color:#10b981; font-weight:700; text-shadow:0 1px 3px #000;">WIFI DIRECT</div>` : '');
           const modelSubtitle = (p.model && p.model.toLowerCase() !== displayName.toLowerCase())
             ? `<div class="radar-peer-model" style="font-size:7px; opacity:0.8; text-shadow:0 1px 3px #000; max-width:85px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.model}</div>`
             : p2pBadge;
@@ -8645,12 +8958,183 @@
       }
     }
 
+    // ═══════════════ CHAT HISTORY SYSTEM ═══════════════
+    const CHAT_KEY = 'linc_chat_history';
+    const MAX_CHAT_MESSAGES = 500;
+
+    function saveChatMessage(direction, text, language, isEmergency) {
+      if (!text) return;
+      const history = JSON.parse(localStorage.getItem(CHAT_KEY) || '[]');
+      history.push({
+        dir: direction,
+        text: text,
+        lang: language || 'hi',
+        emergency: !!isEmergency,
+        time: Date.now(),
+        peer: currentConnectedPeer || 'Peer'
+      });
+      if (history.length > MAX_CHAT_MESSAGES) history.splice(0, history.length - MAX_CHAT_MESSAGES);
+      localStorage.setItem(CHAT_KEY, JSON.stringify(history));
+    }
+
+    function renderChatHistory() {
+      const container = $('chatHistoryContainer');
+      if (!container) return;
+      const history = JSON.parse(localStorage.getItem(CHAT_KEY) || '[]');
+      container.replaceChildren();
+
+      if (history.length === 0) {
+        container.innerHTML = `
+          <div class="chat-empty" id="chatEmptyPlaceholder">
+            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#d1d5db" stroke-width="1.5" style="margin-bottom:10px;">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <div style="font-weight:700; margin-bottom:4px;">No messages yet</div>
+            <div>Sent and received messages will appear here like a chat conversation.</div>
+          </div>`;
+        return;
+      }
+
+      let lastDate = '';
+      const today = new Date().toDateString();
+      const yesterday = new Date(Date.now() - 86400000).toDateString();
+
+      history.forEach(msg => {
+        const msgDate = new Date(msg.time);
+        const dateStr = msgDate.toDateString();
+
+        if (dateStr !== lastDate) {
+          lastDate = dateStr;
+          const sep = document.createElement('div');
+          sep.className = 'chat-date-separator';
+          let label = msgDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+          if (dateStr === today) label = 'Today';
+          else if (dateStr === yesterday) label = 'Yesterday';
+          sep.innerHTML = `<span>${label}</span>`;
+          container.append(sep);
+        }
+
+        const bubble = document.createElement('div');
+        const isSent = msg.dir === 'sent';
+        bubble.className = `chat-bubble ${isSent ? 'chat-sent' : 'chat-received'} ${msg.emergency ? 'chat-emergency' : ''}`;
+
+        const timeStr = msgDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        const langBadge = msg.lang ? `<span class="chat-lang-badge">${msg.lang}</span>` : '';
+        const tick = isSent ? '<span class="chat-tick">✓✓</span>' : '';
+
+        bubble.innerHTML = `
+          <div>${msg.text}</div>
+          <div class="chat-time">
+            ${langBadge}
+            ${timeStr}
+            ${tick}
+          </div>`;
+        container.append(bubble);
+      });
+
+      // Auto-scroll to bottom
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+      });
+    }
+
+    // Load chat history on page ready
+    renderChatHistory();
+
+    // Legacy compat — also feed into old addMessageLog if anything still calls it
     function addMessageLog(dir, text) {
-      $('emptyMsgPlaceholder')?.remove();
-      const log = document.createElement('div');
-      log.style.cssText = 'padding:10px; border-bottom:1px solid #f1f3f5; font-size:12px;';
-      log.innerHTML = `<div style="font-size:10px; color:var(--text-muted); margin-bottom:3px;">${dir} · ${new Date().toLocaleTimeString()}</div><div style="font-weight:600; color:#111827;">${text}</div>`;
-      $('messagesHistory').prepend(log);
+      // No-op: replaced by chat history system
+    }
+
+    // ═══════════════ EMERGENCY BUTTON (Long-press 2s) ═══════════════
+    (function initEmergencyButton() {
+      const btn = $('btnEmergency');
+      const progress = $('emergencyProgress');
+      if (!btn || !progress) return;
+
+      let pressTimer = null;
+      let startTime = 0;
+      let rafId = null;
+      const HOLD_DURATION = 2000; // 2 seconds
+
+      function updateProgress() {
+        const elapsed = Date.now() - startTime;
+        const pct = Math.min(100, (elapsed / HOLD_DURATION) * 100);
+        progress.style.width = pct + '%';
+
+        if (elapsed >= HOLD_DURATION) {
+          // FIRE emergency
+          cancelAnimationFrame(rafId);
+          progress.style.width = '100%';
+          triggerEmergency();
+          setTimeout(() => { progress.style.width = '0%'; }, 500);
+          return;
+        }
+        rafId = requestAnimationFrame(updateProgress);
+      }
+
+      function triggerEmergency() {
+        if (!connected) {
+          showToast('Not connected to any peer. Cannot send emergency.');
+          return;
+        }
+        try { navigator.vibrate && navigator.vibrate([100, 50, 100]); } catch(e) {}
+        command('sendEmergency', { text: 'EMERGENCY ALERT', language: currentLanguage || 'hi' });
+        showToast('🚨 Emergency alert sent to peer!');
+      }
+
+      btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        startTime = Date.now();
+        rafId = requestAnimationFrame(updateProgress);
+      }, { passive: false });
+
+      btn.addEventListener('mousedown', (e) => {
+        startTime = Date.now();
+        rafId = requestAnimationFrame(updateProgress);
+      });
+
+      function cancelHold() {
+        if (rafId) cancelAnimationFrame(rafId);
+        progress.style.width = '0%';
+      }
+
+      btn.addEventListener('touchend', cancelHold);
+      btn.addEventListener('touchcancel', cancelHold);
+      btn.addEventListener('mouseup', cancelHold);
+      btn.addEventListener('mouseleave', cancelHold);
+    })();
+
+    // ═══════════════ EMERGENCY OVERLAY ═══════════════
+    function showEmergencyOverlay(text) {
+      const overlay = $('emergencyOverlay');
+      const textEl = $('emergencyOverlayText');
+      if (!overlay) return;
+      if (textEl) textEl.textContent = text || 'Emergency alert received';
+      overlay.classList.remove('hidden');
+
+      // Auto-dismiss after 15 seconds
+      setTimeout(() => {
+        overlay.classList.add('hidden');
+      }, 15000);
+    }
+
+    if ($('btnDismissEmergency')) {
+      $('btnDismissEmergency').onclick = () => {
+        $('emergencyOverlay').classList.add('hidden');
+      };
+    }
+
+    // ═══════════════ HEADER CHAT BUTTON ═══════════════
+    if ($('btnHeaderChat')) {
+      $('btnHeaderChat').onclick = () => {
+        renderChatHistory();
+        // Navigate to messages view
+        const navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(n => n.classList.remove('active'));
+        document.querySelectorAll('.view-page').forEach(v => v.classList.add('hidden'));
+        $('viewMessages').classList.remove('hidden');
+      };
     }
   </script>
 </body>
