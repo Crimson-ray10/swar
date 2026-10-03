@@ -4977,7 +4977,7 @@
 
       // Update Universal Header text and STANDBY capsule position according to screen
       const pill = $('connectionPill');
-      if (viewId === 'viewHome' || viewId === 'viewTransceiver') {
+      if (viewId === 'viewHome' || viewId === 'viewTransceiver' || viewId === 'viewDownloads') {
         if ($('headerBrand')) $('headerBrand').style.display = 'none';
         if (pill && $('headerLeftSlot')) {
           $('headerLeftSlot').prepend(pill);
