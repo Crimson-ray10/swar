@@ -101,8 +101,8 @@ class SpeechEngine(
     private var active = true
     private var closed = false
 
-    private var language = "hi"
-    private var captureLanguage = "hi"
+    private var language = "en"
+    private var captureLanguage = "en"
     private var speechStarted = 0L
 
     private val playback = ArrayDeque<ItpPacket.Decoded>()
@@ -160,6 +160,15 @@ class SpeechEngine(
         val primaryModel = File(primary, "stt/indicconformer_int8.onnx")
         if (primaryModel.exists() && primaryModel.length() > 0) return primary
 
+        val extFiles = activity.getExternalFilesDir(null)
+        if (extFiles != null) {
+            val extPack = File(File(extFiles, "SWAR_VoiceModels"), tag)
+            if (File(extPack, "stt/indicconformer_int8.onnx").let { it.exists() && it.length() > 0 }) {
+                try { copyRecursively(extPack, primary) } catch (ignored: Throwable) {}
+                if (File(primary, "stt/indicconformer_int8.onnx").let { it.exists() && it.length() > 0 }) return primary
+            }
+        }
+
         val persistent = File(persistentPacksDir, tag)
         if (File(persistent, "stt/indicconformer_int8.onnx").let { it.exists() && it.length() > 0 }) {
             try { copyRecursively(persistent, primary) } catch (ignored: Throwable) {}
@@ -179,7 +188,40 @@ class SpeechEngine(
 
     private fun bootstrapPrebundledPacks() {
         try {
-            // Restore previously downloaded models from persistent storage (survives app uninstall!)
+            // 1. Extract bundled models from APK assets (e.g. assets/models/en-IN)
+            try {
+                val assetModels = activity.assets.list("models") ?: emptyArray()
+                for (modelName in assetModels) {
+                    val dest = File(packsDir, modelName)
+                    val model = File(dest, "stt/indicconformer_int8.onnx")
+                    if (!dest.exists() || !model.exists() || model.length() == 0L) {
+                        Log.i(TAG, "Extracting bundled voice model $modelName from APK assets...")
+                        copyAssetFolder("models/$modelName", dest)
+                    }
+                }
+            } catch (t: Throwable) {
+                Log.w(TAG, "Bundled asset extraction notice: ${t.message}")
+            }
+
+            // 2. Restore from app-specific external storage if available
+            val extFiles = activity.getExternalFilesDir(null)
+            if (extFiles != null) {
+                val extModels = File(extFiles, "SWAR_VoiceModels")
+                if (extModels.exists() && extModels.isDirectory) {
+                    extModels.listFiles()?.forEach { src ->
+                        if (src.isDirectory) {
+                            val dest = File(packsDir, src.name)
+                            val model = File(dest, "stt/indicconformer_int8.onnx")
+                            if (!dest.exists() || !model.exists() || model.length() == 0L) {
+                                Log.i(TAG, "Restoring voice model ${src.name} from external files...")
+                                copyRecursively(src, dest)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Restore previously downloaded models from persistent storage (survives app uninstall!)
             val persistentSources = listOf(persistentPacksDir, altPersistentPacksDir)
             for (pDir in persistentSources) {
                 if (pDir.exists() && pDir.isDirectory) {
@@ -197,6 +239,31 @@ class SpeechEngine(
             }
         } catch (t: Throwable) {
             Log.w(TAG, "Prebundled packs bootstrap notice: ${t.message}")
+        }
+    }
+
+    private fun copyAssetFolder(assetPath: String, dest: File) {
+        val files = activity.assets.list(assetPath) ?: return
+        if (files.isEmpty()) {
+            dest.parentFile?.mkdirs()
+            try {
+                activity.assets.open(assetPath).use { input ->
+                    FileOutputStream(dest).use { output ->
+                        val buf = ByteArray(65536)
+                        var n: Int
+                        while (input.read(buf).also { n = it } > 0) {
+                            output.write(buf, 0, n)
+                        }
+                    }
+                }
+            } catch (t: Throwable) {
+                Log.w(TAG, "Failed to copy asset $assetPath: ${t.message}")
+            }
+        } else {
+            dest.mkdirs()
+            for (file in files) {
+                copyAssetFolder("$assetPath/$file", File(dest, file))
+            }
         }
     }
 
@@ -238,7 +305,7 @@ class SpeechEngine(
     }
 
     private fun resolveTag(lang: String?): String {
-        if (lang == null) return "hi-IN"
+        if (lang == null) return "en-IN"
         return when (lang.lowercase(Locale.ROOT)) {
             "en" -> "en-IN"
             "hi", "hinglish" -> "hi-IN"
@@ -1214,14 +1281,14 @@ class SpeechEngine(
                 lang.startsWith("te", ignoreCase = true) -> java.util.Locale("te", "IN")
                 lang.startsWith("kn", ignoreCase = true) -> java.util.Locale("kn", "IN")
                 lang.startsWith("bn", ignoreCase = true) -> java.util.Locale("bn", "IN")
-                else -> java.util.Locale("hi", "IN")
+                else -> java.util.Locale("en", "IN")
             }
             try {
                 val avail = tts?.isLanguageAvailable(targetLocale) ?: -1
                 if (avail >= android.speech.tts.TextToSpeech.LANG_AVAILABLE) {
                     tts?.language = targetLocale
                 } else {
-                    tts?.language = java.util.Locale("hi", "IN")
+                    tts?.language = java.util.Locale.ENGLISH
                 }
             } catch (_: Throwable) {}
 
@@ -1305,14 +1372,14 @@ class SpeechEngine(
                 lang.startsWith("te", ignoreCase = true) -> Locale("te", "IN")
                 lang.startsWith("kn", ignoreCase = true) -> Locale("kn", "IN")
                 lang.startsWith("bn", ignoreCase = true) -> Locale("bn", "IN")
-                else -> Locale("hi", "IN")
+                else -> Locale("en", "IN")
             }
             try {
                 val avail = tts?.isLanguageAvailable(targetLocale) ?: -1
                 if (avail >= TextToSpeech.LANG_AVAILABLE) {
                     tts?.language = targetLocale
                 } else {
-                    tts?.language = Locale("hi", "IN")
+                    tts?.language = Locale.ENGLISH
                 }
             } catch (t: Throwable) {
                 Log.w("SWAR_TTS", "Could not set TTS language: ${t.message}")

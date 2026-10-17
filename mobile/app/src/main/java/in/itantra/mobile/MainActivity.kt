@@ -403,7 +403,11 @@ class MainActivity : Activity() {
                     val data = JSONObject(encoded)
                     when (action) {
                         "host" -> transport.host()
-                        "discover" -> transport.discover()
+                        "discover" -> {
+                            transport.discover()
+                            transport.discoverP2pPeers()
+                            transport.discoverBluetoothPeers()
+                        }
                         "discoverP2p" -> transport.discoverP2pPeers()
                         "connect" -> transport.connect(
                             data.optString("address"),
@@ -428,14 +432,14 @@ class MainActivity : Activity() {
                             speech.resume()
                             transport.disconnect()
                         }
-                        "send" -> transport.sendText(data.optString("text"), data.optString("language", "hi"))
+                        "send" -> transport.sendText(data.optString("text"), data.optString("language", "en"))
                         "start" -> speech.start()
                         "release" -> speech.release()
                         "cancel" -> speech.cancelCapture()
                         "conversation" -> speech.conversation(data.optBoolean("enabled"))
                         "lock" -> speech.setLocked(data.optBoolean("locked", false))
                         "stopPlayback" -> speech.stopPlayback()
-                        "language" -> speech.language(data.optString("language", "hi"))
+                        "language" -> speech.language(data.optString("language", "en"))
                         "bitrate" -> transport.bitrate(data.optInt("bps", 2000))
                         "capabilities" -> speech.status()
                         "downloadModel" -> speech.downloadModel()
@@ -473,7 +477,7 @@ class MainActivity : Activity() {
                         "wifiSettings" -> startActivity(Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS))
                         "sendEmergency" -> transport.sendEmergency(
                             data.optString("text", "EMERGENCY ALERT"),
-                            data.optString("language", "hi")
+                            data.optString("language", "en")
                         )
                         else -> throw IllegalArgumentException("Unknown action: $action")
                     }
@@ -636,6 +640,11 @@ class MainActivity : Activity() {
             }
             "discoverBluetooth" -> transport.discoverBluetoothPeers()
             "fallbackBluetooth" -> transport.triggerBluetoothFallback()
+            "respondConnection" -> {
+                val accept = intent.getBooleanExtra("accept", false)
+                Log.i("LinC", "Responding to connection request from intent: accept=$accept")
+                transport.respondRequest(accept)
+            }
         }
     }
 

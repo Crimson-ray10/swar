@@ -21,11 +21,7 @@ const TACTICAL_PHRASES = [
 ];
 
 const LANGUAGES = [
-  { code: 'EN_US', name: 'English (US)', speechCode: 'en-US' },
-  { code: 'HI_IN', name: 'Hindi (भारत)', speechCode: 'hi-IN' },
-  { code: 'HI_EN', name: 'Hinglish', speechCode: 'hi-IN' },
-  { code: 'TA_IN', name: 'Tamil (தமிழ்)', speechCode: 'ta-IN' },
-  { code: 'TE_IN', name: 'Telugu (తెలుగు)', speechCode: 'te-IN' },
+  { code: 'EN_IN', name: 'English (Offline Neural)', speechCode: 'en-IN' },
 ];
 
 interface PixelTransceiverProps {
@@ -35,7 +31,7 @@ interface PixelTransceiverProps {
 
 export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain, onNavigate }) => {
   // Navigation & Screen Mode
-  const [screenMode, setScreenMode] = useState<ScreenMode>('idle');
+  const [screenMode, setScreenMode] = useState<ScreenMode>('devices');
   const [connectedPeer, setConnectedPeer] = useState<PeerDevice | null>(null);
   const [selectedDeviceIndex, setSelectedDeviceIndex] = useState<number>(0);
   const [isPairing, setIsPairing] = useState<boolean>(false);
@@ -66,10 +62,22 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
         setPairingLog(data.state);
         if (data.state === 'CONNECTED') {
           setConnectedPeer({ id: data.address || 'connected', name: data.peer || 'Connected peer', ip: data.address || '', transport: data.transport || 'LAN' });
-          setIncoming(null); setScreenMode('idle');
-        } else { setConnectedPeer(null); held.current = false; setIsTalking(false); }
+          setIncoming(null);
+          setIsPairing(false);
+          setScreenMode('talking');
+        } else {
+          setConnectedPeer(null);
+          held.current = false;
+          setIsTalking(false);
+          if (['DISCONNECTED', 'FAILED'].includes(data.state)) {
+            setIsPairing(false);
+          }
+        }
       }
-      if (type === 'connection_request') setIncoming(data);
+      if (type === 'connection_request') {
+        sound.playConnectChirp();
+        setIncoming(data);
+      }
       if (['request_cancelled', 'request_declined'].includes(type)) { setIncoming(null); setIsPairing(false); setNotice(type.replace('_', ' ')); }
       if (type === 'host') setHostInfo((data.addresses || []).join(' / ') + ' · PIN ' + data.pin);
       if (['partial', 'recognized', 'sent', 'received'].includes(type) && data.text) {
@@ -246,7 +254,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
     };
   }, [screenMode]);
 
-  const playbackSpeed: number = 1;
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
 
   // Audio Equalizer bars animation when talking
   useEffect(() => {
@@ -296,22 +304,28 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
     setNotice('Message submitted. Delivery requires a peer acknowledgement.');
   };
   const handleConnectDevice = (peer: PeerDevice) => {
-    setIsPairing(true); setPairingLog('CONNECTING TO ' + peer.name);
-    if (isNative() && peer.p2pAddress) command('connectP2p', { p2pAddress: peer.p2pAddress });
-    else if (isNative() && peer.btAddress) command('connectBluetooth', { btAddress: peer.btAddress });
-    else command('connect', { address: peer.ip, port: peer.port || 8988, pin, peer: peer.raw });
+    setIsPairing(true);
+    setPairingLog('CONNECTING TO ' + peer.name);
+    // Prioritize direct LAN TCP connection when IP address is known
+    if (peer.ip && peer.ip.includes('.')) {
+      command('connect', { address: peer.ip, port: peer.port || 8988, pin, peer: peer.raw });
+    } else if (isNative() && peer.p2pAddress) {
+      command('connectP2p', { p2pAddress: peer.p2pAddress });
+    } else if (isNative() && peer.btAddress) {
+      command('connectBluetooth', { btAddress: peer.btAddress });
+    } else {
+      command('connect', { address: peer.ip, port: peer.port || 8988, pin, peer: peer.raw });
+    }
   };
 
   // Screen Navigation handlers (Top = UP, Bottom = DOWN)
-  // Reliably toggles between devices and idle screens without timeout interference
   const handleNavigateUp = () => {
     sound.playClick();
     clearAllTimers();
-    if (screenMode === 'talking') {
-      setIsTalking(false);
-      setScreenMode('idle');
-    } else if (screenMode === 'idle') {
+    if (screenMode === 'idle') {
       setScreenMode('devices');
+    } else if (screenMode === 'devices') {
+      setScreenMode(connectedPeer ? 'talking' : 'idle');
     } else {
       setScreenMode('idle');
     }
@@ -320,8 +334,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
   const handleNavigateDown = () => {
     sound.playClick();
     clearAllTimers();
-    if (screenMode === 'talking') {
-      setIsTalking(false);
+    if (screenMode === 'devices') {
       setScreenMode('idle');
     } else if (screenMode === 'idle') {
       setScreenMode('devices');
@@ -377,10 +390,17 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
         bottomAction: () => {},
         bottomTitle: '',
         leftText: '■ STOP',
-        leftAction: () => { command('stopPlayback'); setIsPeerSpeaking(false); },
+        leftAction: () => {
+          command('stopPlayback');
+          setIsPeerSpeaking(false);
+          sound.playClick();
+        },
         leftTitle: 'Stop speech playback',
-        rightText: '',
-        rightAction: () => {},
+        rightText: playbackSpeed === 2 ? '1X SPEED' : '2X SPEED',
+        rightAction: () => {
+          setPlaybackSpeed(prev => (prev === 1 ? 2 : 1));
+          sound.playClick();
+        },
         rightTitle: 'Toggle 2X audio speed playback',
       };
     }
@@ -573,6 +593,58 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
                 : 'NO VOICE ACTIVITY'}
             </div>
 
+            {/* Incoming Connection Request Modal / Card right on CRT Screen */}
+            {incoming && (
+              <div className="screen-incoming-card">
+                <div className="incoming-card-title">
+                  <span className="status-dot-blink" style={{ backgroundColor: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
+                  <span>► INCOMING LINK REQUEST</span>
+                </div>
+                <div className="incoming-card-peer">
+                  {incoming.name || incoming.peer || incoming.address || 'NEARBY UNIT'}
+                </div>
+                <div className="incoming-card-meta">
+                  [{incoming.transport || 'LAN'}] {incoming.address ? `• ${incoming.address}` : ''}
+                </div>
+                <div className="incoming-card-actions">
+                  <button
+                    className="incoming-btn incoming-accept"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      sound.playClick();
+                      command('respondConnection', { accept: true });
+                      setIncoming(null);
+                    }}
+                    onClick={() => {
+                      sound.playClick();
+                      command('respondConnection', { accept: true });
+                      setIncoming(null);
+                    }}
+                  >
+                    [ ACCEPT ]
+                  </button>
+                  <button
+                    className="incoming-btn incoming-decline"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      sound.playClick();
+                      command('respondConnection', { accept: false });
+                      setIncoming(null);
+                    }}
+                    onClick={() => {
+                      sound.playClick();
+                      command('respondConnection', { accept: false });
+                      setIncoming(null);
+                    }}
+                  >
+                    [ DECLINE ]
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* ==========================================================
                 SCREEN 1: AVAILABLE DEVICES TO CONNECT
                 ========================================================== */}
@@ -712,6 +784,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
           {/* Top Label: UP on idle/devices, Removed on talking */}
           {wheelProps.topText ? (
             <button
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); wheelProps.topAction(); }}
               onClick={wheelProps.topAction}
               className="wheel-label-btn wheel-label-top"
               title={wheelProps.topTitle}
@@ -721,13 +794,14 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
             </button>
           ) : null}
 
-          {/* Left Label: REWIND on talking, Removed on idle/devices */}
+          {/* Left Label: REWIND/STOP on talking, Removed on idle/devices */}
           {wheelProps.leftText ? (
             <button
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); wheelProps.leftAction(); }}
               onClick={wheelProps.leftAction}
               className="wheel-label-btn wheel-label-left"
               title={wheelProps.leftTitle}
-            aria-label="Stop speech playback"
+              aria-label="Stop speech playback"
             >
               {wheelProps.leftText}
             </button>
@@ -736,6 +810,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
           {/* Right Label: 2X SPEED on talking, Removed on idle/devices */}
           {wheelProps.rightText ? (
             <button
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); wheelProps.rightAction(); }}
               onClick={wheelProps.rightAction}
               className="wheel-label-btn wheel-label-right"
               title={wheelProps.rightTitle}
@@ -748,6 +823,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
           {/* Bottom Label: DOWN on idle/devices, Removed on talking */}
           {wheelProps.bottomText ? (
             <button
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); wheelProps.bottomAction(); }}
               onClick={wheelProps.bottomAction}
               className="wheel-label-btn wheel-label-bottom"
               title={wheelProps.bottomTitle}
@@ -757,22 +833,47 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
             </button>
           ) : null}
 
-          {/* Center Circular Tactile Button: PUSH TO TALK on EVERY page */}
-          <button
-            onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); startTalking(); }}
-            onPointerUp={stopTalking}
-            onPointerCancel={stopTalking}
-            onLostPointerCapture={stopTalking}
-            onClick={e => { if (e.detail === 0) handleToggleTalk(); }}
-            className={`wheel-center-btn ${isTalking ? 'is-active' : ''}`}
-            title="Push to talk / Tap to toggle voice broadcast"
-            aria-label="Push To Talk"
-          >
-            <Mic size={22} className="center-btn-mic" />
-            <span className="center-btn-text">
-              PUSH TO TALK
-            </span>
-          </button>
+          {/* Center Circular Tactile Button: PUSH TO TALK or ACCEPT LINK on EVERY page */}
+          {incoming ? (
+            <button
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                sound.playClick();
+                command('respondConnection', { accept: true });
+                setIncoming(null);
+              }}
+              onClick={() => {
+                sound.playClick();
+                command('respondConnection', { accept: true });
+                setIncoming(null);
+              }}
+              className="wheel-center-btn is-incoming-active"
+              title="Accept Incoming Connection"
+              aria-label="Accept Connection"
+            >
+              <span style={{ fontSize: '18px' }}>📞</span>
+              <span className="center-btn-text" style={{ color: '#16a34a', fontWeight: 900 }}>
+                ACCEPT LINK
+              </span>
+            </button>
+          ) : (
+            <button
+              onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); startTalking(); }}
+              onPointerUp={stopTalking}
+              onPointerCancel={stopTalking}
+              onLostPointerCapture={stopTalking}
+              onClick={e => { if (e.detail === 0) handleToggleTalk(); }}
+              className={`wheel-center-btn ${isTalking ? 'is-active' : ''}`}
+              title="Push to talk / Tap to toggle voice broadcast"
+              aria-label="Push To Talk"
+            >
+              <Mic size={22} className="center-btn-mic" />
+              <span className="center-btn-text">
+                PUSH TO TALK
+              </span>
+            </button>
+          )}
         </div>
 
         {/* Chassis Bottom Caption (Matches reference image) */}
