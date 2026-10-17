@@ -982,6 +982,33 @@ button {
   z-index: 25 !important;
 }
 
+/* Desktop Mode Switching */
+.app-phones-stage.mode-cream .phone-left {
+  transform: perspective(1000px) rotate(0deg) translateY(-24px) scale(1.08) !important;
+  z-index: 15 !important;
+}
+.app-phones-stage.mode-cream .phone-center {
+  transform: perspective(1000px) rotate(7deg) translateY(18px) translateX(20px) scale(0.92) !important;
+  z-index: 3 !important;
+}
+.app-phones-stage.mode-cream .phone-right {
+  transform: perspective(1000px) rotate(12deg) translateY(24px) translateX(-10px) scale(0.88) !important;
+  z-index: 2 !important;
+}
+
+.app-phones-stage.mode-clay .phone-right {
+  transform: perspective(1000px) rotate(0deg) translateY(-24px) scale(1.08) !important;
+  z-index: 15 !important;
+}
+.app-phones-stage.mode-clay .phone-center {
+  transform: perspective(1000px) rotate(-7deg) translateY(18px) translateX(-20px) scale(0.92) !important;
+  z-index: 3 !important;
+}
+.app-phones-stage.mode-clay .phone-left {
+  transform: perspective(1000px) rotate(-12deg) translateY(24px) translateX(10px) scale(0.88) !important;
+  z-index: 2 !important;
+}
+
 /* ==========================================================================
    FULLY SMOOTH, NON-INTERSECTING GPU SLIDE & TUMBLE ANIMATION
    Phone 1 leads the sweep to the left, Phone 2 settles into elevated center,
@@ -2029,11 +2056,185 @@ button {
     padding: 18px 16px;
   }
 
+  /* Center mobile app screens stage & eliminate right-edge cut-off */
+  .section-app-screens {
+    padding: 60px 0 80px;
+    overflow: hidden;
+  }
+
+  .app-screens-grid {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+
+  .app-info-col {
+    padding-right: 0;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .app-display-title {
+    font-size: clamp(28px, 6.5vw, 38px);
+  }
+
+  .app-copy {
+    font-size: 14.5px;
+    margin-bottom: 22px;
+    max-width: 380px;
+  }
+
+  .screen-selector-tabs {
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+
   .app-phones-stage {
+    display: block;
+    position: relative;
+    width: 100%;
+    max-width: 330px;
+    height: 480px;
     min-height: 480px;
-    transform: scale(0.85);
-    transform-origin: center top;
-    margin-bottom: -30px;
+    margin: 0 auto;
+    padding: 0;
+    transform: none !important;
+    overflow: visible;
+  }
+
+  .phone-wrapper {
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    width: 216px;
+    height: 450px;
+    margin-left: -108px;
+    transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease, box-shadow 0.4s ease;
+    cursor: pointer;
+  }
+
+  .phone-wrapper:hover {
+    transform: none !important;
+  }
+
+  /* Default / Olive Mode (Soundscape Live) */
+  .phone-center,
+  .app-phones-stage.mode-olive .phone-center {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg) !important;
+    z-index: 10 !important;
+    opacity: 1 !important;
+    filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.28));
+  }
+
+  .phone-left,
+  .app-phones-stage.mode-olive .phone-left {
+    transform: translate3d(-48px, 16px, 0) scale(0.88) rotate(-4deg) !important;
+    z-index: 4 !important;
+    opacity: 0.65 !important;
+    filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.2));
+  }
+
+  .phone-right,
+  .app-phones-stage.mode-olive .phone-right {
+    transform: translate3d(48px, 16px, 0) scale(0.88) rotate(4deg) !important;
+    z-index: 4 !important;
+    opacity: 0.65 !important;
+    filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.2));
+  }
+
+  /* Cream Mode (Live Translation) */
+  .app-phones-stage.mode-cream .phone-left {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg) !important;
+    z-index: 10 !important;
+    opacity: 1 !important;
+    filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.28));
+  }
+
+  .app-phones-stage.mode-cream .phone-center {
+    transform: translate3d(48px, 16px, 0) scale(0.88) rotate(4deg) !important;
+    z-index: 4 !important;
+    opacity: 0.65 !important;
+    filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.2));
+  }
+
+  .app-phones-stage.mode-cream .phone-right {
+    transform: translate3d(-48px, 20px, 0) scale(0.82) rotate(-6deg) !important;
+    z-index: 2 !important;
+    opacity: 0.35 !important;
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.15));
+  }
+
+  /* Clay Mode (Quick Connect) */
+  .app-phones-stage.mode-clay .phone-right {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg) !important;
+    z-index: 10 !important;
+    opacity: 1 !important;
+    filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.28));
+  }
+
+  .app-phones-stage.mode-clay .phone-center {
+    transform: translate3d(-48px, 16px, 0) scale(0.88) rotate(-4deg) !important;
+    z-index: 4 !important;
+    opacity: 0.65 !important;
+    filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.2));
+  }
+
+  .app-phones-stage.mode-clay .phone-left {
+    transform: translate3d(48px, 20px, 0) scale(0.82) rotate(6deg) !important;
+    z-index: 2 !important;
+    opacity: 0.35 !important;
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.15));
+  }
+
+  /* Mobile Slide-in Animation */
+  .app-phones-stage.is-animating .phone-center {
+    animation: mobileTumbleCenter 1.0s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    animation-delay: 0.1s !important;
+  }
+
+  .app-phones-stage.is-animating .phone-left {
+    animation: mobileTumbleLeft 1.0s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    animation-delay: 0s !important;
+  }
+
+  .app-phones-stage.is-animating .phone-right {
+    animation: mobileTumbleRight 1.0s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    animation-delay: 0.2s !important;
+  }
+
+  @keyframes mobileTumbleCenter {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, 36px, 0) scale(0.92);
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+    }
+  }
+
+  @keyframes mobileTumbleLeft {
+    0% {
+      opacity: 0;
+      transform: translate3d(-20px, 45px, 0) scale(0.8) rotate(-8deg);
+    }
+    100% {
+      opacity: 0.65;
+      transform: translate3d(-48px, 16px, 0) scale(0.88) rotate(-4deg);
+    }
+  }
+
+  @keyframes mobileTumbleRight {
+    0% {
+      opacity: 0;
+      transform: translate3d(20px, 45px, 0) scale(0.8) rotate(8deg);
+    }
+    100% {
+      opacity: 0.65;
+      transform: translate3d(48px, 16px, 0) scale(0.88) rotate(4deg);
+    }
   }
 
   .footer-content {
@@ -2123,13 +2324,6 @@ button {
     min-height: auto;
   }
 
-  .app-phones-stage {
-    min-height: 400px;
-    transform: scale(0.68);
-    transform-origin: center top;
-    margin-bottom: -80px;
-  }
-
   .screen-selector-tabs {
     gap: 6px;
   }
@@ -2193,9 +2387,81 @@ button {
   }
 
   .app-phones-stage {
-    min-height: 350px;
-    transform: scale(0.58);
-    transform-origin: center top;
-    margin-bottom: -110px;
+    max-width: 300px;
+    height: 450px;
+    min-height: 450px;
+  }
+
+  .phone-wrapper {
+    width: 204px;
+    height: 425px;
+    margin-left: -102px;
+  }
+
+  .phone-left,
+  .app-phones-stage.mode-olive .phone-left {
+    transform: translate3d(-42px, 14px, 0) scale(0.88) rotate(-4deg) !important;
+  }
+
+  .phone-right,
+  .app-phones-stage.mode-olive .phone-right {
+    transform: translate3d(42px, 14px, 0) scale(0.88) rotate(4deg) !important;
+  }
+
+  .app-phones-stage.mode-cream .phone-center {
+    transform: translate3d(42px, 14px, 0) scale(0.88) rotate(4deg) !important;
+  }
+
+  .app-phones-stage.mode-cream .phone-right {
+    transform: translate3d(-42px, 18px, 0) scale(0.82) rotate(-6deg) !important;
+  }
+
+  .app-phones-stage.mode-clay .phone-center {
+    transform: translate3d(-42px, 14px, 0) scale(0.88) rotate(-4deg) !important;
+  }
+
+  .app-phones-stage.mode-clay .phone-left {
+    transform: translate3d(42px, 18px, 0) scale(0.82) rotate(6deg) !important;
   }
 }
+
+@media (max-width: 360px) {
+  .app-phones-stage {
+    max-width: 270px;
+    height: 420px;
+    min-height: 420px;
+  }
+
+  .phone-wrapper {
+    width: 190px;
+    height: 395px;
+    margin-left: -95px;
+  }
+
+  .phone-left,
+  .app-phones-stage.mode-olive .phone-left {
+    transform: translate3d(-34px, 12px, 0) scale(0.88) rotate(-4deg) !important;
+  }
+
+  .phone-right,
+  .app-phones-stage.mode-olive .phone-right {
+    transform: translate3d(34px, 12px, 0) scale(0.88) rotate(4deg) !important;
+  }
+
+  .app-phones-stage.mode-cream .phone-center {
+    transform: translate3d(34px, 12px, 0) scale(0.88) rotate(4deg) !important;
+  }
+
+  .app-phones-stage.mode-cream .phone-right {
+    transform: translate3d(-34px, 16px, 0) scale(0.82) rotate(-6deg) !important;
+  }
+
+  .app-phones-stage.mode-clay .phone-center {
+    transform: translate3d(-34px, 12px, 0) scale(0.88) rotate(-4deg) !important;
+  }
+
+  .app-phones-stage.mode-clay .phone-left {
+    transform: translate3d(34px, 16px, 0) scale(0.82) rotate(6deg) !important;
+  }
+}
+

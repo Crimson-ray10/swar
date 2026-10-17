@@ -177,6 +177,11 @@ document.addEventListener('DOMContentLoaded', () => {
     playHarmonicTone(523.25, 'triangle', 0.8); // C5
     setTimeout(() => playHarmonicTone(659.25, 'triangle', 0.8), 350); // E5
     setTimeout(() => playHarmonicTone(783.99, 'triangle', 1.0), 700); // G5
+
+    // Automatically remove animation class once finished so interactive tab modes smoothly take full control
+    setTimeout(() => {
+      if (phonesStage) phonesStage.classList.remove('is-animating');
+    }, 2200);
   }
 
   if (replayBtnSection) {
@@ -253,6 +258,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const phoneCenter = document.getElementById('phone-2');
   const phoneRight = document.getElementById('phone-3');
 
+  if (phonesStage) {
+    phonesStage.classList.add('mode-olive');
+  }
+
   screenTabs.forEach((tab) => {
     tab.addEventListener('click', () => {
       screenTabs.forEach((t) => {
@@ -263,28 +272,50 @@ document.addEventListener('DOMContentLoaded', () => {
       tab.setAttribute('aria-selected', 'true');
 
       const target = tab.dataset.target;
-      if (phoneLeft) phoneLeft.style.zIndex = '2';
-      if (phoneCenter) phoneCenter.style.zIndex = '2';
-      if (phoneRight) phoneRight.style.zIndex = '2';
+      if (phonesStage) {
+        phonesStage.classList.remove('is-animating', 'mode-olive', 'mode-cream', 'mode-clay');
+      }
 
-      if (target === 'screen-olive' && phoneCenter) {
-        phoneCenter.style.zIndex = '15';
-        phoneCenter.style.transform = 'perspective(1200px) translateY(-24px) scale(1.08)';
-        if (phoneLeft) phoneLeft.style.transform = 'perspective(1200px) rotate(-7deg) translateY(18px) translateX(30px) scale(0.92)';
-        if (phoneRight) phoneRight.style.transform = 'perspective(1200px) rotate(7deg) translateY(18px) translateX(-30px) scale(0.92)';
-      } else if (target === 'screen-cream' && phoneLeft) {
-        phoneLeft.style.zIndex = '15';
-        phoneLeft.style.transform = 'perspective(1200px) rotate(0deg) translateY(-24px) scale(1.08)';
-        if (phoneCenter) phoneCenter.style.transform = 'perspective(1200px) rotate(7deg) translateY(18px) translateX(20px) scale(0.92)';
-        if (phoneRight) phoneRight.style.transform = 'perspective(1200px) rotate(12deg) translateY(24px) translateX(-10px) scale(0.88)';
-      } else if (target === 'screen-clay' && phoneRight) {
-        phoneRight.style.zIndex = '15';
-        phoneRight.style.transform = 'perspective(1200px) rotate(0deg) translateY(-24px) scale(1.08)';
-        if (phoneCenter) phoneCenter.style.transform = 'perspective(1200px) rotate(-7deg) translateY(18px) translateX(-20px) scale(0.92)';
-        if (phoneLeft) phoneLeft.style.transform = 'perspective(1200px) rotate(-12deg) translateY(24px) translateX(10px) scale(0.88)';
+      // Clear inline style overrides so responsive CSS controls the layout
+      [phoneLeft, phoneCenter, phoneRight].forEach((p) => {
+        if (p) {
+          p.style.transform = '';
+          p.style.zIndex = '';
+        }
+      });
+
+      if (target === 'screen-olive') {
+        if (phonesStage) phonesStage.classList.add('mode-olive');
+        playHarmonicTone(440, 'triangle', 0.25);
+      } else if (target === 'screen-cream') {
+        if (phonesStage) phonesStage.classList.add('mode-cream');
+        playHarmonicTone(523.25, 'triangle', 0.25);
+      } else if (target === 'screen-clay') {
+        if (phonesStage) phonesStage.classList.add('mode-clay');
+        playHarmonicTone(587.33, 'triangle', 0.25);
       }
     });
   });
+
+  // Direct phone tap selects the corresponding mode
+  if (phoneLeft) {
+    phoneLeft.addEventListener('click', () => {
+      const tab = document.querySelector('.screen-tab[data-target="screen-cream"]');
+      if (tab) tab.click();
+    });
+  }
+  if (phoneCenter) {
+    phoneCenter.addEventListener('click', () => {
+      const tab = document.querySelector('.screen-tab[data-target="screen-olive"]');
+      if (tab) tab.click();
+    });
+  }
+  if (phoneRight) {
+    phoneRight.addEventListener('click', () => {
+      const tab = document.querySelector('.screen-tab[data-target="screen-clay"]');
+      if (tab) tab.click();
+    });
+  }
 
   // 7. HOW SWAR WORKS INTERACTIVE STEP CARDS
   const sideATag = document.getElementById('side-a-tag');
