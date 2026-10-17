@@ -1,0 +1,21 @@
+{
+  "name": "voice-bridge-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Voice Bridge - Offline Voice Communication System over Wi-Fi Direct, Wi-Fi LAN & Bluetooth Classic",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:web": "npm --prefix apps/web run dev",
+    "dev": "npm --prefix backend run dev",
+    "build:backend": "npm --prefix backend run build",
+    "build:web": "npm --prefix apps/web run build",
+    "build": "npm --prefix backend run build && npm --prefix apps/web run build",
+    "test:backend": "npm --prefix backend run test",
+    "test": "npm --prefix backend run test",
+    "start": "npm --prefix backend run start"
+  },
+  "workspaces": [
+    "backend",
+    "apps/web"
+  ]
+}
