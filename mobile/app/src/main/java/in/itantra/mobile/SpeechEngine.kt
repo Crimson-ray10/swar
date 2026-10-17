@@ -563,7 +563,11 @@ class SpeechEngine(
         }
 
         val tag = resolveTag(language)
-        val pack = resolvePackDir(tag)
+        var pack = resolvePackDir(tag) ?: resolvePackDir("en-IN")
+        if (pack == null) {
+            bootstrapPrebundledPacks()
+            pack = resolvePackDir(tag) ?: resolvePackDir("en-IN")
+        }
         if (pack == null) {
             Log.i(TAG, "Offline Sherpa-ONNX model not downloaded for $tag; using Android system SpeechRecognizer")
             usingSystemRecognizer = true
@@ -685,6 +689,9 @@ class SpeechEngine(
             var ns: NoiseSuppressor? = null
             try {
                 ensureRecognizer(tag)
+                if (recognizer == null && tag != "en-IN") {
+                    ensureRecognizer("en-IN")
+                }
                 if (recognizer == null) {
                     Log.w(TAG, "Recognizer not available for $tag, aborting audio capture")
                     event("error", "message", "Voice recognizer could not be initialized for $tag.")
@@ -970,7 +977,11 @@ class SpeechEngine(
         recognizer?.release()
         recognizer = null
 
-        val packDir = resolvePackDir(tag) ?: resolvePackDir("hi-IN") ?: resolvePackDir("en-IN")
+        var packDir = resolvePackDir(tag) ?: resolvePackDir("hi-IN") ?: resolvePackDir("en-IN")
+        if (packDir == null) {
+            bootstrapPrebundledPacks()
+            packDir = resolvePackDir(tag) ?: resolvePackDir("hi-IN") ?: resolvePackDir("en-IN")
+        }
         if (packDir == null) {
             Log.w(TAG, "Voice model pack directory not found for $tag")
             event("notice", "message", "Voice model not found for $tag. Please download it via language settings.")

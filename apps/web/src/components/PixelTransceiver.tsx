@@ -21,11 +21,15 @@ export interface PeerDevice {
 // Strict filter: Available Devices screen ONLY shows Wi-Fi Direct connections!
 export const isWifiDirectPeer = (d: any): boolean => {
   if (!d) return false;
+  const ip = String(d.ip || d.address || d.raw?.address || '').trim();
   const source = String(d.source || d.raw?.source || '').toLowerCase();
   const transport = String(d.transport || d.raw?.transport || '').toLowerCase();
   const p2pAddr = String(d.p2pAddress || d.raw?.p2pAddress || '').trim();
 
-  // Explicitly remove/filter out LAN, mDNS, relay and pure Bluetooth
+  // If already on Android Wi-Fi Direct P2P subnet (192.168.49.x), always accept as Wi-Fi Direct!
+  if (ip.startsWith('192.168.49.')) return true;
+
+  // Explicitly remove/filter out regular LAN, mDNS, relay and pure Bluetooth
   if (source === 'mdns' || source === 'lan' || source === 'bluetooth') return false;
   if (transport.includes('lan') || transport.includes('mdns') || transport.includes('bluetooth') || transport.includes('relay')) return false;
 
@@ -682,7 +686,9 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
       setNotice('PAIRING TIMEOUT · TAP TO RETRY');
     }, 12000);
 
-    if (isNative() && peer.p2pAddress) {
+    if (peer.ip && peer.ip.startsWith('192.168.49.')) {
+      command('connect', { address: peer.ip, port: peer.port || 8988, pin, peer: peer.raw, peerName: peer.name });
+    } else if (isNative() && peer.p2pAddress && peer.p2pAddress.length >= 17) {
       command('connectP2p', { p2pAddress: peer.p2pAddress, peerName: peer.name });
     } else if (peer.ip && peer.ip.includes('.')) {
       command('connect', { address: peer.ip, port: peer.port || 8988, pin, peer: peer.raw, peerName: peer.name });

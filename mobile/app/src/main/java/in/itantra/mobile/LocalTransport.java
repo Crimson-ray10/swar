@@ -1346,7 +1346,7 @@ public final class LocalTransport {
                     udp.receive(packet);
                     String msg = new String(packet.getData(), 0, packet.getLength(), StandardCharsets.UTF_8);
                     if (msg.startsWith("SWAR_BEACON:") || msg.startsWith("LINC_BEACON:")) {
-                        String[] parts = msg.split(":");
+                        String[] parts = msg.split(":", 6);
                         if (parts.length >= 4) {
                             String beaconSession = parts[2];
                             String beaconCallsign = parts[3];

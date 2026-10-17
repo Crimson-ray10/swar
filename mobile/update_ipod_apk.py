@@ -155,10 +155,21 @@ def repack_and_deploy():
                 new_files[zip_path] = fp.read()
             print(f"  + {zip_path} ({len(new_files[zip_path])} bytes)")
 
-    # 2. Gather voice models if --embed-models is requested
-    embed_models = "--embed-models" in sys.argv
-    if embed_models and os.path.exists(MODELS_DIR):
-        print(f"\nEmbedding offline voice models from {MODELS_DIR} into APK assets...")
+    # 2. Gather voice models: Always embed English STT model by default for immediate offline STT & VAD!
+    stt_model_file = os.path.join(ROOT, "scratch", "en-IN", "stt", "indicconformer_int8.onnx")
+    stt_tokens_file = os.path.join(ROOT, "scratch", "en-IN", "stt", "tokens.txt")
+    if os.path.exists(stt_model_file) and os.path.exists(stt_tokens_file):
+        print(f"\nEmbedding offline English STT model (IndicConformer int8) into APK assets...")
+        with open(stt_model_file, "rb") as fp:
+            new_files["assets/models/en-IN/stt/indicconformer_int8.onnx"] = fp.read()
+        with open(stt_tokens_file, "rb") as fp:
+            new_files["assets/models/en-IN/stt/tokens.txt"] = fp.read()
+        print(f"  + [MODEL] assets/models/en-IN/stt/indicconformer_int8.onnx ({len(new_files['assets/models/en-IN/stt/indicconformer_int8.onnx'])} bytes)")
+        print(f"  + [MODEL] assets/models/en-IN/stt/tokens.txt ({len(new_files['assets/models/en-IN/stt/tokens.txt'])} bytes)")
+
+    embed_all = "--embed-all-models" in sys.argv
+    if embed_all and os.path.exists(MODELS_DIR):
+        print(f"\nEmbedding all voice models from {MODELS_DIR} into APK assets...")
         for root, dirs, files in os.walk(MODELS_DIR):
             for f in files:
                 full = os.path.join(root, f)
@@ -168,8 +179,7 @@ def repack_and_deploy():
                     new_files[zip_path] = fp.read()
                 print(f"  + [MODEL] {zip_path} ({len(new_files[zip_path])} bytes)")
     else:
-        print("\nBuilding lightweight standalone APK (~56MB) for Vercel/GitHub distribution.")
-        print("  (Models are downloaded on-demand from Hugging Face repository via in-app Language section)")
+        print("\nEnglish STT model embedded. Full multilingual catalog available via in-app Hugging Face repository.")
 
     # 3. Gather new app icons
     icon_mappings = [
@@ -228,10 +238,7 @@ def repack_and_deploy():
         # Add new generated assets, icons & models
         for zip_path, data in new_files.items():
             zi = zipfile.ZipInfo(zip_path)
-            if zip_path.endswith('.onnx') or zip_path.endswith('.pth') or zip_path.endswith('.wav'):
-                zi.compress_type = zipfile.ZIP_STORED
-            else:
-                zi.compress_type = zipfile.ZIP_DEFLATED
+            zi.compress_type = zipfile.ZIP_DEFLATED
             zout.writestr(zi, data)
 
     print(f"Unsigned APK created: {os.path.getsize(OUT_UNSIGNED)} bytes")
