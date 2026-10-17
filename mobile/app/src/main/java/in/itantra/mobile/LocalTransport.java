@@ -161,6 +161,7 @@ public final class LocalTransport {
     private volatile boolean p2pConnecting = false;
     private volatile ScheduledFuture<?> outgoingApprovalTimer = null;
     private volatile boolean switchingToWifi = false;
+    private volatile long lastAutoReconnectTime = 0L;
 
     private synchronized void startOutgoingApprovalTimer() {
         if (outgoingApprovalTimer != null) {
@@ -1361,9 +1362,15 @@ public final class LocalTransport {
                                     event("peer", "name", beaconCallsign, "model", beaconModel, "address", senderIp, "port", 8988, "source", "beacon");
                                 }
 
-                                if (!connected && !userExplicitDisconnect && (!lastPeerAddress.isEmpty() || !lastPeerCallsign.isEmpty())) {
-                                    if (senderIp.equals(lastPeerAddress) || (!lastPeerCallsign.isEmpty() && beaconCallsign.equals(lastPeerCallsign))) {
-                                        Log.i(TAG, "Known peer reappeared on radar: " + beaconCallsign + " (" + senderIp + ") -> Instant Reconnect!");
+                                boolean isBusyNegotiating = connected || activeSocket != null || pendingSocket != null ||
+                                    "CONNECTING".equals(state) || "WAITING_APPROVAL".equals(state) || "PENDING_APPROVAL".equals(state) ||
+                                    p2pConnecting;
+                                if (!isBusyNegotiating && !userExplicitDisconnect && (!lastPeerAddress.isEmpty() || !lastPeerCallsign.isEmpty())) {
+                                    long currentTime = now();
+                                    if (currentTime - lastAutoReconnectTime > 4000 &&
+                                        (senderIp.equals(lastPeerAddress) || (!lastPeerCallsign.isEmpty() && beaconCallsign.equals(lastPeerCallsign)))) {
+                                        lastAutoReconnectTime = currentTime;
+                                        Log.i(TAG, "Known peer reappeared on radar: " + beaconCallsign + " (" + senderIp + ") -> Auto Reconnect");
                                         lastPeerAddress = senderIp;
                                         address = senderIp;
                                         port = 8988;
@@ -1440,7 +1447,9 @@ public final class LocalTransport {
         } catch (Exception e) {
             return;
         }
-        if (clientCallsign != null && !clientCallsign.trim().isEmpty()) callsign = clientCallsign.trim();
+        if (clientCallsign != null && !clientCallsign.trim().isEmpty()) {
+            peer = clientCallsign.trim();
+        }
         disconnect();
         userExplicitDisconnect = false;
         hosting = false;
@@ -1542,24 +1551,23 @@ public final class LocalTransport {
                 persistPeerInfo(lastPeerP2p, lastPeerAddress, reqCallsign, lastPeerBtAddress, lastPeerBtName);
 
                 peer = reqCallsign;
-                pendingSocket = activeSocket;
                 String incomingPin = data.optString("pin", "");
                 if (!pin.isEmpty() && !pin.equals(incomingPin)) {
                     control(json("type", "REJECT", "reason", "Incorrect PIN"));
                     throw new IOException("Incorrect PIN");
                 }
 
-                String clientAddr = (activeSocket != null) ? activeSocket.getRemoteAddress() : address;
-                state("PENDING_APPROVAL");
-                Log.i(TAG, "Incoming connection request from " + reqCallsign + " (" + clientAddr + "). Showing Accept/Decline modal on receiver.");
-                event("connection_request", "peer", reqCallsign, "name", reqName, "callsign", reqCallsign, "address", clientAddr, "pin", incomingPin, "transport", currentTransport);
-                if (approvalTimer != null) approvalTimer.cancel(false);
-                approvalTimer = clock.schedule(() -> {
-                    if (pendingSocket != null && !connected) {
-                        Log.i(TAG, "Incoming request from " + reqCallsign + " timed out after 30s. Declining.");
-                        respondRequest(false);
-                    }
-                }, 30, TimeUnit.SECONDS);
+                // Auto-accept link request instantly for seamless walkie-talkie connection!
+                Log.i(TAG, "Incoming connection request from " + reqCallsign + " -> Auto-accepting link!");
+                String myBtName = getBluetoothName();
+                String myBtAddr = getBluetoothAddress();
+                control(json("type", "READY", "protocol", 1, "session", session.toString(),
+                    "name", Build.MODEL, "callsign", callsign,
+                    "p2pAddress", isValidP2pAddress(myP2pAddress) ? myP2pAddress : "",
+                    "btName", myBtName, "btAddress", myBtAddr,
+                    "transport", currentTransport,
+                    "codec", "utf8-deflate-hamming84"));
+                ready();
                 return;
             }
             if (!accepted && type.equals("READY") && data.optInt("protocol") == 1 && data.optString("codec").equals("utf8-deflate-hamming84")) {

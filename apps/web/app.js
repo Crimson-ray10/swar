@@ -399,10 +399,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 10. APK PLACEHOLDER MODAL
+  // 10. APK DIRECT DOWNLOAD & CONFIRMATION MODAL
   apkDownloadLinks.forEach((link) => {
     link.addEventListener('click', (e) => {
-      e.preventDefault();
+      // Trigger native download of latest build
+      const dlLink = document.createElement('a');
+      dlLink.href = '/swar.apk';
+      dlLink.download = 'swar.apk';
+      document.body.appendChild(dlLink);
+      dlLink.click();
+      document.body.removeChild(dlLink);
+
       if (apkModal) {
         apkModal.showModal();
         playHarmonicTone(587.33, 'triangle', 0.3); // D5

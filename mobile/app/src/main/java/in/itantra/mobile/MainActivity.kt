@@ -413,11 +413,9 @@ class MainActivity : Activity() {
                             data.optString("address"),
                             data.optInt("port", 8988),
                             data.optString("pin"),
-                            data.optString("callsign")
+                            data.optString("peerName", data.optString("callsign"))
                         )
                         "connectP2p" -> {
-                            val cs = data.optString("callsign")
-                            if (cs.isNotEmpty()) transport.callsign(cs)
                             transport.connectP2p(data.optString("p2pAddress"))
                         }
                         "connectBluetooth" -> transport.connectBluetooth(data.optString("btAddress"))

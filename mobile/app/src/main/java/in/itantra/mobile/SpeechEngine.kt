@@ -12,10 +12,14 @@ import android.media.AudioTrack
 import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.NoiseSuppressor
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.util.Log
 import com.k2fsa.sherpa.onnx.FeatureConfig
@@ -114,6 +118,9 @@ class SpeechEngine(
     private var audioRecord: AudioRecord? = null
     private var captureThread: Thread? = null
     @Volatile private var captureRunning = false
+    private var systemRecognizer: SpeechRecognizer? = null
+    @Volatile private var usingSystemRecognizer = false
+    @Volatile private var lastNonEmptyPartialText: String = ""
 
     private var tts: TextToSpeech? = null
     @Volatile private var ttsReady = false
@@ -243,27 +250,28 @@ class SpeechEngine(
     }
 
     private fun copyAssetFolder(assetPath: String, dest: File) {
-        val files = activity.assets.list(assetPath) ?: return
-        if (files.isEmpty()) {
-            dest.parentFile?.mkdirs()
-            try {
-                activity.assets.open(assetPath).use { input ->
-                    FileOutputStream(dest).use { output ->
-                        val buf = ByteArray(65536)
-                        var n: Int
-                        while (input.read(buf).also { n = it } > 0) {
-                            output.write(buf, 0, n)
-                        }
+        try {
+            // Try to open as an asset file first
+            activity.assets.open(assetPath).use { input ->
+                dest.parentFile?.mkdirs()
+                FileOutputStream(dest).use { output ->
+                    val buf = ByteArray(65536)
+                    var n: Int
+                    while (input.read(buf).also { n = it } > 0) {
+                        output.write(buf, 0, n)
                     }
                 }
-            } catch (t: Throwable) {
-                Log.w(TAG, "Failed to copy asset $assetPath: ${t.message}")
             }
-        } else {
+        } catch (_: java.io.FileNotFoundException) {
+            // Not a file, treat as a directory
             dest.mkdirs()
+            val files = activity.assets.list(assetPath) ?: return
             for (file in files) {
-                copyAssetFolder("$assetPath/$file", File(dest, file))
+                val subAsset = if (assetPath.isEmpty()) file else "$assetPath/$file"
+                copyAssetFolder(subAsset, File(dest, file))
             }
+        } catch (t: Throwable) {
+            Log.w(TAG, "Failed to copy asset $assetPath: ${t.message}")
         }
     }
 
@@ -309,12 +317,14 @@ class SpeechEngine(
         return when (lang.lowercase(Locale.ROOT)) {
             "en" -> "en-IN"
             "hi", "hinglish" -> "hi-IN"
-            "mr" -> "mr-IN"
-            "gu" -> "gu-IN"
-            "ta" -> "ta-IN"
-            "te" -> "te-IN"
-            "kn" -> "kn-IN"
-            "bn" -> "bn-IN"
+            "mr", "mr-in" -> "mr-IN"
+            "gu", "gu-in" -> "gu-IN"
+            "ta", "ta-in" -> "ta-IN"
+            "te", "te-in" -> "te-IN"
+            "kn", "kn-in" -> "kn-IN"
+            "bn", "bn-in" -> "bn-IN"
+            "ml", "ml-in" -> "ml-IN"
+            "or", "or-in" -> "or-IN"
             else -> if (lang.contains("-")) lang else "$lang-IN"
         }
     }
@@ -337,7 +347,7 @@ class SpeechEngine(
         for (p in downloadingPacks) pendingArr.put(p)
 
         val availableArr = JSONArray()
-        for (av in arrayOf("hi-IN", "en-IN", "mr-IN", "gu-IN", "ta-IN", "te-IN", "kn-IN", "bn-IN")) {
+        for (av in arrayOf("hi-IN", "en-IN", "mr-IN", "gu-IN", "ta-IN", "te-IN", "kn-IN", "bn-IN", "ml-IN", "or-IN")) {
             if (!installed.contains(av)) availableArr.put(av)
         }
 
@@ -555,13 +565,19 @@ class SpeechEngine(
         val tag = resolveTag(language)
         val pack = resolvePackDir(tag)
         if (pack == null) {
-            event(
-                "speechModelOffline", "language", language, "locale", tag,
-                "message", "Offline speech model for $tag is not downloaded. Tap Download to install."
-            )
-            event("error", "message", "Offline voice model for $tag is missing. Select and download it.")
+            Log.i(TAG, "Offline Sherpa-ONNX model not downloaded for $tag; using Android system SpeechRecognizer")
+            usingSystemRecognizer = true
+            captureLanguage = language
+            speechStarted = SystemClock.elapsedRealtime()
+            listening = true
+            event("speech", "state", "Listening · Speak now")
+            main.post {
+                startSystemSpeechRecognizer(tag)
+            }
             return
         }
+        usingSystemRecognizer = false
+        lastNonEmptyPartialText = ""
 
         captureLanguage = language
         speechStarted = SystemClock.elapsedRealtime()
@@ -570,6 +586,95 @@ class SpeechEngine(
         event("speech", "state", if (locked) "Listening · Hands-free broadcast locked" else "Listening · on-device")
 
         startAudioCapture(tag)
+    }
+
+    private fun startSystemSpeechRecognizer(tag: String) {
+        if (!SpeechRecognizer.isRecognitionAvailable(activity)) {
+            Log.w(TAG, "SpeechRecognizer is not available on this device")
+            event("error", "message", "Speech recognition unavailable on this device.")
+            listening = false
+            usingSystemRecognizer = false
+            event("speech", "state", "Idle")
+            return
+        }
+        try {
+            systemRecognizer?.cancel()
+            systemRecognizer?.destroy()
+        } catch (_: Throwable) {}
+
+        val recognizer = SpeechRecognizer.createSpeechRecognizer(activity)
+        systemRecognizer = recognizer
+
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, tag)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, tag)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+            putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, activity.packageName)
+        }
+
+        recognizer.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {
+                Log.d(TAG, "System SpeechRecognizer ready for speech")
+                event("speech", "state", "Listening · Speak now")
+            }
+
+            override fun onBeginningOfSpeech() {
+                Log.d(TAG, "System SpeechRecognizer: speech started")
+                event("speech", "state", "SPEECH_STARTED")
+            }
+
+            override fun onRmsChanged(rmsdB: Float) {}
+
+            override fun onBufferReceived(buffer: ByteArray?) {}
+
+            override fun onEndOfSpeech() {
+                Log.d(TAG, "System SpeechRecognizer: speech endpointed")
+                event("speech", "state", "SPEECH_ENDPOINTED")
+            }
+
+            override fun onError(error: Int) {
+                Log.w(TAG, "System SpeechRecognizer error: $error")
+                listening = false
+                usingSystemRecognizer = false
+                event("speech", "state", "Idle")
+            }
+
+            override fun onResults(results: Bundle?) {
+                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                val text = matches?.firstOrNull()?.trim()
+                if (!text.isNullOrEmpty()) {
+                    Log.i(TAG, "System SpeechRecognizer captured transcript: '$text'")
+                    event("recognized", "text", text)
+                    listener.transcript(text, captureLanguage)
+                }
+                listening = false
+                usingSystemRecognizer = false
+                event("speech", "state", "Idle")
+            }
+
+            override fun onPartialResults(partialResults: Bundle?) {
+                val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                val partial = matches?.firstOrNull()?.trim()
+                if (!partial.isNullOrEmpty()) {
+                    event("partial", "text", partial)
+                }
+            }
+
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+
+        try {
+            recognizer.startListening(intent)
+            Log.i(TAG, "System SpeechRecognizer listening started for $tag")
+        } catch (t: Throwable) {
+            Log.e(TAG, "Failed to start System SpeechRecognizer", t)
+            event("error", "message", "Could not start voice recognition: ${t.message}")
+            listening = false
+            usingSystemRecognizer = false
+            event("speech", "state", "Idle")
+        }
     }
 
     private fun startAudioCapture(tag: String) {
@@ -637,6 +742,7 @@ class SpeechEngine(
                 var speechFrames = 0
                 var lastPartialTime = 0L
                 var noiseFloor = 35.0
+                var peakRms = 100.0
                 var frameCount = 0L
 
                 while (captureRunning && !closed) {
@@ -656,16 +762,23 @@ class SpeechEngine(
                         frameFloats[i] = audioBuf[i] / 32768.0f
                     }
 
-                    if (rms < noiseFloor * 1.5) {
-                        noiseFloor = noiseFloor * 0.96 + rms * 0.04
+                    if (!inSpeech) {
+                        noiseFloor = (noiseFloor * 0.95 + rms * 0.05).coerceIn(10.0, 500.0)
+                    } else if (rms < noiseFloor) {
+                        noiseFloor = (noiseFloor * 0.90 + rms * 0.10).coerceIn(10.0, 500.0)
                     }
-                    val onsetThreshold = maxOf(noiseFloor * 1.7, noiseFloor + 12.0).coerceIn(30.0, 260.0)
-                    val offsetThreshold = maxOf(noiseFloor * 1.25, noiseFloor + 6.0).coerceIn(20.0, 160.0)
+                    if (inSpeech && rms > peakRms) {
+                        peakRms = rms
+                    }
 
-                    val isVoiceFrame = rms >= (if (inSpeech) offsetThreshold else onsetThreshold)
+                    val onsetThreshold = maxOf(noiseFloor * 1.8, noiseFloor + 35.0).coerceIn(40.0, 800.0)
+                    val offsetThreshold = maxOf(noiseFloor * 1.25, noiseFloor + 12.0).coerceIn(25.0, 500.0)
+                    val dynamicSilenceThreshold = maxOf(offsetThreshold, peakRms * 0.35)
+
+                    val isVoiceFrame = rms >= (if (inSpeech) dynamicSilenceThreshold else onsetThreshold)
 
                     if (frameCount % 60L == 0L) {
-                        Log.v(TAG, "Audio frame #$frameCount: rms=${"%.1f".format(rms)}, floor=${"%.1f".format(noiseFloor)}, onset=${"%.1f".format(onsetThreshold)}, inSpeech=$inSpeech")
+                        Log.v(TAG, "Audio frame #$frameCount: rms=${"%.1f".format(rms)}, floor=${"%.1f".format(noiseFloor)}, peak=${"%.1f".format(peakRms)}, silenceThresh=${"%.1f".format(dynamicSilenceThreshold)}, inSpeech=$inSpeech")
                     }
 
                     if (isVoiceFrame) {
@@ -673,6 +786,7 @@ class SpeechEngine(
                         speechFrames++
                         if (!inSpeech && speechFrames >= 2) {
                             inSpeech = true
+                            peakRms = maxOf(rms, 100.0)
                             Log.i(TAG, "VAD Trigger: SPEECH_STARTED (rms=${"%.1f".format(rms)}, onset=${"%.1f".format(onsetThreshold)}, floor=${"%.1f".format(noiseFloor)})")
                             main.post { event("speech", "state", "SPEECH_STARTED") }
                             while (!preRollQueue.isEmpty()) {
@@ -693,7 +807,7 @@ class SpeechEngine(
                         }
 
                         val now = SystemClock.elapsedRealtime()
-                        if (now - lastPartialTime > 400 && pcmBuffer.size > 6000) {
+                        if (now - lastPartialTime > 350 && pcmBuffer.size > 4800) {
                             lastPartialTime = now
                             val partialSamples = pcmBuffer.toFloatArray()
                             asyncPool.execute {
@@ -703,11 +817,15 @@ class SpeechEngine(
                                     try {
                                         stream.acceptWaveform(partialSamples, 16000)
                                         rec.decode(stream)
-                                        val pText = formatTranscript(rec.getResult(stream).text)
+                                        val raw = rec.getResult(stream).text
+                                        val pText = formatTranscript(raw)
+                                        Log.d(TAG, "Partial CTC [${partialSamples.size} samples]: raw='$raw' -> '$pText'")
                                         if (pText.isNotEmpty()) {
+                                            lastNonEmptyPartialText = pText
                                             main.post { event("partial", "text", pText) }
                                         }
-                                    } catch (ignored: Throwable) {
+                                    } catch (t: Throwable) {
+                                        Log.e(TAG, "Partial decode error", t)
                                     } finally {
                                         stream.release()
                                     }
@@ -715,10 +833,11 @@ class SpeechEngine(
                             }
                         }
 
-                        if (silenceFrames >= 30) {
+                        if (silenceFrames >= 18) {
                             val utteranceSamples = pcmBuffer.toFloatArray()
                             pcmBuffer.clear()
                             inSpeech = false
+                            peakRms = 100.0
                             silenceFrames = 0
                             speechFrames = 0
                             preRollQueue.clear()
@@ -751,13 +870,14 @@ class SpeechEngine(
                         }
                     }
 
-                    if (pcmBuffer.size >= 16000 * 25) {
+                    if (pcmBuffer.size >= 16000 * 8) {
                         val chunkSamples = pcmBuffer.toFloatArray()
                         pcmBuffer.clear()
                         inSpeech = false
+                        peakRms = 100.0
                         preRollQueue.clear()
                         asyncPool.execute {
-                            decodeAndDispatch(chunkSamples, 25000L)
+                            decodeAndDispatch(chunkSamples, 8000L)
                         }
                         if (!locked && !conversation) break
                     }
@@ -770,6 +890,11 @@ class SpeechEngine(
                     Log.i(TAG, "PTT finalize: dispatching ${finalSamples.size} audio samples (${duration}ms) for CTC decode")
                     asyncPool.execute {
                         decodeAndDispatch(finalSamples, duration)
+                    }
+                } else if (lastNonEmptyPartialText.isNotEmpty()) {
+                    Log.i(TAG, "PTT finalize with empty buffer: using lastNonEmptyPartialText: '$lastNonEmptyPartialText'")
+                    asyncPool.execute {
+                        decodeAndDispatch(FloatArray(0), 0L)
                     }
                 }
             } catch (t: Throwable) {
@@ -800,29 +925,32 @@ class SpeechEngine(
     }
 
     private fun decodeAndDispatch(samples: FloatArray, durationMs: Long) {
-        if (samples.isEmpty()) return
+        var finalText = ""
         val rec = recognizer
-        if (rec == null) {
-            Log.w(TAG, "Cannot decode: recognizer is null")
-            return
-        }
-        val stream = rec.createStream()
-        try {
-            stream.acceptWaveform(samples, 16000)
-            rec.decode(stream)
-            val result = rec.getResult(stream)
-            val finalText = formatTranscript(result.text)
-            Log.i(TAG, "Decoded text: '$finalText' (${samples.size} samples, raw='${result.text}')")
-            if (finalText.isNotEmpty()) {
-                main.post {
-                    event("recognized", "text", finalText, "recognitionMs", durationMs)
-                    listener.transcript(finalText, captureLanguage)
-                }
+        if (samples.isNotEmpty() && rec != null) {
+            val stream = rec.createStream()
+            try {
+                stream.acceptWaveform(samples, 16000)
+                rec.decode(stream)
+                val result = rec.getResult(stream)
+                finalText = formatTranscript(result.text)
+                Log.i(TAG, "Decoded text: '$finalText' (${samples.size} samples, raw='${result.text}')")
+            } catch (t: Throwable) {
+                Log.e(TAG, "Utterance decode error", t)
+            } finally {
+                stream.release()
             }
-        } catch (t: Throwable) {
-            Log.e(TAG, "Utterance decode error", t)
-        } finally {
-            stream.release()
+        }
+        if (finalText.isEmpty() && lastNonEmptyPartialText.isNotEmpty()) {
+            finalText = lastNonEmptyPartialText
+            Log.i(TAG, "Using lastNonEmptyPartialText fallback: '$finalText'")
+        }
+        if (finalText.isNotEmpty()) {
+            lastNonEmptyPartialText = ""
+            main.post {
+                event("recognized", "text", finalText, "recognitionMs", durationMs)
+                listener.transcript(finalText, captureLanguage)
+            }
         }
     }
 
@@ -1053,10 +1181,15 @@ class SpeechEngine(
             val content = vocabJson.readText(StandardCharsets.UTF_8)
             val arr = JSONArray(content)
             val sb = StringBuilder()
+            var hasBlk = false
             for (i in 0 until arr.length()) {
-                sb.append(arr.getString(i)).append(" ").append(i).append("\n")
+                val tok = arr.getString(i)
+                if (tok == "<blk>") hasBlk = true
+                sb.append(tok).append(" ").append(i).append("\n")
             }
-            sb.append("<blk> ").append(arr.length()).append("\n")
+            if (!hasBlk) {
+                sb.append("<blk> ").append(arr.length()).append("\n")
+            }
             tokensTxt.writeText(sb.toString(), StandardCharsets.UTF_8)
         } catch (t: Throwable) {
             Log.e(TAG, "Failed generating tokens.txt from vocab.json", t)
@@ -1065,11 +1198,31 @@ class SpeechEngine(
 
     @Synchronized
     fun release() {
-        Log.i(TAG, "SpeechEngine.release() called (listening=$listening, locked=$locked, conversation=$conversation)")
+        Log.i(TAG, "SpeechEngine.release() called (listening=$listening, locked=$locked, conversation=$conversation, usingSystem=$usingSystemRecognizer)")
         if (locked || conversation) return
+        if (usingSystemRecognizer) {
+            main.post {
+                try {
+                    systemRecognizer?.stopListening()
+                } catch (_: Throwable) {}
+            }
+            return
+        }
         captureRunning = false
         if (listening) {
             event("speech", "state", "Microphone released · finalizing")
+        }
+        if (lastNonEmptyPartialText.isNotEmpty()) {
+            val textToSend = lastNonEmptyPartialText
+            val lang = captureLanguage
+            main.postDelayed({
+                if (textToSend == lastNonEmptyPartialText && textToSend.isNotEmpty()) {
+                    Log.i(TAG, "Dispatched release transcript fallback: '$textToSend'")
+                    lastNonEmptyPartialText = ""
+                    event("recognized", "text", textToSend)
+                    listener.transcript(textToSend, lang)
+                }
+            }, 600)
         }
     }
 
@@ -1118,6 +1271,16 @@ class SpeechEngine(
 
     fun cancelCapture() {
         captureRunning = false
+        if (usingSystemRecognizer) {
+            main.post {
+                try {
+                    systemRecognizer?.cancel()
+                    systemRecognizer?.destroy()
+                    systemRecognizer = null
+                } catch (_: Throwable) {}
+            }
+            usingSystemRecognizer = false
+        }
         listening = false
         event("speech", "state", "Idle")
     }
@@ -1501,6 +1664,11 @@ class SpeechEngine(
     fun close() {
         closed = true
         pause()
+        try {
+            systemRecognizer?.cancel()
+            systemRecognizer?.destroy()
+            systemRecognizer = null
+        } catch (_: Throwable) {}
         try {
             tts?.stop()
             tts?.shutdown()

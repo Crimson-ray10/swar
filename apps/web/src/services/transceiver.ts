@@ -25,7 +25,6 @@ export function openRadio(emit: RadioEvent) {
   };
   const roster = (clients: any[]) => {
     emit('peers', { peers: [...peers, ...clients.filter(p => p.id !== selfId).map(p => ({ ...p, address: p.ip, transport: 'web_relay' }))] });
-    emit('connection', { state: clients.some(p => p.id !== selfId) ? 'CONNECTED' : 'DISCONNECTED', peer: 'Web relay channel' });
   };
   const connectSocket = () => {
     socket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/v1/voicebridge/ws`);
@@ -70,10 +69,16 @@ export function openRadio(emit: RadioEvent) {
       case 'send': void request('send', { text: data.text, language }).catch(report); break;
       case 'discover': void request('peers').then(p => p.forEach((peer: any) => emit('peer', peer))).catch(report); break;
       case 'connect':
-        if (data.peer.transport === 'web_relay') emit('connection', { state: 'CONNECTED', peer: 'Web relay channel (all clients)' });
-        else void request('connect', { peer: data.peer }).catch(report);
+        if (data.peer?.transport === 'web_relay' || data.peer === 'web_relay' || (!isNative() && !data.peer?.ip)) {
+          emit('connection', { state: 'CONNECTED', peer: data.peer?.name || data.address || 'Web / Local Peer', address: data.address || '' });
+        } else {
+          void request('connect', { peer: data.peer }).catch(report);
+        }
         break;
-      case 'disconnect': void request('disconnect', {}).catch(report); break;
+      case 'disconnect':
+        emit('connection', { state: 'DISCONNECTED' });
+        void request('disconnect', {}).catch(() => {});
+        break;
       case 'capabilities': break;
       case 'stopPlayback': window.speechSynthesis?.cancel(); emit('speech', { state: 'Idle' }); break;
       default: emit('notice', { message: 'This control requires the Android app.' });

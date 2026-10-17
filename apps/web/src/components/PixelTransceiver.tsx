@@ -1,23 +1,64 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Mic, ArrowLeft, Volume2, VolumeX, Smartphone, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Volume2, VolumeX, RefreshCw, Unlink, Radio, Zap } from 'lucide-react';
 import { sound } from '../utils/audioEffects';
 import './PixelTransceiver.css';
 import { openRadio, isNative } from '../services/transceiver';
+import swanLogo from '../assets/swan-logo.png';
 
-export type ScreenMode = 'devices' | 'talking' | 'idle';
+export type ScreenMode = 'devices' | 'transceiver' | 'idle' | 'languages';
 
 export interface PeerDevice {
-  id: string; name: string; transport: string; ip: string; port?: number;
-  p2pAddress?: string; btAddress?: string; raw?: any;
+  id: string;
+  name: string;
+  transport: string;
+  ip: string;
+  port?: number;
+  p2pAddress?: string;
+  btAddress?: string;
+  raw?: any;
 }
 
-const TACTICAL_PHRASES = [
-  'Route is clear, team advancing carefully.',
-  'Urgent assistance needed at sector 4.',
-  'Signal acquired. Radio check over.',
-  'Holding position at north perimeter.',
-  'All units switch to mesh channel 2.',
-  'Medical dispatch en route to staging area.'
+// Strict filter: Available Devices screen ONLY shows Wi-Fi Direct connections!
+export const isWifiDirectPeer = (d: any): boolean => {
+  if (!d) return false;
+  const source = String(d.source || d.raw?.source || '').toLowerCase();
+  const transport = String(d.transport || d.raw?.transport || '').toLowerCase();
+  const p2pAddr = String(d.p2pAddress || d.raw?.p2pAddress || '').trim();
+
+  // Explicitly remove/filter out LAN, mDNS, relay and pure Bluetooth
+  if (source === 'mdns' || source === 'lan' || source === 'bluetooth') return false;
+  if (transport.includes('lan') || transport.includes('mdns') || transport.includes('bluetooth') || transport.includes('relay')) return false;
+
+  // Accept Wi-Fi Direct (P2P address, source: p2p, or transport: Wi-Fi Direct / P2P)
+  if (p2pAddr.length > 0) return true;
+  if (source === 'p2p') return true;
+  if (transport.includes('wifi direct') || transport.includes('wi-fi direct') || transport.includes('p2p')) return true;
+
+  return false;
+};
+
+// Hugging Face Offline Model Catalogue (Indian Languages IndicConformer STT + Indic-TTS FastPitch)
+export interface HFModel {
+  tag: string;
+  code: string;
+  name: string;
+  nativeName: string;
+  sizeMB: number;
+  stt: string;
+  tts: string;
+}
+
+export const HF_CATALOGUE: HFModel[] = [
+  { tag: 'en-IN', code: 'EN', name: 'Indian English', nativeName: 'English', sizeMB: 154.9, stt: 'IndicConformer int8', tts: 'FastPitch + HiFi-GAN' },
+  { tag: 'hi-IN', code: 'HI', name: 'Hindi', nativeName: 'हिन्दी', sizeMB: 268.8, stt: 'IndicConformer int8', tts: 'FastPitch + HiFi-GAN' },
+  { tag: 'ta-IN', code: 'TA', name: 'Tamil', nativeName: 'தமிழ்', sizeMB: 268.7, stt: 'IndicConformer int8', tts: 'FastPitch + HiFi-GAN' },
+  { tag: 'te-IN', code: 'TE', name: 'Telugu', nativeName: 'తెలుగు', sizeMB: 267.6, stt: 'IndicConformer int8', tts: 'FastPitch + HiFi-GAN' },
+  { tag: 'mr-IN', code: 'MR', name: 'Marathi', nativeName: 'मराठी', sizeMB: 268.6, stt: 'IndicConformer int8', tts: 'FastPitch + HiFi-GAN' },
+  { tag: 'gu-IN', code: 'GU', name: 'Gujarati', nativeName: 'ગુજરાતી', sizeMB: 268.8, stt: 'IndicConformer int8', tts: 'FastPitch + HiFi-GAN' },
+  { tag: 'bn-IN', code: 'BN', name: 'Bengali', nativeName: 'বাংলা', sizeMB: 266.7, stt: 'IndicConformer int8', tts: 'FastPitch + HiFi-GAN' },
+  { tag: 'kn-IN', code: 'KN', name: 'Kannada', nativeName: 'ಕನ್ನಡ', sizeMB: 268.7, stt: 'IndicConformer int8', tts: 'FastPitch + HiFi-GAN' },
+  { tag: 'ml-IN', code: 'ML', name: 'Malayalam', nativeName: 'മലയാളം', sizeMB: 268.1, stt: 'IndicConformer int8', tts: 'FastPitch + HiFi-GAN' },
+  { tag: 'or-IN', code: 'OR', name: 'Odia', nativeName: 'ଓଡ଼ିଆ', sizeMB: 268.0, stt: 'IndicConformer int8', tts: 'FastPitch + HiFi-GAN' },
 ];
 
 const LANGUAGES = [
@@ -29,93 +70,268 @@ interface PixelTransceiverProps {
   onNavigate?: (view: 'transceiver' | 'experience' | 'studio') => void;
 }
 
-export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain, onNavigate }) => {
-  // Navigation & Screen Mode
+export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
+  // 1. Screen Mode & Navigation (Starts at 'devices' per requirement)
   const [screenMode, setScreenMode] = useState<ScreenMode>('devices');
+  const [lastScreenMode, setLastScreenMode] = useState<ScreenMode>('devices');
   const [connectedPeer, setConnectedPeer] = useState<PeerDevice | null>(null);
   const [selectedDeviceIndex, setSelectedDeviceIndex] = useState<number>(0);
   const [isPairing, setIsPairing] = useState<boolean>(false);
   const [pairingLog, setPairingLog] = useState<string>('');
+  const [pairingPeerId, setPairingPeerId] = useState<string | null>(null);
 
   const [peers, setPeers] = useState<PeerDevice[]>([]);
-  const [connectionState, setConnectionState] = useState('DISCONNECTED');
-  const [notice, setNotice] = useState('Find a nearby phone to begin.');
+  const [connectionState, setConnectionState] = useState<string>('DISCONNECTED');
+  const [notice, setNotice] = useState<string>('SELECT NEARBY PEER TO CONNECT');
   const [incoming, setIncoming] = useState<any>(null);
-  const [hostInfo, setHostInfo] = useState('');
-  const [address, setAddress] = useState('');
-  const [pin, setPin] = useState('');
-  const radio = useRef<ReturnType<typeof openRadio> | null>(null);
-  const held = useRef(false);
-  const command = (action: string, data: any = {}) => radio.current?.command(action, data);
-  useEffect(() => {
-    const normalize = (d: any): PeerDevice => ({ id: d.id || d.p2pAddress || d.btAddress || d.address,
-      name: d.name || d.address || 'Nearby phone', ip: d.address || '', port: d.port,
-      transport: d.transport || (d.p2pAddress ? 'Wi-Fi Direct' : 'LAN'),
-      p2pAddress: d.p2pAddress, btAddress: d.btAddress, raw: d });
-    radio.current = openRadio((type, data) => {
-      if (type === 'peer') { const peer = normalize(data); setPeers(old => [...old.filter(p => p.id !== peer.id), peer]); }
-      if (type === 'peers') setPeers(data.peers.map(normalize));
-      if (type === 'peerLost') setPeers(old => old.filter(p => p.id !== normalize(data).id));
-      if (type === 'connection') {
-        setConnectionState(data.state); setNotice(data.state);
-        setIsPairing(['CONNECTING', 'WAITING_APPROVAL', 'HANDSHAKING'].includes(data.state));
-        setPairingLog(data.state);
-        if (data.state === 'CONNECTED') {
-          setConnectedPeer({ id: data.address || 'connected', name: data.peer || 'Connected peer', ip: data.address || '', transport: data.transport || 'LAN' });
-          setIncoming(null);
-          setIsPairing(false);
-          setScreenMode('talking');
-        } else {
-          setConnectedPeer(null);
-          held.current = false;
-          setIsTalking(false);
-          if (['DISCONNECTED', 'FAILED'].includes(data.state)) {
-            setIsPairing(false);
-          }
-        }
-      }
-      if (type === 'connection_request') {
-        sound.playConnectChirp();
-        setIncoming(data);
-      }
-      if (['request_cancelled', 'request_declined'].includes(type)) { setIncoming(null); setIsPairing(false); setNotice(type.replace('_', ' ')); }
-      if (type === 'host') setHostInfo((data.addresses || []).join(' / ') + ' · PIN ' + data.pin);
-      if (['partial', 'recognized', 'sent', 'received'].includes(type) && data.text) {
-        setLiveTranscript(data.text);
-        if (type === 'received') {
-          held.current = false; setIsTalking(false);
-          recognitionRef.current?.abort();
-          setIsPeerSpeaking(true); setScreenMode('talking');
-        }
-      }
-      if (type === 'speech') {
-        setNotice(data.state);
-        if (/idle|error|released/i.test(data.state)) { held.current = false; setIsTalking(false); setIsPeerSpeaking(false); }
-      }
-      if (['notice', 'error', 'download_progress'].includes(type)) {
-        setNotice(data.message || data.state || JSON.stringify(data));
-        if (type === 'error') { held.current = false; setIsTalking(false); setIsPairing(false); }
-      }
-    });
-    command('language', { language: 'en' });
-    command('capabilities'); command('discover');
-    return () => radio.current?.close();
-  }, []);
+  const [pin] = useState<string>('');
 
-  // Audio & Talking
+  // Hugging Face Model State (Requirement 3)
+  const [installedModels, setInstalledModels] = useState<string[]>(['en-IN']);
+  const [activeModelTag, setActiveModelTag] = useState<string>('en-IN');
+  const [selectedModelIndex, setSelectedModelIndex] = useState<number>(0);
+  const [downloadingModels, setDownloadingModels] = useState<Record<string, { pct: number; mbDone: number; mbTotal: number }>>({});
+  const modelListRef = useRef<HTMLDivElement | null>(null);
+
+  const radio = useRef<ReturnType<typeof openRadio> | null>(null);
+  const held = useRef<boolean>(false);
+  const command = (action: string, data: any = {}) => radio.current?.command(action, data);
+
+  // Audio & Talking States
   const [isTalking, setIsTalking] = useState<boolean>(false);
   const [liveTranscript, setLiveTranscript] = useState<string>('READY WHEN YOU ARE.');
   const [isPeerSpeaking, setIsPeerSpeaking] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
-  const [languageIdx, setLanguageIdx] = useState<number>(0);
-  const [eqLevels, setEqLevels] = useState<number[]>([12, 24, 18, 38, 48, 30, 20, 35, 42, 28, 16, 22]);
+  const [languageIdx] = useState<number>(0);
 
-  // Audio animation canvas ref
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const animFrameRef = useRef<number | null>(null);
+  // Canvas References
+  const idleCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const transceiverCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const animFrameIdleRef = useRef<number | null>(null);
+  const animFrameTransceiverRef = useRef<number | null>(null);
+
   const recognitionRef = useRef<any>(null);
+  const INACTIVITY_TIMEOUT_MS = 90000; // 1 min 30 seconds
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pairingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deviceListRef = useRef<HTMLDivElement | null>(null);
+  const lastSpokenTextRef = useRef<string>('');
+  const hasDispatchedRef = useRef<boolean>(false);
 
   const currentLanguage = LANGUAGES[languageIdx];
+  const currentHFModel = HF_CATALOGUE.find(m => activeModelTag.toLowerCase().startsWith(m.tag.split('-')[0].toLowerCase())) || HF_CATALOGUE[0];
+
+  // Helper to clear inactivity / silence timer
+  const clearInactivityTimer = useCallback(() => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = null;
+    }
+  }, []);
+
+  // 1 min 30 seconds inactivity timer: auto-returns to 'idle' animation screen
+  const resetInactivityTimer = useCallback(() => {
+    clearInactivityTimer();
+    inactivityTimerRef.current = setTimeout(() => {
+      setScreenMode('idle');
+      setNotice(prev => (prev.includes('LINKED') ? prev : 'IDLE · CARRIER STANDBY'));
+    }, INACTIVITY_TIMEOUT_MS);
+  }, [clearInactivityTimer]);
+
+  // Aliases for silence completion
+  const startSilenceTimer = resetInactivityTimer;
+  const clearSilenceTimer = clearInactivityTimer;
+
+  // Discovery trigger
+  const triggerDiscovery = useCallback(() => {
+    command('discover');
+    if (isNative()) command('discoverP2p');
+  }, []);
+
+  // 2. Open Radio & Listen for Events
+  useEffect(() => {
+    const normalize = (d: any): PeerDevice => ({
+      id: d.id || d.p2pAddress || d.btAddress || d.address || String(Math.random()),
+      name: d.name || d.address || 'Nearby phone',
+      ip: d.address || '',
+      port: d.port,
+      transport: (d.p2pAddress || d.source === 'p2p') ? 'Wi-Fi Direct' : (d.transport || 'P2P'),
+      p2pAddress: d.p2pAddress,
+      btAddress: d.btAddress,
+      raw: d,
+    });
+
+    radio.current = openRadio((type, data) => {
+      if (type === 'peer') {
+        const peer = normalize(data);
+        if (!isWifiDirectPeer(peer)) return;
+        setPeers(old => [...old.filter(p => p.id !== peer.id), peer]);
+      }
+      if (type === 'peers') {
+        const valid = (data.peers || []).map(normalize).filter(isWifiDirectPeer);
+        setPeers(valid);
+      }
+      if (type === 'peerLost') {
+        setPeers(old => old.filter(p => p.id !== normalize(data).id));
+      }
+      if (type === 'modelSupport') {
+        if (Array.isArray(data.installed)) {
+          setInstalledModels(data.installed);
+        }
+      }
+      if (type === 'capabilities') {
+        if (data.locale) {
+          setActiveModelTag(data.locale);
+        }
+      }
+      if (type === 'download_progress') {
+        setDownloadingModels(prev => ({
+          ...prev,
+          [data.tag]: {
+            pct: data.pct || 0,
+            mbDone: data.mbDone || 0,
+            mbTotal: data.mbTotal || 0,
+          }
+        }));
+      }
+
+      if (type === 'connection') {
+        setConnectionState(data.state);
+        setIsPairing(['CONNECTING', 'WAITING_APPROVAL', 'HANDSHAKING'].includes(data.state));
+        setPairingLog(data.state);
+
+        if (data.state === 'CONNECTED') {
+          if (pairingTimeoutRef.current) clearTimeout(pairingTimeoutRef.current);
+          setConnectedPeer({
+            id: data.address || 'connected',
+            name: data.peer || 'Connected Peer',
+            ip: data.address || '',
+            transport: data.transport || 'LAN',
+          });
+          setIncoming(null);
+          setIsPairing(false);
+          setPairingPeerId(null);
+          sound.playConnectChirp();
+          clearSilenceTimer();
+          // After connecting -> automatically change to Idle Animation page
+          setScreenMode('idle');
+          setNotice(`LINKED TO ${data.peer || 'PEER'}`);
+        } else if (data.state === 'RECONNECTING') {
+          setNotice(`RECONNECTING TO ${connectedPeer?.name || data.peer || 'PEER'}…`);
+          setPairingLog('RECONNECTING…');
+        } else if (['DISCONNECTED', 'FAILED'].includes(data.state)) {
+          setConnectedPeer(null);
+          held.current = false;
+          setIsTalking(false);
+          setIsPeerSpeaking(false);
+          clearSilenceTimer();
+          setIsPairing(false);
+          setPairingPeerId(null);
+          sound.playClick();
+          // If disconnected -> automatically return to Available Devices page
+          setScreenMode('devices');
+          setNotice(data.state === 'FAILED' ? 'LINK FAILED · SELECT PEER' : 'DISCONNECTED · SELECT PEER');
+          triggerDiscovery();
+        }
+      }
+
+      if (type === 'connection_request') {
+        sound.playConnectChirp();
+        command('respondConnection', { accept: true });
+        setIncoming(null);
+      }
+
+      if (['request_cancelled', 'request_declined'].includes(type)) {
+        setIncoming(null);
+        setIsPairing(false);
+        setPairingPeerId(null);
+        setNotice(type.replace('_', ' ').toUpperCase());
+      }
+
+      // Requirement 3: When someone speaks (received from peer), automatically switch to Transceiver page!
+      if (['partial', 'recognized', 'sent', 'received'].includes(type) && data.text) {
+        setLiveTranscript(data.text);
+        if (['partial', 'recognized'].includes(type)) {
+          lastSpokenTextRef.current = data.text;
+        }
+        if (['sent', 'recognized'].includes(type)) {
+          hasDispatchedRef.current = true;
+        }
+        if (type === 'received') {
+          held.current = false;
+          setIsTalking(false);
+          recognitionRef.current?.abort();
+          setIsPeerSpeaking(true);
+          // Automatically switch to Transceiver page on incoming voice!
+          setScreenMode('transceiver');
+          clearSilenceTimer();
+        }
+      }
+
+      if (type === 'speech') {
+        setNotice(data.state);
+        if (/idle|error|released/i.test(data.state)) {
+          held.current = false;
+          setIsTalking(false);
+          setIsPeerSpeaking(false);
+          startSilenceTimer();
+        }
+      }
+
+      if (['notice', 'error'].includes(type)) {
+        setNotice(data.message || data.state || JSON.stringify(data));
+        if (type === 'error') {
+          held.current = false;
+          setIsTalking(false);
+          setIsPairing(false);
+          setPairingPeerId(null);
+        }
+      }
+    });
+
+    command('language', { language: 'en' });
+    command('capabilities');
+    triggerDiscovery();
+
+    return () => {
+      radio.current?.close();
+      clearSilenceTimer();
+      if (pairingTimeoutRef.current) clearTimeout(pairingTimeoutRef.current);
+    };
+  }, [clearSilenceTimer, startSilenceTimer, triggerDiscovery]);
+
+  // Requirement: Global inactivity detector (switches to Idle Animation if app is not interacted with for 1m 30s)
+  useEffect(() => {
+    resetInactivityTimer();
+
+    const handleUserInteraction = () => {
+      resetInactivityTimer();
+    };
+
+    window.addEventListener('pointerdown', handleUserInteraction, { passive: true });
+    window.addEventListener('touchstart', handleUserInteraction, { passive: true });
+    window.addEventListener('keydown', handleUserInteraction, { passive: true });
+    window.addEventListener('click', handleUserInteraction, { passive: true });
+    window.addEventListener('wheel', handleUserInteraction, { passive: true });
+
+    return () => {
+      clearInactivityTimer();
+      window.removeEventListener('pointerdown', handleUserInteraction);
+      window.removeEventListener('touchstart', handleUserInteraction);
+      window.removeEventListener('keydown', handleUserInteraction);
+      window.removeEventListener('click', handleUserInteraction);
+      window.removeEventListener('wheel', handleUserInteraction);
+    };
+  }, [resetInactivityTimer, clearInactivityTimer]);
+
+  // Periodic discovery refresh when on 'devices' screen and disconnected
+  useEffect(() => {
+    if (screenMode !== 'devices' || connectedPeer) return;
+    const interval = setInterval(() => {
+      triggerDiscovery();
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [screenMode, connectedPeer, triggerDiscovery]);
 
   // Sound effects toggle
   const toggleSound = () => {
@@ -125,7 +341,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
     sound.playClick();
   };
 
-  // Initialize SpeechRecognition if available in browser
+  // Browser SpeechRecognition fallback (for Web simulation)
   useEffect(() => {
     if (isNative()) return;
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -143,7 +359,11 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
           }
           if (interim.trim()) {
             setLiveTranscript(interim);
-            const finalized = Array.from(event.results as ArrayLike<any>).slice(event.resultIndex).filter((r: any) => r.isFinal).map((r: any) => r[0].transcript).join(' ');
+            const finalized = Array.from(event.results as ArrayLike<any>)
+              .slice(event.resultIndex)
+              .filter((r: any) => r.isFinal)
+              .map((r: any) => r[0].transcript)
+              .join(' ');
             if (finalized.trim()) command('send', { text: finalized });
           }
         };
@@ -155,6 +375,8 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
         rec.onend = () => {
           if (held.current) {
             try { rec.start(); } catch (_) {}
+          } else {
+            startSilenceTimer();
           }
         };
 
@@ -167,27 +389,32 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
         try { recognitionRef.current.stop(); } catch (_) {}
       }
     };
+  }, [currentLanguage, startSilenceTimer]);
+
+  useEffect(() => {
+    command('language', { language: currentLanguage.speechCode.split('-')[0] });
   }, [currentLanguage]);
 
-  useEffect(() => { command('language', { language: currentLanguage.speechCode.split('-')[0] }); }, [currentLanguage]);
-
-  // Screen 3: Phosphor Oscilloscope & Pixel Animation Canvas
+  // =========================================================================
+  // PAGE 3: Hypnotic Idle Carrier Oscilloscope Animation
+  // =========================================================================
   useEffect(() => {
-    const canvas = canvasRef.current;
+    if (screenMode !== 'idle') return;
+    const canvas = idleCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     let t = 0;
     const render = () => {
-      t += 0.04;
+      t += 0.035;
       const w = canvas.width;
       const h = canvas.height;
 
       ctx.clearRect(0, 0, w, h);
 
-      // Draw subtle phosphor green matrix grid lines
-      ctx.strokeStyle = 'rgba(195, 245, 59, 0.08)';
+      // CRT phosphor grid lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
       ctx.lineWidth = 1;
       const gridSize = 16;
       for (let x = 0; x < w; x += gridSize) {
@@ -203,22 +430,19 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
         ctx.stroke();
       }
 
-      // Draw harmonic Lissajous / breathing carrier wave
+      // Breathing harmonic Lissajous carrier wave
       ctx.lineWidth = 2;
-      ctx.strokeStyle = '#c3f53b';
-      ctx.shadowColor = 'rgba(195, 245, 59, 0.8)';
+      ctx.strokeStyle = '#e4e4e7';
+      ctx.shadowColor = 'rgba(228, 228, 231, 0.65)';
       ctx.shadowBlur = 6;
 
       ctx.beginPath();
       const centerY = h / 2;
       for (let x = 0; x < w; x += 2) {
-        // Multi-frequency harmonic wave with subtle pixel stepping
-        const wave1 = Math.sin(x * 0.05 + t) * 16;
-        const wave2 = Math.cos(x * 0.02 - t * 0.7) * 8;
-        const wave3 = Math.sin(x * 0.12 + t * 1.5) * 4;
+        const wave1 = Math.sin(x * 0.045 + t) * 16;
+        const wave2 = Math.cos(x * 0.02 - t * 0.6) * 8;
+        const wave3 = Math.sin(x * 0.1 + t * 1.4) * 4;
         const y = centerY + wave1 + wave2 + wave3;
-
-        // Quantize to 2px pixel grid for authentic retro CRT feel
         const pxY = Math.round(y / 2) * 2;
 
         if (x === 0) ctx.moveTo(x, pxY);
@@ -228,214 +452,470 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
 
       // Secondary ghost wave
       ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(195, 245, 59, 0.35)';
+      ctx.strokeStyle = 'rgba(212, 212, 216, 0.3)';
       ctx.shadowBlur = 0;
       ctx.beginPath();
       for (let x = 0; x < w; x += 3) {
-        const y = centerY + Math.sin(x * 0.04 - t * 1.2) * 22;
+        const y = centerY + Math.sin(x * 0.035 - t * 1.1) * 22;
         const pxY = Math.round(y / 2) * 2;
         if (x === 0) ctx.moveTo(x, pxY);
         else ctx.lineTo(x, pxY);
       }
       ctx.stroke();
 
-      // Telemetry heartbeat pulses at the ends
-      const pulseX = (Math.sin(t * 1.8) * 0.5 + 0.5) * w;
-      ctx.fillStyle = '#c3f53b';
+      // Telemetry heartbeat pulse
+      const pulseX = (Math.sin(t * 1.6) * 0.5 + 0.5) * w;
+      ctx.fillStyle = '#ffffff';
       ctx.fillRect(Math.round(pulseX / 4) * 4, centerY - 2, 4, 4);
 
-      animFrameRef.current = requestAnimationFrame(render);
+      animFrameIdleRef.current = requestAnimationFrame(render);
     };
 
     render();
 
     return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (animFrameIdleRef.current) cancelAnimationFrame(animFrameIdleRef.current);
     };
   }, [screenMode]);
 
-  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
-
-  // Audio Equalizer bars animation when talking
+  // =========================================================================
+  // PAGE 2: Dynamic Voice-Reactive Audio Graph Canvas
+  // Reacts vividly when peer is speaking (voice receiving) or user transmits!
+  // =========================================================================
   useEffect(() => {
-    if (!isTalking && !isPeerSpeaking && screenMode !== 'talking') return;
-    const intervalMs = playbackSpeed === 2 ? 45 : 90;
-    const interval = setInterval(() => {
-      setEqLevels(prev =>
-        prev.map(() => Math.floor(Math.random() * 42) + 8)
-      );
-    }, intervalMs);
-    return () => clearInterval(interval);
-  }, [isTalking, isPeerSpeaking, screenMode, playbackSpeed]);
+    if (screenMode !== 'transceiver') return;
+    const canvas = transceiverCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-  const timersRef = useRef<number[]>([]);
+    let t = 0;
+    let voicePhase = 0;
 
-  const clearAllTimers = () => {
-    timersRef.current.forEach(id => clearTimeout(id));
-    timersRef.current = [];
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-  };
+    const render = () => {
+      t += 0.08;
+      voicePhase += 0.12;
+      const w = canvas.width;
+      const h = canvas.height;
+      const centerY = h / 2 - 6;
 
-  useEffect(() => {
-    return () => clearAllTimers();
-  }, []);
+      ctx.clearRect(0, 0, w, h);
 
+      // CRT phosphor grid
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < w; x += 16) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+      for (let y = 0; y < h; y += 16) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      // Voice activity multiplier
+      let voiceEnergy = 0.15; // idle baseline
+      if (isPeerSpeaking) {
+        // Dynamic simulated voice cadence with syllables, pitch jumps, formant fluctuations
+        voiceEnergy = 0.65 + Math.sin(t * 3.5) * 0.25 + (Math.sin(t * 7.2) > 0.3 ? 0.35 : -0.15) + (Math.random() * 0.2);
+      } else if (isTalking) {
+        voiceEnergy = 0.55 + Math.sin(t * 4.2) * 0.25 + Math.random() * 0.2;
+      }
+      voiceEnergy = Math.max(0.12, Math.min(1.2, voiceEnergy));
+
+      // 1. Draw dynamic audio frequency spectrum bars along the bottom
+      const numBars = 28;
+      const barWidth = Math.floor(w / numBars) - 2;
+      for (let i = 0; i < numBars; i++) {
+        const barX = i * (barWidth + 2) + 2;
+        const freqWeight = Math.sin((i / numBars) * Math.PI); // vocal formant bell curve
+        const noise = Math.sin(voicePhase * 2 + i * 0.8) * 0.5 + 0.5;
+        const barHeight = Math.max(3, (freqWeight * 34 * voiceEnergy) + (noise * 16 * voiceEnergy));
+        
+        ctx.fillStyle = isPeerSpeaking
+          ? 'rgba(56, 189, 248, 0.75)'
+          : isTalking
+          ? 'rgba(239, 68, 68, 0.75)'
+          : 'rgba(228, 228, 231, 0.45)';
+        ctx.fillRect(barX, h - barHeight - 2, barWidth, barHeight);
+      }
+
+      // 2. Draw live voice waveform oscillograph
+      ctx.lineWidth = isPeerSpeaking || isTalking ? 2.5 : 1.5;
+      ctx.strokeStyle = isPeerSpeaking ? '#38bdf8' : isTalking ? '#ffffff' : '#e4e4e7';
+      ctx.shadowColor = isPeerSpeaking ? 'rgba(56, 189, 248, 0.8)' : 'rgba(228, 228, 231, 0.7)';
+      ctx.shadowBlur = isPeerSpeaking || isTalking ? 8 : 4;
+
+      ctx.beginPath();
+      for (let x = 0; x < w; x += 2) {
+        const xNorm = x / w;
+        const envelope = Math.sin(xNorm * Math.PI); // tapered edges
+        const wave1 = Math.sin(x * 0.08 + t * 4) * (24 * voiceEnergy);
+        const wave2 = Math.cos(x * 0.16 - t * 6) * (14 * voiceEnergy);
+        const wave3 = (Math.sin(x * 0.32 + t * 10)) * (8 * voiceEnergy);
+        const jitter = (isPeerSpeaking || isTalking) ? (Math.random() - 0.5) * 3 : 0;
+        
+        const y = centerY + (wave1 + wave2 + wave3 + jitter) * envelope;
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      animFrameTransceiverRef.current = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      if (animFrameTransceiverRef.current) cancelAnimationFrame(animFrameTransceiverRef.current);
+    };
+  }, [screenMode, isPeerSpeaking, isTalking]);
+
+  // Requirement 3: Start talking (PTT pressed)
+  // Automatically switches to Transceiver page and starts microphone voice capture!
   const startTalking = () => {
     if (held.current) return;
-    if (!connectedPeer) { setNotice('Connect to a peer before speaking.'); return; }
-    if (!isNative() && !recognitionRef.current) { setNotice('Speech recognition unavailable in this browser. Use typed dispatch or Android.'); return; }
-    held.current = true; setIsTalking(true); setIsPeerSpeaking(false); setScreenMode('talking');
-    setLiveTranscript('LISTENING…');
-    if (isNative()) command('start');
-    else { try { recognitionRef.current.start(); } catch (e) { held.current = false; setIsTalking(false); setNotice(String(e)); } }
+    clearSilenceTimer();
+    held.current = true;
+    setIsTalking(true);
+    setIsPeerSpeaking(false);
+    
+    // Automatically switch to Transceiver page!
+    setScreenMode('transceiver');
+    sound.playPttStart();
+    setLiveTranscript('TRANSMITTING VOICE…');
+    lastSpokenTextRef.current = '';
+    hasDispatchedRef.current = false;
+
+    if (isNative()) {
+      command('start');
+    } else {
+      try {
+        recognitionRef.current?.start();
+      } catch (e) {
+        held.current = false;
+        setIsTalking(false);
+        setNotice(String(e));
+        startSilenceTimer();
+      }
+    }
   };
+
+  // Stop talking (PTT released)
   const stopTalking = () => {
     if (!held.current) return;
-    held.current = false; setIsTalking(false);
-    if (isNative()) command('release');
-    else recognitionRef.current?.stop();
+    held.current = false;
+    setIsTalking(false);
+    sound.playPttEnd();
+
+    const pendingSpoken = lastSpokenTextRef.current;
+
+    if (isNative()) {
+      command('release');
+      // Safety net: ensure speech is dispatched if native final CTC decode returned empty
+      if (pendingSpoken && !hasDispatchedRef.current) {
+        setTimeout(() => {
+          if (!hasDispatchedRef.current && pendingSpoken) {
+            hasDispatchedRef.current = true;
+            console.log('Dispatching safety fallback for STT spoken transcript:', pendingSpoken);
+            command('send', { text: pendingSpoken, language: 'en' });
+          }
+        }, 1200);
+      }
+    } else {
+      try { recognitionRef.current?.stop(); } catch (_) {}
+    }
+
+    // Start 30s inactivity countdown back to Idle page
+    startSilenceTimer();
   };
-  const handleToggleTalk = () => held.current ? stopTalking() : startTalking();
-  const handleSendPhrase = (phrase: string) => {
-    if (!connectedPeer) { setNotice('Connect to a peer before sending.'); return; }
-    command('send', { text: phrase, language: currentLanguage.speechCode.split('-')[0] });
-    setNotice('Message submitted. Delivery requires a peer acknowledgement.');
+
+  // Filtered Wi-Fi Direct peers: ONLY show Wi-Fi Direct connections!
+  const wifiDirectPeers = peers.filter(isWifiDirectPeer);
+
+  // Model actions (Requirement 3: Hugging Face STT & TTS download and selection)
+  const handleSelectModel = (model: HFModel) => {
+    sound.playClick();
+    setActiveModelTag(model.tag);
+    command('language', { language: model.tag.split('-')[0] });
+    setNotice(`ACTIVATED ${model.name.toUpperCase()} (${model.tag}) OFFLINE MODEL`);
   };
+
+  const handleDownloadModel = (model: HFModel) => {
+    sound.playClick();
+    setNotice(`STARTING DOWNLOAD: ${model.name.toUpperCase()} FROM HUGGING FACE…`);
+    setDownloadingModels(prev => ({
+      ...prev,
+      [model.tag]: { pct: 0, mbDone: 0, mbTotal: model.sizeMB }
+    }));
+    command('downloadSelected', { languages: [model.tag] });
+  };
+
+  const toggleLanguagesScreen = () => {
+    sound.playClick();
+    if (screenMode === 'languages') {
+      setScreenMode(lastScreenMode);
+    } else {
+      setLastScreenMode(screenMode);
+      setScreenMode('languages');
+      command('capabilities');
+    }
+  };
+
+  // Connection handler (strictly prioritizing Wi-Fi Direct / P2P)
   const handleConnectDevice = (peer: PeerDevice) => {
+    if (isPairing && pairingPeerId === peer.id) return;
+    sound.playClick();
     setIsPairing(true);
-    setPairingLog('CONNECTING TO ' + peer.name);
-    // Prioritize direct LAN TCP connection when IP address is known
-    if (peer.ip && peer.ip.includes('.')) {
-      command('connect', { address: peer.ip, port: peer.port || 8988, pin, peer: peer.raw });
-    } else if (isNative() && peer.p2pAddress) {
-      command('connectP2p', { p2pAddress: peer.p2pAddress });
-    } else if (isNative() && peer.btAddress) {
-      command('connectBluetooth', { btAddress: peer.btAddress });
+    setPairingPeerId(peer.id);
+    setPairingLog(`CONNECTING TO ${peer.name.toUpperCase()}…`);
+    setNotice(`PAIRING WITH ${peer.name.toUpperCase()}…`);
+
+    if (pairingTimeoutRef.current) clearTimeout(pairingTimeoutRef.current);
+    pairingTimeoutRef.current = setTimeout(() => {
+      setIsPairing(false);
+      setPairingPeerId(null);
+      setNotice('PAIRING TIMEOUT · TAP TO RETRY');
+    }, 12000);
+
+    if (isNative() && peer.p2pAddress) {
+      command('connectP2p', { p2pAddress: peer.p2pAddress, peerName: peer.name });
+    } else if (peer.ip && peer.ip.includes('.')) {
+      command('connect', { address: peer.ip, port: peer.port || 8988, pin, peer: peer.raw, peerName: peer.name });
     } else {
-      command('connect', { address: peer.ip, port: peer.port || 8988, pin, peer: peer.raw });
+      command('connectP2p', { p2pAddress: peer.p2pAddress || peer.id, peerName: peer.name });
     }
   };
 
-  // Screen Navigation handlers (Top = UP, Bottom = DOWN)
-  const handleNavigateUp = () => {
+  const handleCancelPairing = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     sound.playClick();
-    clearAllTimers();
-    if (screenMode === 'idle') {
-      setScreenMode('devices');
-    } else if (screenMode === 'devices') {
-      setScreenMode(connectedPeer ? 'talking' : 'idle');
-    } else {
-      setScreenMode('idle');
-    }
+    setIsPairing(false);
+    setPairingPeerId(null);
+    command('cancelRequest');
+    setNotice('PAIRING CANCELLED');
+    if (pairingTimeoutRef.current) clearTimeout(pairingTimeoutRef.current);
   };
 
-  const handleNavigateDown = () => {
+  const handleDisconnect = () => {
     sound.playClick();
-    clearAllTimers();
+    command('disconnect');
+    setConnectedPeer(null);
+    setIsPairing(false);
+    setPairingPeerId(null);
+    clearSilenceTimer();
+    setScreenMode('devices');
+    setNotice('DISCONNECTED FROM PEER');
+    triggerDiscovery();
+  };
+
+  const handleManualScan = () => {
+    sound.playClick();
+    triggerDiscovery();
+    setNotice('SCANNING WI-FI DIRECT FREQUENCIES…');
+  };
+
+  // Requirement 2: Up and Down buttons navigate the device list / model list!
+  const handleNavUp = () => {
+    sound.playClick();
     if (screenMode === 'devices') {
-      setScreenMode('idle');
+      setSelectedDeviceIndex(prev => (prev > 0 ? prev - 1 : (wifiDirectPeers.length > 0 ? wifiDirectPeers.length - 1 : 0)));
+    } else if (screenMode === 'languages') {
+      setSelectedModelIndex(prev => (prev > 0 ? prev - 1 : HF_CATALOGUE.length - 1));
     } else if (screenMode === 'idle') {
       setScreenMode('devices');
-    } else {
+    } else if (screenMode === 'transceiver') {
       setScreenMode('idle');
     }
   };
 
-  // Talking Screen Controls: Rewind & 2X Speed
-  // Keyboard navigation support:
-  // ArrowUp / ArrowDown navigate screens (only when not in talking screen)
-  // ArrowLeft = Rewind, ArrowRight = 2X Speed, Space = Push To Talk
+  const handleNavDown = () => {
+    sound.playClick();
+    if (screenMode === 'devices') {
+      setSelectedDeviceIndex(prev => (wifiDirectPeers.length > 0 ? (prev + 1) % wifiDirectPeers.length : 0));
+    } else if (screenMode === 'languages') {
+      setSelectedModelIndex(prev => (prev + 1) % HF_CATALOGUE.length);
+    } else if (screenMode === 'idle') {
+      if (connectedPeer) handleDisconnect();
+      else setScreenMode('devices');
+    } else if (screenMode === 'transceiver') {
+      setScreenMode('devices');
+    }
+  };
+
+  // Auto-scroll selected item into view when navigating via UP/DOWN
+  useEffect(() => {
+    if (screenMode === 'devices' && wifiDirectPeers.length > 0) {
+      const el = document.getElementById(`device-row-${selectedDeviceIndex}`);
+      if (el) {
+        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    } else if (screenMode === 'languages' && HF_CATALOGUE.length > 0) {
+      const el = document.getElementById(`model-row-${selectedModelIndex}`);
+      if (el) {
+        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+  }, [selectedDeviceIndex, selectedModelIndex, screenMode, wifiDirectPeers.length]);
+
+  // Keyboard navigation & PTT support
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === 'ArrowUp') {
-        if (screenMode !== 'talking') {
-          e.preventDefault();
-          handleNavigateUp();
-        }
+        handleNavUp();
       } else if (e.key === 'ArrowDown') {
-        if (screenMode !== 'talking') {
+        handleNavDown();
+      } else if (e.key === 'ArrowLeft') {
+        if (screenMode === 'languages') {
+          toggleLanguagesScreen();
+        } else if (screenMode === 'transceiver') {
           e.preventDefault();
-          handleNavigateDown();
+          command('stopPlayback');
+          setIsPeerSpeaking(false);
+          sound.playClick();
+        } else if (screenMode === 'devices') {
+          handleManualScan();
         }
-      } else if (e.key === 'ArrowLeft' && screenMode === 'talking') {
-        e.preventDefault();
-        command('stopPlayback');
-      } else if (e.key === 'ArrowRight' && screenMode === 'talking') {
-        e.preventDefault();
-        command('stopPlayback');
+      } else if (e.key === 'Enter') {
+        if (screenMode === 'devices' && wifiDirectPeers[selectedDeviceIndex]) {
+          handleConnectDevice(wifiDirectPeers[selectedDeviceIndex]);
+        } else if (screenMode === 'languages') {
+          const model = HF_CATALOGUE[selectedModelIndex];
+          if (model) {
+            const isInstalled = installedModels.some(
+              m => m.toLowerCase() === model.tag.toLowerCase() || m.toLowerCase() === model.tag.split('-')[0].toLowerCase()
+            );
+            if (isInstalled) handleSelectModel(model);
+            else if (!downloadingModels[model.tag]) handleDownloadModel(model);
+          }
+        }
       } else if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
         if (!e.repeat) startTalking();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [screenMode, playbackSpeed, isTalking, connectedPeer]);
 
-  // Click Wheel Props per page based on requirements:
-  // 1) Push to talk is center button on every page
-  // 2) On talking screen: REMOVE UP and DOWN. Left is REWIND, right is 2X SPEED
-  // 3) On idle & devices screens: top is UP, bottom is DOWN for screen navigation
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        stopTalking();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [screenMode, wifiDirectPeers, selectedDeviceIndex, selectedModelIndex, connectedPeer, installedModels, downloadingModels]);
+
+  // =========================================================================
+  // Click Wheel Button Action Props (Strictly NO 2X and NO Rewind per Req 4)
+  // =========================================================================
   const getWheelButtonProps = () => {
-    if (screenMode === 'talking') {
-      // Requirement: Remove UP and DOWN from talking screen!
+    // 1. Languages Screen (Hugging Face Model Downloader & Selector)
+    if (screenMode === 'languages') {
       return {
-        topText: '',
-        topAction: () => {},
-        topTitle: '',
-        bottomText: '',
-        bottomAction: () => {},
-        bottomTitle: '',
+        topText: '▲ UP',
+        topAction: handleNavUp,
+        topTitle: 'Navigate up in language models',
+        bottomText: '▼ DOWN',
+        bottomAction: handleNavDown,
+        bottomTitle: 'Navigate down in language models',
+        leftText: '◄ BACK',
+        leftAction: toggleLanguagesScreen,
+        leftTitle: 'Return to previous screen',
+        rightText: 'REFRESH',
+        rightAction: () => {
+          sound.playClick();
+          command('capabilities');
+          setNotice('CHECKING HUGGING FACE & LOCAL PACKS…');
+        },
+        rightTitle: 'Refresh model status',
+      };
+    }
+
+    // 2. Available Devices Screen
+    if (screenMode === 'devices') {
+      return {
+        topText: '▲ UP',
+        topAction: handleNavUp,
+        topTitle: 'Navigate up in device list',
+        bottomText: '▼ DOWN',
+        bottomAction: handleNavDown,
+        bottomTitle: 'Navigate down in device list',
+        leftText: 'SCAN',
+        leftAction: handleManualScan,
+        leftTitle: 'Scan for nearby Wi-Fi Direct peers',
+        rightText: 'LANG',
+        rightAction: () => {
+          sound.playClick();
+          toggleLanguagesScreen();
+        },
+        rightTitle: 'Open Hugging Face Language Models repository',
+      };
+    }
+
+    // 3. Transceiver Screen (Speech Active)
+    if (screenMode === 'transceiver') {
+      return {
+        topText: '▲ STATUS',
+        topAction: () => {
+          sound.playClick();
+          setScreenMode('idle');
+        },
+        topTitle: 'Go to status / idle screen',
+        bottomText: '▼ DEVICES',
+        bottomAction: () => {
+          sound.playClick();
+          setScreenMode('devices');
+        },
+        bottomTitle: 'Go to available devices list',
         leftText: '■ STOP',
         leftAction: () => {
           command('stopPlayback');
           setIsPeerSpeaking(false);
           sound.playClick();
         },
-        leftTitle: 'Stop speech playback',
-        rightText: playbackSpeed === 2 ? '1X SPEED' : '2X SPEED',
+        leftTitle: 'Stop audio playback',
+        rightText: 'LANG',
         rightAction: () => {
-          setPlaybackSpeed(prev => (prev === 1 ? 2 : 1));
           sound.playClick();
+          toggleLanguagesScreen();
         },
-        rightTitle: 'Toggle 2X audio speed playback',
+        rightTitle: 'Open Hugging Face Language Models repository',
       };
     }
 
-    if (screenMode === 'devices') {
-      return {
-        topText: '▲ UP',
-        topAction: handleNavigateUp,
-        topTitle: 'Navigate to Standby Screen (UP)',
-        bottomText: '▼ DOWN',
-        bottomAction: handleNavigateDown,
-        bottomTitle: 'Navigate to Standby Screen (DOWN)',
-        leftText: '',
-        leftAction: () => {},
-        leftTitle: '',
-        rightText: '',
-        rightAction: () => {},
-        rightTitle: '',
-      };
-    }
-
-    // screenMode === 'idle'
+    // 4. Idle Animation Screen (Connected & Standby)
     return {
-      topText: '▲ UP',
-      topAction: handleNavigateUp,
-      topTitle: 'Navigate to Available Devices Screen (UP)',
-      bottomText: '▼ DOWN',
-      bottomAction: handleNavigateDown,
-      bottomTitle: 'Navigate to Available Devices Screen (DOWN)',
-      leftText: '',
-      leftAction: () => {},
-      leftTitle: '',
-      rightText: '',
-      rightAction: () => {},
-      rightTitle: '',
+      topText: '▲ DEVICES',
+      topAction: () => {
+        sound.playClick();
+        setScreenMode('devices');
+      },
+      topTitle: 'Switch to Available Devices list',
+      bottomText: '▼ LANGUAGE',
+      bottomAction: () => {
+        sound.playClick();
+        toggleLanguagesScreen();
+      },
+      bottomTitle: 'Open Hugging Face Language Models repository',
+      leftText: 'SCAN',
+      leftAction: handleManualScan,
+      leftTitle: 'Scan Wi-Fi Direct frequencies',
+      rightText: 'TRANS',
+      rightAction: () => {
+        sound.playClick();
+        setScreenMode('transceiver');
+      },
+      rightTitle: 'Switch to Transceiver page',
     };
   };
 
@@ -443,179 +923,193 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
 
   return (
     <div className="transceiver-page-wrapper">
-      {/* Top Bar Header */}
-      <div className="transceiver-topbar">
-        <div className="transceiver-topbar-brand">
-          <span>SWAR</span>
-          <span style={{ fontSize: '14px', opacity: 0.7 }}>TRANSCVR//01</span>
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {onNavigate && (
-            <>
-              <button
-                onClick={() => onNavigate('experience')}
-                className="transceiver-nav-pill"
-                title="Switch to SWAR Web Presentation"
-              >
-                <span>WEB EXPERIENCE</span>
-              </button>
-              <button
-                onClick={() => onNavigate('studio')}
-                className="transceiver-nav-pill"
-                title="Switch to Audio Studio Dashboard"
-              >
-                <span>VOICE STUDIO</span>
-              </button>
-            </>
-          )}
-
-          <button
-            onClick={toggleSound}
-            className="transceiver-nav-pill"
-            title="Toggle procedural audio sound effects"
-          >
-            {soundEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
-            <span>{soundEnabled ? 'FX ON' : 'FX OFF'}</span>
-          </button>
-
-          {onBackToMain && (
-            <button
-              onClick={onBackToMain}
-              className="transceiver-nav-pill"
-              title="Return to main presentation"
-            >
-              <ArrowLeft size={13} />
-              <span>EXIT</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Screen Mode Quick Switcher Bar for Review & Testing */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap', justifyContent: 'center' }}>
-        <button
-          onClick={() => { stopTalking(); setScreenMode('devices'); command('discover'); if (isNative()) command('discoverP2p'); }}
-          className="transceiver-nav-pill"
-          style={{
-            borderColor: screenMode === 'devices' ? 'var(--swar-phosphor)' : undefined,
-            color: screenMode === 'devices' ? 'var(--swar-phosphor)' : undefined
-          }}
-        >
-          <Smartphone size={12} />
-          <span>1. AVAILABLE DEVICES</span>
-        </button>
-
-        <button
-          onClick={() => { stopTalking(); setScreenMode('talking'); }}
-          className="transceiver-nav-pill"
-          style={{
-            borderColor: screenMode === 'talking' ? 'var(--swar-phosphor)' : undefined,
-            color: screenMode === 'talking' ? 'var(--swar-phosphor)' : undefined
-          }}
-        >
-          <Mic size={12} />
-          <span>2. TRANSCRIPT</span>
-        </button>
-
-        <button
-          onClick={() => { stopTalking(); setScreenMode('idle'); }}
-          className="transceiver-nav-pill"
-          style={{
-            borderColor: screenMode === 'idle' ? 'var(--swar-phosphor)' : undefined,
-            color: screenMode === 'idle' ? 'var(--swar-phosphor)' : undefined
-          }}
-        >
-          <Sparkles size={12} />
-          <span>3. STATUS</span>
-        </button>
-      </div>
-
       {/* ====================================================================
-          THE PHYSICAL HARDWARE DEVICE CHASSIS (Matches Reference Image)
+          THE PHYSICAL HARDWARE DEVICE CHASSIS (THE WHOLE APP)
           ==================================================================== */}
       <div className="handheld-chassis">
         {/* Top Speaker Cutout / Grill Slot */}
         <div className="chassis-speaker-slit" />
 
-        {/* The Retro Pixelated CRT Bezel */}
+        {/* ==================================================================
+            THE RETRO BLACK CRT SCREEN BEZEL (FILLS TOP HALF OF SCREEN - 50%)
+            ================================================================== */}
         <div className="screen-bezel">
           <div className="pixel-screen">
-            {/* Screen Header */}
+            {/* Screen Header with Swan Logo and Status */}
             <div className="screen-header">
               <div className="screen-header-brand">
-                <div className="screen-brand-icon-box">V</div>
+                <img src={swanLogo} alt="Swar Icon" className="screen-brand-swan-icon" />
                 <span className="screen-brand-text">SWAR</span>
               </div>
 
               <div className="screen-header-status">
-                {screenMode === 'devices' ? (
+                {screenMode === 'languages' ? (
+                  <>
+                    <span className="status-dot-blink" style={{ backgroundColor: '#a855f7', boxShadow: '0 0 6px #a855f7' }} />
+                    <span style={{ color: '#c084fc', fontWeight: 700 }}>HF REPO</span>
+                    <button
+                      onClick={toggleLanguagesScreen}
+                      className="screen-action-btn-mini"
+                      title="Return to radio screen"
+                    >
+                      <span>× BACK</span>
+                    </button>
+                  </>
+                ) : screenMode === 'devices' ? (
                   <>
                     <span className="status-dot-blink" />
-                    <span>RADAR SCAN</span>
+                    <span>WIFI DIRECT</span>
+                    <button
+                      onClick={handleManualScan}
+                      className="screen-action-btn-mini"
+                      title="Scan nearby Wi-Fi Direct frequencies"
+                    >
+                      <RefreshCw size={10} />
+                      <span>SCAN</span>
+                    </button>
+                    <button
+                      onClick={toggleLanguagesScreen}
+                      className="screen-lang-header-btn"
+                      title="Hugging Face Language Models"
+                    >
+                      <span>🌐 LANG</span>
+                    </button>
                   </>
-                ) : screenMode === 'talking' ? (
+                ) : screenMode === 'transceiver' ? (
                   <>
-                    <span className="status-dot-blink" style={{ backgroundColor: '#ef4444', boxShadow: '0 0 6px #ef4444' }} />
-                    <span style={{ color: isPeerSpeaking ? '#38bdf8' : '#ef4444' }}>
-                      {isPeerSpeaking ? '● RX PEER' : isTalking ? '● TX LIVE' : '● STT READY'}
+                    <span
+                      className="status-dot-blink"
+                      style={{
+                        backgroundColor: isPeerSpeaking ? '#38bdf8' : '#ef4444',
+                        boxShadow: `0 0 6px ${isPeerSpeaking ? '#38bdf8' : '#ef4444'}`,
+                      }}
+                    />
+                    <span style={{ color: isPeerSpeaking ? '#38bdf8' : '#ef4444', fontWeight: 700 }}>
+                      {isPeerSpeaking ? '● RX VOICE' : isTalking ? '● TX LIVE' : '● STT ACTIVE'}
                     </span>
-                    {playbackSpeed === 2 && (
-                      <span style={{ fontSize: '11px', background: 'var(--swar-phosphor)', color: 'var(--swar-phosphor-bg)', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>
-                        2X
-                      </span>
-                    )}
+                    <button
+                      onClick={toggleLanguagesScreen}
+                      className="screen-lang-header-btn"
+                      title="Hugging Face Language Models"
+                    >
+                      <span>🌐 LANG</span>
+                    </button>
                   </>
                 ) : (
                   <>
                     <span className="status-dot-blink" />
-                    <span>■ STANDBY</span>
+                    <span>● LINKED</span>
+                    {connectedPeer && (
+                      <button
+                        onClick={handleDisconnect}
+                        className="screen-action-btn-mini"
+                        title="Disconnect current peer"
+                      >
+                        <Unlink size={10} />
+                        <span>DISC</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={toggleLanguagesScreen}
+                      className="screen-lang-header-btn"
+                      title="Hugging Face Language Models"
+                    >
+                      <span>🌐 LANG</span>
+                    </button>
                   </>
                 )}
+
+                {/* Micro Sound Toggle Button in Screen Header */}
+                <button
+                  onClick={toggleSound}
+                  className="screen-action-btn-mini"
+                  title="Toggle procedural audio effects"
+                >
+                  {soundEnabled ? <Volume2 size={11} /> : <VolumeX size={11} />}
+                </button>
               </div>
             </div>
 
-            {/* Dotted Baseline (Exact match from photo) */}
+            {/* Direct 1-Tap Screen Navigation Tabs Bar */}
+            <div className="screen-nav-tabs">
+              <button
+                className={`screen-nav-tab ${screenMode === 'devices' ? 'active' : ''}`}
+                onClick={() => {
+                  sound.playClick();
+                  setScreenMode('devices');
+                }}
+              >
+                DEVICES
+              </button>
+              <button
+                className={`screen-nav-tab ${screenMode === 'transceiver' ? 'active' : ''}`}
+                onClick={() => {
+                  sound.playClick();
+                  setScreenMode('transceiver');
+                }}
+              >
+                TRANSCEIVER
+              </button>
+              <button
+                className={`screen-nav-tab ${screenMode === 'idle' ? 'active' : ''}`}
+                onClick={() => {
+                  sound.playClick();
+                  setScreenMode('idle');
+                }}
+              >
+                STATUS
+              </button>
+              <button
+                className={`screen-nav-tab lang-nav-tab ${screenMode === 'languages' ? 'active' : ''}`}
+                onClick={() => {
+                  sound.playClick();
+                  toggleLanguagesScreen();
+                }}
+              >
+                🌐 LANGUAGE
+              </button>
+            </div>
+
+            {/* Dotted Baseline */}
             <div className="screen-dotted-bar">
-              ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪
+              ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪
             </div>
 
-            {/* Status Box */}
+            {/* Status Badge Box */}
             <div className="screen-status-badge">
-              {screenMode === 'devices'
-                ? isPairing ? pairingLog : 'SELECT NEARBY PEER TO CONNECT'
-                : screenMode === 'talking'
+              {screenMode === 'languages'
+                ? notice.includes('HUGGING FACE') || notice.includes('ACTIVATED') || notice.includes('STARTING')
+                  ? notice
+                  : 'HUGGING FACE REPOSITORY · ON-DEMAND STT & TTS MODELS'
+                : screenMode === 'devices'
+                ? isPairing
+                  ? pairingLog
+                  : notice
+                : screenMode === 'transceiver'
                 ? isPeerSpeaking
-                  ? `INCOMING AUDIO FROM ${connectedPeer?.name}`
+                  ? `INCOMING AUDIO FROM ${connectedPeer?.name || 'REMOTE PEER'}`
                   : isTalking
-                  ? 'MICROPHONE ACTIVE'
-                  : `READY TO TRANSMIT • ${playbackSpeed === 2 ? 'SPEED: 2.0X' : 'SPEED: 1.0X'}`
-                : 'NO VOICE ACTIVITY'}
+                  ? 'MICROPHONE ACTIVE · TRANSMITTING'
+                  : 'READY TO TRANSMIT · HOLD CENTER TO TALK'
+                : `LINK ACTIVE: ${connectedPeer?.name || 'STANDBY'} · WAITING FOR SPEECH`}
             </div>
 
-            {/* Incoming Connection Request Modal / Card right on CRT Screen */}
+            {/* Incoming Connection Request Modal Card right on CRT Screen */}
             {incoming && (
               <div className="screen-incoming-card">
                 <div className="incoming-card-title">
-                  <span className="status-dot-blink" style={{ backgroundColor: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
+                  <span className="status-dot-blink" style={{ backgroundColor: '#38bdf8' }} />
                   <span>► INCOMING LINK REQUEST</span>
                 </div>
                 <div className="incoming-card-peer">
                   {incoming.name || incoming.peer || incoming.address || 'NEARBY UNIT'}
                 </div>
                 <div className="incoming-card-meta">
-                  [{incoming.transport || 'LAN'}] {incoming.address ? `• ${incoming.address}` : ''}
+                  [{incoming.transport || 'P2P'}] {incoming.address ? `• ${incoming.address}` : ''}
                 </div>
                 <div className="incoming-card-actions">
                   <button
                     className="incoming-btn incoming-accept"
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      sound.playClick();
-                      command('respondConnection', { accept: true });
-                      setIncoming(null);
-                    }}
                     onClick={() => {
                       sound.playClick();
                       command('respondConnection', { accept: true });
@@ -626,13 +1120,6 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
                   </button>
                   <button
                     className="incoming-btn incoming-decline"
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      sound.playClick();
-                      command('respondConnection', { accept: false });
-                      setIncoming(null);
-                    }}
                     onClick={() => {
                       sound.playClick();
                       command('respondConnection', { accept: false });
@@ -646,72 +1133,224 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
             )}
 
             {/* ==========================================================
-                SCREEN 1: AVAILABLE DEVICES TO CONNECT
+                PAGE: HUGGING FACE LANGUAGE MODELS REPOSITORY (Requirement 3)
+                Download & Select STT & TTS Models directly from Hugging Face
                 ========================================================== */}
-            {screenMode === 'devices' && (
-              <div className="screen-device-list-container">
-                {peers.map((peer, idx) => {
-                  const isSelected = selectedDeviceIndex === idx;
-                  const isConnected = connectedPeer?.id === peer.id;
+            {screenMode === 'languages' && (
+              <div className="screen-models-container" ref={modelListRef}>
+                {HF_CATALOGUE.map((model, idx) => {
+                  const isSelected = selectedModelIndex === idx;
+                  const isInstalled = installedModels.some(
+                    m => m.toLowerCase() === model.tag.toLowerCase() || m.toLowerCase() === model.tag.split('-')[0].toLowerCase()
+                  );
+                  const isActive = activeModelTag.toLowerCase().startsWith(model.tag.split('-')[0].toLowerCase());
+                  const dlProgress = downloadingModels[model.tag];
+                  const isDownloading = !!dlProgress;
+
                   return (
                     <div
-                      key={peer.id}
+                      key={model.tag}
+                      id={`model-row-${idx}`}
                       onClick={() => {
-                        setSelectedDeviceIndex(idx);
-                        handleConnectDevice(peer);
+                        setSelectedModelIndex(idx);
+                        sound.playClick();
+                        if (isActive) {
+                          setNotice(`ALREADY ACTIVE: ${model.name.toUpperCase()}`);
+                        } else if (isInstalled) {
+                          handleSelectModel(model);
+                        } else if (!isDownloading) {
+                          handleDownloadModel(model);
+                        }
                       }}
-                      className={`screen-device-item ${isSelected ? 'active' : ''}`}
+                      className={`screen-model-item ${isSelected ? 'is-selected' : ''} ${
+                        isActive ? 'is-active' : ''
+                      }`}
                     >
-                      <div className="device-left-meta">
-                        <span className="device-name-text">
-                          {isSelected ? '► ' : '  '}
-                          {peer.name}
-                        </span>
-                        <span className="device-transport-tag">
-                          [{peer.transport}] • {peer.ip}
-                        </span>
+                      <div className="model-left-meta">
+                        <div className="model-name-text">
+                          <span className="model-select-arrow">{isSelected ? '►' : ' '}</span>
+                          <span className="model-code-tag">[{model.code}]</span>
+                          <span>{model.name}</span>
+                          <span className="model-native-name">({model.nativeName})</span>
+                        </div>
+                        <div className="model-tech-meta">
+                          STT: IndicConformer • TTS: FastPitch • {model.sizeMB} MB
+                        </div>
+
+                        {/* Real-time Retro CRT Download Progress Bar */}
+                        {isDownloading && (
+                          <div className="model-download-bar-box">
+                            <div className="model-download-bar-track">
+                              <div
+                                className="model-download-bar-fill"
+                                style={{ width: `${Math.min(100, Math.max(6, dlProgress.pct))}%` }}
+                              />
+                            </div>
+                            <div className="model-download-stats">
+                              <span>HUGGING FACE: {dlProgress.pct}%</span>
+                              <span>
+                                {dlProgress.mbDone > 0 ? `${dlProgress.mbDone.toFixed(1)} / ` : ''}
+                                {dlProgress.mbTotal > 0 ? `${dlProgress.mbTotal.toFixed(1)} MB` : `${model.sizeMB} MB`}
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="device-right-action">
-                        <span className="device-signal-bars">
-                          {peer.transport === 'web_relay' ? 'RELAY' : 'PEER'}
-                        </span>
-                        <span className="device-action-hint">
-                          {isConnected ? 'CONNECTED' : 'CONNECT'}
-                        </span>
+                      <div className="model-right-action">
+                        {isActive ? (
+                          <span className="model-action-chip active">● ACTIVE</span>
+                        ) : isInstalled ? (
+                          <button
+                            className="model-action-chip select"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectModel(model);
+                            }}
+                          >
+                            SELECT →
+                          </button>
+                        ) : isDownloading ? (
+                          <span className="model-action-chip downloading">
+                            {dlProgress.pct}% DL
+                          </span>
+                        ) : (
+                          <button
+                            className="model-action-chip download"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadModel(model);
+                            }}
+                          >
+                            [ DOWNLOAD HF ]
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
                 })}
-
-                <div style={{ fontSize: '11px', textAlign: 'center', opacity: 0.65, marginTop: 'auto', padding: '4px' }}>
-                  {peers.length ? 'SELECT A PEER' : 'NO PEERS FOUND · TRY SCAN'}
-                </div>
               </div>
             )}
 
             {/* ==========================================================
-                SCREEN 2: CONNECTED & TALKING (LIVE STT TEXT & AUDIO VISUALIZER)
+                PAGE 1: AVAILABLE DEVICES TO CONNECT (Requirement 1: Wi-Fi Direct ONLY)
+                UP/DOWN Buttons & Touch Navigation Support
                 ========================================================== */}
-            {screenMode === 'talking' && (
-              <>
-                {/* Dynamic Live Audio Equalizer Bars */}
-                <div className="live-eq-bars-container">
-                  {eqLevels.map((lvl, i) => (
-                    <div
-                      key={i}
-                      className="eq-bar"
-                      style={{ height: `${lvl}px` }}
-                    />
-                  ))}
+            {screenMode === 'devices' && (
+              <div className="screen-device-list-container" ref={deviceListRef}>
+                {/* Prominent Quick-Jump Banner to Hugging Face Language Models */}
+                <div
+                  className="devices-lang-banner"
+                  onClick={() => {
+                    sound.playClick();
+                    toggleLanguagesScreen();
+                  }}
+                  title="Open Hugging Face STT & TTS Models"
+                >
+                  <span className="lang-banner-title">🌐 AI VOICE & LANGUAGE MODELS</span>
+                  <span className="lang-banner-action">[ OPEN REPO ] ▶</span>
                 </div>
 
-                {/* Main Live Transcript Box */}
+                {wifiDirectPeers.length === 0 ? (
+                  <div className="screen-radar-search-box">
+                    <div className="radar-spinner" />
+                    <div style={{ fontSize: '13px', letterSpacing: '0.08em', fontWeight: 700 }}>
+                      WI-FI DIRECT RADAR ACTIVE
+                    </div>
+                    <div style={{ fontSize: '11px', opacity: 0.6, letterSpacing: '0.04em' }}>
+                      SEARCHING FOR NEARBY WI-FI DIRECT UNITS…
+                    </div>
+                    <button
+                      onClick={handleManualScan}
+                      className="screen-action-btn-mini"
+                      style={{ marginTop: '6px', padding: '3px 10px', fontSize: '12px' }}
+                    >
+                      [ RE-SCAN WI-FI DIRECT ]
+                    </button>
+                  </div>
+                ) : (
+                  wifiDirectPeers.map((peer, idx) => {
+                    const isSelected = selectedDeviceIndex === idx;
+                    const isConnected = connectedPeer?.id === peer.id;
+                    const isCurrentlyPairing = isPairing && pairingPeerId === peer.id;
+
+                    return (
+                      <div
+                        key={peer.id}
+                        id={`device-row-${idx}`}
+                        onClick={() => {
+                          setSelectedDeviceIndex(idx);
+                          sound.playClick();
+                          if (!isConnected) handleConnectDevice(peer);
+                        }}
+                        className={`screen-device-item ${isSelected ? 'is-selected' : ''} ${
+                          isConnected ? 'is-connected' : ''
+                        }`}
+                      >
+                        <div className="device-left-meta">
+                          <span className="device-name-text">
+                            <span className="device-select-arrow">{isSelected ? '►' : ' '}</span>
+                            {peer.name}
+                          </span>
+                          <span className="device-transport-tag">
+                            [WI-FI DIRECT] {peer.p2pAddress ? `• ${peer.p2pAddress}` : (peer.ip ? `• ${peer.ip}` : '')}
+                          </span>
+                        </div>
+
+                        <div className="device-right-action">
+                          {isCurrentlyPairing ? (
+                            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                              <span className="device-action-chip pairing">PAIRING…</span>
+                              <button
+                                onClick={handleCancelPairing}
+                                className="screen-action-btn-mini"
+                                style={{ padding: '0 4px', fontSize: '10px' }}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ) : isConnected ? (
+                            <span className="device-action-chip connected">CONNECTED</span>
+                          ) : (
+                            <span className={`device-action-chip ${isSelected ? 'selected' : 'connect'}`}>
+                              {isSelected ? 'TAP TO PAIR' : 'CONNECT →'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            {/* ==========================================================
+                PAGE 2: TRANSCEIVER PAGE (VOICE-REACTIVE AUDIO GRAPH & TRANSCRIPT)
+                ========================================================== */}
+            {screenMode === 'transceiver' && (
+              <>
+                {/* Voice-Reactive Audio Graph Viewport */}
+                <div className="transceiver-graph-container">
+                  <canvas
+                    ref={transceiverCanvasRef}
+                    width={340}
+                    height={90}
+                    className="transceiver-canvas"
+                  />
+                  <div className="transceiver-graph-badge">
+                    {isPeerSpeaking
+                      ? '● RX VOICE ACTIVE'
+                      : isTalking
+                      ? '● TX LIVE MIC'
+                      : 'CARRIER 16.0 kHz'}
+                  </div>
+                </div>
+
+                {/* Main Live Transcript Display Box */}
                 <div className="screen-transcript-box">
                   <div>
-                    <div className="transcript-label-mini" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>LIVE TRANSCRIPT (STT) • {isPeerSpeaking ? 'REMOTE RECEIVE' : isTalking ? 'LOCAL TRANSMIT' : 'READY'}</span>
-                      {playbackSpeed === 2 && <span style={{ color: 'var(--swar-phosphor)', fontWeight: 700 }}>[2X ACTIVE]</span>}
+                    <div className="transcript-label-mini">
+                      LIVE TRANSCRIPTION STREAM • {isPeerSpeaking ? 'REMOTE RECEIVE' : isTalking ? 'LOCAL TRANSMIT' : 'READY'}
                     </div>
                     <div className="transcript-body-text">
                       {liveTranscript}
@@ -720,37 +1359,51 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
                   </div>
 
                   <div className="transcript-telemetry-meta">
-                    <span>{connectionState}</span>
-                    <span>{isNative() ? "NATIVE TRANSPORT" : "BACKEND RELAY"}</span>
-                    <span>SPEED: {playbackSpeed}.0X</span>
+                    <span>{connectedPeer ? `PEER: ${connectedPeer.name}` : connectionState}</span>
+                    <span>{isNative() ? 'NATIVE ITP' : 'RELAY'}</span>
+                    <span>AUDIO: OPUS 16kHz</span>
                   </div>
                 </div>
               </>
             )}
 
             {/* ==========================================================
-                SCREEN 3: CONNECTED & NOT TALKING (RETRO PIXEL ANIMATION)
+                PAGE 3: IDLE ANIMATION PAGE (RETRO CARRIER OSCILLOSCOPE)
                 ========================================================== */}
             {screenMode === 'idle' && (
               <>
-                {/* Phosphor Oscilloscope Sine Waves Pixel Canvas */}
-                <div className="screen-animation-viewport">
+                {/* Phosphor-Grey Oscilloscope Carrier Wave Viewport */}
+                <div className="screen-idle-animation-box">
                   <canvas
-                    ref={canvasRef}
-                    width={320}
-                    height={90}
+                    ref={idleCanvasRef}
+                    width={340}
+                    height={95}
                     className="pixel-oscilloscope-canvas"
                   />
                 </div>
 
-                {/* Main Transcript Display Box (Exact Match to Image) */}
-                <div className="screen-transcript-box">
-                  <div className="transcript-label-mini">
-                    LIVE TRANSCRIPT
+                {/* Active Link Status & Telemetry Card */}
+                <div className="idle-telemetry-card">
+                  <div>
+                    <div className="idle-telemetry-row">
+                      <span style={{ opacity: 0.65 }}>LINK STATUS:</span>
+                      <strong style={{ color: '#ffffff' }}>CARRIER SECURED · STANDBY</strong>
+                    </div>
+                    <div className="idle-telemetry-row">
+                      <span style={{ opacity: 0.65 }}>CONNECTED PEER:</span>
+                      <strong>{connectedPeer ? connectedPeer.name : 'STANDALONE MODE'}</strong>
+                    </div>
+                    <div className="idle-telemetry-row">
+                      <span style={{ opacity: 0.65 }}>TRANSPORT:</span>
+                      <span>{connectedPeer ? connectedPeer.transport : 'MESH DIRECT'}</span>
+                    </div>
                   </div>
-                  <div className="transcript-body-text">
-                    {liveTranscript}
-                    <span className="cursor-block" />
+
+                  <div style={{ marginTop: '4px', borderTop: '1px dotted rgba(255, 255, 255, 0.15)', paddingTop: '4px' }}>
+                    <div className="transcript-label-mini" style={{ marginBottom: '2px' }}>LAST TRANSMISSION</div>
+                    <div style={{ fontSize: '13px', color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {liveTranscript}
+                    </div>
                   </div>
                 </div>
               </>
@@ -758,162 +1411,206 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
 
             {/* Screen Bottom Telemetry Footer */}
             <div className="screen-footer-bar">
+              <button
+                className="screen-lang-chip-btn"
+                onClick={toggleLanguagesScreen}
+                title="Tap to manage Hugging Face STT & TTS models"
+              >
+                🌐 LANG: {currentHFModel.code} ▼
+              </button>
+              <span>{isNative() ? 'HARDWARE ACTIVE' : 'WEB DEMO'}</span>
               <span
                 onClick={() => {
                   sound.playClick();
-                  setLanguageIdx((languageIdx + 1) % LANGUAGES.length);
+                  if (screenMode === 'languages') {
+                    setScreenMode(lastScreenMode);
+                  } else {
+                    setScreenMode(prev =>
+                      prev === 'devices' ? 'transceiver' : prev === 'transceiver' ? 'idle' : 'devices'
+                    );
+                  }
                 }}
-                style={{ cursor: 'pointer' }}
-                title={`Click to cycle language dialect (Current: ${currentLanguage.name})`}
+                style={{ cursor: 'pointer', padding: '2px 4px' }}
+                title="Tap to cycle screens"
               >
-                {currentLanguage.code} ▾
+                {screenMode === 'devices'
+                  ? 'PAGE 1/3: DEVICES'
+                  : screenMode === 'transceiver'
+                  ? 'PAGE 2/3: TRANSCEIVER'
+                  : screenMode === 'idle'
+                  ? 'PAGE 3/3: IDLE'
+                  : 'MODELS: HUGGING FACE'}
               </span>
-              <span>{connectedPeer ? connectedPeer.name : 'NO PEER'}</span>
             </div>
           </div>
         </div>
 
-        {/* ====================================================================
-            THE PHYSICAL CLICK WHEEL & CENTER BUTTON (Matches User Requirements)
-            1) PUSH TO TALK in the centre button for every page
-            2) Top and bottom buttons as UP and DOWN to navigate screens
-            3) In talking(STT text) page: right is 2X SPEED and left is REWIND
-            4) In idle page: remove every text from circular buttons except center
-            ==================================================================== */}
+        {/* ==================================================================
+            THE PHYSICAL CLICK WHEEL & CENTER BUTTON (LOWER HALF OF CHASSIS)
+            ================================================================== */}
         <div className="click-wheel-container">
-          {/* Top Label: UP on idle/devices, Removed on talking */}
-          {wheelProps.topText ? (
+          {/* Top Button: Navigates UP in device list or switches to Devices */}
+          {wheelProps.topText && (
             <button
-              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); wheelProps.topAction(); }}
               onClick={wheelProps.topAction}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                wheelProps.topAction();
+              }}
               className="wheel-label-btn wheel-label-top"
               title={wheelProps.topTitle}
-              aria-label="Navigate Screen Up"
             >
               {wheelProps.topText}
             </button>
-          ) : null}
+          )}
 
-          {/* Left Label: REWIND/STOP on talking, Removed on idle/devices */}
-          {wheelProps.leftText ? (
+          {/* Bottom Button: Navigates DOWN in device list or Disconnects */}
+          {wheelProps.bottomText && (
             <button
-              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); wheelProps.leftAction(); }}
-              onClick={wheelProps.leftAction}
-              className="wheel-label-btn wheel-label-left"
-              title={wheelProps.leftTitle}
-              aria-label="Stop speech playback"
-            >
-              {wheelProps.leftText}
-            </button>
-          ) : null}
-
-          {/* Right Label: 2X SPEED on talking, Removed on idle/devices */}
-          {wheelProps.rightText ? (
-            <button
-              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); wheelProps.rightAction(); }}
-              onClick={wheelProps.rightAction}
-              className="wheel-label-btn wheel-label-right"
-              title={wheelProps.rightTitle}
-              aria-label="Toggle 2X Speed"
-            >
-              {wheelProps.rightText}
-            </button>
-          ) : null}
-
-          {/* Bottom Label: DOWN on idle/devices, Removed on talking */}
-          {wheelProps.bottomText ? (
-            <button
-              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); wheelProps.bottomAction(); }}
               onClick={wheelProps.bottomAction}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                wheelProps.bottomAction();
+              }}
               className="wheel-label-btn wheel-label-bottom"
               title={wheelProps.bottomTitle}
-              aria-label="Navigate Screen Down"
             >
               {wheelProps.bottomText}
             </button>
-          ) : null}
+          )}
 
-          {/* Center Circular Tactile Button: PUSH TO TALK or ACCEPT LINK on EVERY page */}
-          {incoming ? (
+          {/* Left Button */}
+          {wheelProps.leftText && (
             <button
-              onPointerDown={(e) => {
+              onClick={wheelProps.leftAction}
+              onTouchStart={(e) => {
                 e.preventDefault();
-                e.stopPropagation();
-                sound.playClick();
-                command('respondConnection', { accept: true });
-                setIncoming(null);
+                wheelProps.leftAction();
               }}
-              onClick={() => {
-                sound.playClick();
-                command('respondConnection', { accept: true });
-                setIncoming(null);
-              }}
-              className="wheel-center-btn is-incoming-active"
-              title="Accept Incoming Connection"
-              aria-label="Accept Connection"
+              className="wheel-label-btn wheel-label-left"
+              title={wheelProps.leftTitle}
             >
-              <span style={{ fontSize: '18px' }}>📞</span>
-              <span className="center-btn-text" style={{ color: '#16a34a', fontWeight: 900 }}>
-                ACCEPT LINK
-              </span>
-            </button>
-          ) : (
-            <button
-              onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); startTalking(); }}
-              onPointerUp={stopTalking}
-              onPointerCancel={stopTalking}
-              onLostPointerCapture={stopTalking}
-              onClick={e => { if (e.detail === 0) handleToggleTalk(); }}
-              className={`wheel-center-btn ${isTalking ? 'is-active' : ''}`}
-              title="Push to talk / Tap to toggle voice broadcast"
-              aria-label="Push To Talk"
-            >
-              <Mic size={22} className="center-btn-mic" />
-              <span className="center-btn-text">
-                PUSH TO TALK
-              </span>
+              {wheelProps.leftText}
             </button>
           )}
-        </div>
 
-        {/* Chassis Bottom Caption (Matches reference image) */}
-        <div className="chassis-bottom-caption">
-          HOLD CENTER TO TALK · RELEASE TO SEND
-        </div>
-      </div>
-
-      <div className="radio-controls">
-        <p role="status">{notice}</p>
-        {incoming && <div><p>Connection request from {incoming.name || incoming.peer || 'Nearby phone'}</p>
-          <button onClick={() => command('respondConnection', { accept: true })}>Accept</button>
-          <button onClick={() => { command('respondConnection', { accept: false }); setIncoming(null); }}>Decline</button></div>}
-        <button onClick={() => { command('discover'); if (isNative()) command('discoverP2p'); setScreenMode('devices'); }}>Scan nearby</button>
-        <button onClick={() => command('disconnect')}>Disconnect</button>
-        {isNative() && <details><summary>Connection & speech settings</summary>
-          <button onClick={() => command('host')}>Host LAN session</button><p>{hostInfo}</p>
-          <label>Peer IP<input value={address} onChange={e => setAddress(e.target.value)} placeholder="192.168.1.2" /></label>
-          <label>Joining PIN<input value={pin} onChange={e => setPin(e.target.value)} inputMode="numeric" /></label>
-          <button onClick={() => command('connect', { address, pin, port: 8988 })}>Join LAN</button>
-          <button onClick={() => command('downloadSelected', { languages: [currentLanguage.speechCode] })}>Download selected speech model</button>
-          <button onClick={() => command('ttsSettings')}>Speech output settings</button>
-        </details>}
-        {!isNative() && <small>Web mode uses the existing backend relay shared by all connected clients. Browser speech recognition may require internet.</small>}
-      </div>
-      {/* Quick Tactical Dispatch Buttons */}
-      <div style={{ marginTop: '16px', textAlign: 'center' }}>
-        <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '6px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          Quick Test Dispatch
-        </div>
-        <div className="tactical-phrases-bar">
-          {TACTICAL_PHRASES.map((phrase, i) => (
+          {/* Right Button */}
+          {wheelProps.rightText && (
             <button
-              key={i}
-              onClick={() => handleSendPhrase(phrase)}
-              className="tactical-pill"
+              onClick={wheelProps.rightAction}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                wheelProps.rightAction();
+              }}
+              className="wheel-label-btn wheel-label-right"
+              title={wheelProps.rightTitle}
             >
-              "{phrase}"
+              {wheelProps.rightText}
             </button>
-          ))}
+          )}
+
+          {/* Center Tactile Button: PUSH TO TALK on Transceiver/Idle, CONNECT on Devices, or SELECT/DL on Languages */}
+          <button
+            onMouseDown={() => {
+              if (screenMode === 'devices') {
+                if (isPairing) handleCancelPairing();
+                else if (wifiDirectPeers.length > 0 && wifiDirectPeers[selectedDeviceIndex]) {
+                  handleConnectDevice(wifiDirectPeers[selectedDeviceIndex]);
+                }
+              } else if (screenMode === 'languages') {
+                const model = HF_CATALOGUE[selectedModelIndex];
+                if (model) {
+                  const isInstalled = installedModels.some(
+                    m => m.toLowerCase() === model.tag.toLowerCase() || m.toLowerCase() === model.tag.split('-')[0].toLowerCase()
+                  );
+                  if (isInstalled) handleSelectModel(model);
+                  else if (!downloadingModels[model.tag]) handleDownloadModel(model);
+                }
+              } else {
+                startTalking();
+              }
+            }}
+            onMouseUp={() => {
+              if (screenMode !== 'devices' && screenMode !== 'languages') stopTalking();
+            }}
+            onTouchStart={e => {
+              e.preventDefault();
+              if (screenMode === 'devices') {
+                if (isPairing) handleCancelPairing();
+                else if (wifiDirectPeers.length > 0 && wifiDirectPeers[selectedDeviceIndex]) {
+                  handleConnectDevice(wifiDirectPeers[selectedDeviceIndex]);
+                }
+              } else if (screenMode === 'languages') {
+                const model = HF_CATALOGUE[selectedModelIndex];
+                if (model) {
+                  const isInstalled = installedModels.some(
+                    m => m.toLowerCase() === model.tag.toLowerCase() || m.toLowerCase() === model.tag.split('-')[0].toLowerCase()
+                  );
+                  if (isInstalled) handleSelectModel(model);
+                  else if (!downloadingModels[model.tag]) handleDownloadModel(model);
+                }
+              } else {
+                startTalking();
+              }
+            }}
+            onTouchEnd={e => {
+              e.preventDefault();
+              if (screenMode !== 'devices' && screenMode !== 'languages') stopTalking();
+            }}
+            onClick={() => {
+              if (screenMode === 'devices') {
+                if (isPairing) handleCancelPairing();
+                else if (wifiDirectPeers.length > 0 && wifiDirectPeers[selectedDeviceIndex]) {
+                  handleConnectDevice(wifiDirectPeers[selectedDeviceIndex]);
+                }
+              } else if (screenMode === 'languages') {
+                const model = HF_CATALOGUE[selectedModelIndex];
+                if (model) {
+                  const isInstalled = installedModels.some(
+                    m => m.toLowerCase() === model.tag.toLowerCase() || m.toLowerCase() === model.tag.split('-')[0].toLowerCase()
+                  );
+                  if (isInstalled) handleSelectModel(model);
+                  else if (!downloadingModels[model.tag]) handleDownloadModel(model);
+                }
+              }
+            }}
+            className={`wheel-center-btn ${isTalking ? 'is-active' : ''} ${incoming ? 'is-incoming-active' : ''}`}
+            title="Push to Talk / Select"
+          >
+            {screenMode === 'devices' ? (
+              <>
+                <Zap size={18} className="center-btn-mic" />
+                <span className="center-btn-text">
+                  {isPairing ? 'CANCEL' : 'CONNECT'}
+                </span>
+              </>
+            ) : screenMode === 'languages' ? (
+              <>
+                <Zap size={18} className="center-btn-mic" />
+                <span className="center-btn-text">
+                  {installedModels.some(m => m.toLowerCase() === HF_CATALOGUE[selectedModelIndex]?.tag.toLowerCase() || m.toLowerCase() === HF_CATALOGUE[selectedModelIndex]?.tag.split('-')[0].toLowerCase())
+                    ? (activeModelTag.toLowerCase().startsWith(HF_CATALOGUE[selectedModelIndex]?.tag.split('-')[0].toLowerCase()) ? 'ACTIVE' : 'SELECT')
+                    : downloadingModels[HF_CATALOGUE[selectedModelIndex]?.tag] ? 'DL...' : 'DOWNLOAD'}
+                </span>
+              </>
+            ) : (
+              <>
+                <Radio size={18} className="center-btn-mic" />
+                <span className="center-btn-text">
+                  {isTalking ? 'TALKING' : 'PUSH TO TALK'}
+                </span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Minimal Bottom Helper Note */}
+        <div className="chassis-bottom-note">
+          {screenMode === 'devices'
+            ? 'USE ▲/▼ TO SELECT · CENTER TO CONNECT'
+            : screenMode === 'languages'
+            ? 'USE ▲/▼ TO BROWSE · CENTER TO SELECT/DOWNLOAD'
+            : 'HOLD CENTER TO TALK · RELEASE TO SEND'}
         </div>
       </div>
     </div>

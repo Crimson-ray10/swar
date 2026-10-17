@@ -85,6 +85,8 @@ mobile/local.properties
 mobile/app/src/main/assets/generated/
 mobile/app/src/main/assets/models/
 *.apk
+!apps/web/public/swar.apk
+!apps/web/public/swar-ipod.apk
 *.jks
 *.keystore
 *.jar

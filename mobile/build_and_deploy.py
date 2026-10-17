@@ -31,7 +31,7 @@ def build():
     os.makedirs(classes_dir, exist_ok=True)
     os.makedirs(dex_dir, exist_ok=True)
 
-    android_jar = os.path.join(MOBILE_DIR, "android.jar")
+    android_jar = r"C:\Program Files\Unity\Hub\Editor\6000.6.0f1\Editor\Data\PlaybackEngines\AndroidPlayer\SDK\platforms\android-34\android.jar"
     existing_classes = os.path.join(APP_DIR, r"build\intermediates\javac\debug\compileDebugJavaWithJavac\classes")
     env = {"PATH": f"{JAVA_HOME_BIN};{os.environ['PATH']}"}
 
