@@ -34,12 +34,25 @@
       </nav>
 
       <div class="nav-actions">
-        <a href="/transceiver.html" class="btn btn-pill-outline" style="margin-right: 8px;">
-          <span>Launch Transceiver</span>
-        </a>
-        <a href="#download" class="btn btn-pill-dark">
+        <a href="#download" class="btn btn-pill-dark nav-download-btn">
           <span>Download APK</span>
         </a>
+        <button class="mobile-menu-toggle" id="mobile-menu-btn" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="mobile-nav-drawer">
+          <span class="hamburger-bar"></span>
+          <span class="hamburger-bar"></span>
+          <span class="hamburger-bar"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Navigation Drawer -->
+    <div class="mobile-nav-drawer" id="mobile-nav-drawer" hidden>
+      <div class="mobile-nav-links">
+        <a href="#how-it-works" class="mobile-nav-link">How it works</a>
+        <a href="#impact" class="mobile-nav-link">Impact</a>
+        <a href="#app" class="mobile-nav-link">App</a>
+        <a href="#faqs" class="mobile-nav-link">FAQs</a>
+        <a href="#download" class="btn btn-pill-dark mobile-nav-download">Download Android APK</a>
       </div>
     </div>
   </header>
@@ -62,8 +75,8 @@
             <a href="#download" class="btn btn-pill-dark">
               <span>Download Android APK</span>
             </a>
-            <a href="/transceiver.html" class="btn btn-pill-outline">
-              <span>Launch Transceiver Demo</span>
+            <a href="#how-it-works" class="btn btn-pill-outline">
+              <span>Explore how it works</span>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
             </a>
           </div>
@@ -624,9 +637,6 @@
       <a href="/swar-ipod.apk" download="swar-ipod.apk" class="btn btn-pill-dark btn-full-width" id="real-download-btn" style="text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
         <span>Download SWAR iPod APK</span>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
-      </a>
-      <a href="/transceiver.html" class="btn btn-pill-outline btn-full-width" style="text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; margin-top: 10px;">
-        <span>Launch Web Simulator Instead</span>
       </a>
     </div>
   </dialog>

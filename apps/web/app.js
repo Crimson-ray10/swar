@@ -433,4 +433,27 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => { thumbsDown.style.transform = ''; }, 300);
     });
   }
+
+  // 12. MOBILE NAVIGATION DRAWER
+  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+  const mobileNavDrawer = document.getElementById('mobile-nav-drawer');
+  const mobileNavLinks = document.querySelectorAll('.mobile-nav-link, .mobile-nav-download');
+
+  if (mobileMenuBtn && mobileNavDrawer) {
+    mobileMenuBtn.addEventListener('click', () => {
+      const isExpanded = mobileMenuBtn.getAttribute('aria-expanded') === 'true';
+      mobileMenuBtn.setAttribute('aria-expanded', String(!isExpanded));
+      mobileMenuBtn.classList.toggle('active');
+      mobileNavDrawer.hidden = isExpanded;
+      playHarmonicTone(480, 'sine', 0.2);
+    });
+
+    mobileNavLinks.forEach((link) => {
+      link.addEventListener('click', () => {
+        mobileMenuBtn.setAttribute('aria-expanded', 'false');
+        mobileMenuBtn.classList.remove('active');
+        mobileNavDrawer.hidden = true;
+      });
+    });
+  }
 });

@@ -1825,6 +1825,98 @@ button {
 }
 
 /* ==========================================================================
+   MOBILE NAVIGATION DRAWER & TOGGLE
+   ========================================================================== */
+.mobile-menu-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 38px;
+  height: 38px;
+  padding: 10px 8px;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(27, 34, 29, 0.18);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.mobile-menu-toggle:hover {
+  background-color: rgba(38, 53, 43, 0.05);
+  border-color: var(--ink);
+}
+
+.hamburger-bar {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background-color: var(--ink);
+  border-radius: 2px;
+  transition: all var(--transition-fast);
+  transform-origin: center;
+}
+
+.mobile-menu-toggle.active .hamburger-bar:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+
+.mobile-menu-toggle.active .hamburger-bar:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0);
+}
+
+.mobile-menu-toggle.active .hamburger-bar:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}
+
+.mobile-nav-drawer {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: rgba(244, 240, 230, 0.98);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(38, 53, 43, 0.1);
+  padding: 20px 24px 28px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.08);
+  animation: slideDownMenu 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 490;
+}
+
+@keyframes slideDownMenu {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.mobile-nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mobile-nav-link {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(38, 53, 43, 0.06);
+  transition: color var(--transition-fast);
+}
+
+.mobile-nav-link:hover {
+  color: var(--clay);
+}
+
+.mobile-nav-download {
+  margin-top: 10px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+}
+
+/* ==========================================================================
    RESPONSIVE DESIGN (TABLETS & MOBILE)
    ========================================================================== */
 @media (max-width: 992px) {
@@ -1833,61 +1925,277 @@ button {
     gap: 40px;
   }
 
+  .hero-content {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .hero-description {
+    max-width: 600px;
+  }
+
+  .hero-ctas {
+    justify-content: center;
+  }
+
   .pillar-cards-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+
+  .app-info-col {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .screen-selector-tabs {
+    justify-content: center;
+  }
+
+  .faqs-intro-col {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .cta-dark-inner {
+    text-align: center;
+    padding-bottom: 50px;
   }
 
   .cta-action-side {
-    justify-content: flex-start;
-  }
-
-  .demo-controller {
-    top: auto;
-    bottom: 16px;
-    right: 16px;
+    justify-content: center;
   }
 }
 
 @media (max-width: 768px) {
   .nav-links {
-    display: none;
+    display: none !important;
   }
 
-  .pillar-cards-grid {
+  .mobile-menu-toggle {
+    display: flex;
+  }
+
+  .container {
+    padding: 0 20px;
+  }
+
+  .nav-actions {
+    gap: 10px;
+  }
+
+  .nav-download-btn {
+    padding: 9px 18px;
+    font-size: 13px;
+  }
+
+  .concept-board-frame {
+    padding: 16px;
+    border-radius: 24px;
+  }
+
+  .concept-interface-card {
+    padding: 16px 14px;
+    border-radius: 18px;
+  }
+
+  .concept-panes-row {
     grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .concept-connector {
+    justify-content: center;
+    margin: 4px 0;
+  }
+
+  .concept-connector svg {
+    transform: rotate(90deg);
+  }
+
+  .concept-pane {
+    min-height: auto;
+    padding: 14px;
+  }
+
+  .step-card {
+    padding: 18px 16px;
   }
 
   .app-phones-stage {
     min-height: 480px;
     transform: scale(0.85);
-  }
-
-  .phone-left {
-    transform: perspective(1200px) rotate(-6deg) translateX(15px) scale(0.85);
-  }
-  .phone-right {
-    transform: perspective(1200px) rotate(6deg) translateX(-15px) scale(0.85);
-  }
-  .phone-center {
-    transform: perspective(1200px) scale(0.95);
-  }
-
-  .concept-panes-row {
-    grid-template-columns: 1fr;
-  }
-
-  .concept-connector {
-    justify-content: center;
-    margin: 8px 0;
+    transform-origin: center top;
+    margin-bottom: -30px;
   }
 
   .footer-content {
     flex-direction: column;
     gap: 20px;
+    align-items: center;
+    text-align: center;
   }
 
   .footer-status-pill {
     position: static;
     transform: none;
+    width: 100%;
+    max-width: 320px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .section {
+    padding: 50px 0;
+  }
+
+  .hero-section {
+    padding: 24px 0 45px;
+  }
+
+  .hero-title {
+    font-size: clamp(30px, 8.5vw, 42px);
+    line-height: 1.15;
+    margin-bottom: 16px;
+  }
+
+  .hero-description {
+    font-size: 15px;
+    margin-bottom: 24px;
+  }
+
+  .hero-ctas {
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .hero-ctas .btn {
+    width: 100%;
+  }
+
+  .hero-canvas-card {
+    padding: 24px 16px 20px;
+    min-height: auto;
+    border-radius: var(--radius-lg);
+  }
+
+  .two-sides-scene {
+    height: 130px;
+    padding: 0 6px 4px;
+    margin-bottom: 16px;
+  }
+
+  .side-blob {
+    width: 82px;
+    height: 82px;
+  }
+
+  .blob-caption {
+    font-size: 9.5px;
+  }
+
+  .shared-space-arch-wrap {
+    inset: 10px 30px 0;
+  }
+
+  .shared-space-pill-btn {
+    padding: 8px 14px;
+    font-size: 11.5px;
+  }
+
+  .pillar-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .pillar-card {
+    padding: 22px 18px;
+    border-radius: 20px;
+    min-height: auto;
+  }
+
+  .app-phones-stage {
+    min-height: 400px;
+    transform: scale(0.68);
+    transform-origin: center top;
+    margin-bottom: -80px;
+  }
+
+  .screen-selector-tabs {
+    gap: 6px;
+  }
+
+  .screen-tab {
+    padding: 7px 12px;
+    font-size: 11.5px;
+  }
+
+  .faq-trigger {
+    padding: 16px 12px;
+    gap: 10px;
+  }
+
+  .faq-question {
+    font-size: 14.5px;
+  }
+
+  .faq-content {
+    padding: 0 12px 14px 32px;
+    font-size: 13.5px;
+  }
+
+  .section-cta-dark {
+    padding: 55px 0 0;
+  }
+
+  .cta-headline {
+    font-size: clamp(28px, 7.5vw, 38px);
+    margin-bottom: 20px;
+  }
+
+  .download-card-pill {
+    width: 100%;
+    min-width: auto;
+    padding: 14px 18px;
+    gap: 14px;
+  }
+
+  .modal-dialog {
+    width: calc(100% - 32px);
+    max-width: 380px;
+    margin: auto;
+    border-radius: 20px;
+  }
+
+  .modal-card {
+    padding: 22px 18px;
+  }
+
+  .spec-row {
+    flex-direction: column;
+    gap: 2px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 440px) {
+  .nav-download-btn {
+    display: none;
+  }
+
+  .app-phones-stage {
+    min-height: 350px;
+    transform: scale(0.58);
+    transform-origin: center top;
+    margin-bottom: -110px;
   }
 }
