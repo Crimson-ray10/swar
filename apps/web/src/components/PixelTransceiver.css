@@ -518,6 +518,10 @@
   transform: scale(0.95);
 }
 
+.wheel-label-btn:empty {
+  display: none;
+}
+
 .wheel-label-top {
   top: 14px;
   left: 50%;

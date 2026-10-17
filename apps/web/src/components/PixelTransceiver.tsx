@@ -213,23 +213,47 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
     return () => clearInterval(interval);
   }, [isTalking, isPeerSpeaking, screenMode, playbackSpeed]);
 
+  const timersRef = useRef<number[]>([]);
+
+  const addTimer = (callback: () => void, delayMs: number) => {
+    const id = window.setTimeout(() => {
+      timersRef.current = timersRef.current.filter(t => t !== id);
+      callback();
+    }, delayMs);
+    timersRef.current.push(id);
+    return id;
+  };
+
+  const clearAllTimers = () => {
+    timersRef.current.forEach(id => clearTimeout(id));
+    timersRef.current = [];
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  };
+
+  useEffect(() => {
+    return () => clearAllTimers();
+  }, []);
+
   // Handle Starting and Stopping Push-To-Talk (Center button for every page)
   const handleToggleTalk = () => {
     sound.playClick();
+    clearAllTimers();
+
     if (!connectedPeer) {
       setConnectedPeer(MOCK_PEERS[0]);
     }
 
-    if (isTalking) {
-      // Stop Talking -> return to Mode 3 (Connected & Idle)
+    if (isTalking || screenMode === 'talking') {
       stopTalking();
     } else {
-      // Start Talking -> Mode 2 (Connected & Talking)
       startTalking();
     }
   };
 
   const startTalking = () => {
+    clearAllTimers();
     sound.playPttStart();
     setIsTalking(true);
     setScreenMode('talking');
@@ -246,75 +270,58 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
   const stopTalking = () => {
     sound.playPttEnd();
     setIsTalking(false);
+    clearAllTimers();
 
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch (_) {}
     }
 
-    // Switch to Screen 3 (Connected and Not Talking Animation) after transmission completes
-    setTimeout(() => {
-      setScreenMode('idle');
-      // Simulate peer response after 2.5s to show full transceiver loop
-      simulatePeerResponse();
-    }, 1800);
-  };
-
-  // Simulate peer receiving message & responding with playbackSpeed support
-  const simulatePeerResponse = () => {
-    if (!connectedPeer) return;
-    setTimeout(() => {
-      setIsPeerSpeaking(true);
-      setScreenMode('talking');
-      const responseText = `ROGER ${connectedPeer.name}: COPY THAT. LINK IS STABLE ON CHANNEL 1.`;
-      setLiveTranscript(responseText);
-
-      // Play native SpeechSynthesis TTS respecting 2X playback speed
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        const u = new SpeechSynthesisUtterance(responseText);
-        u.rate = playbackSpeed === 2 ? 1.9 : 1.05;
-        u.pitch = 0.95;
-        u.onend = () => {
-          setIsPeerSpeaking(false);
-          setScreenMode('idle');
-        };
-        window.speechSynthesis.speak(u);
-      } else {
-        setTimeout(() => {
-          setIsPeerSpeaking(false);
-          setScreenMode('idle');
-        }, playbackSpeed === 2 ? 1600 : 3000);
-      }
-    }, 2000);
+    setScreenMode('idle');
   };
 
   // Quick Dispatch phrase send
   const handleSendPhrase = (phrase: string) => {
+    clearAllTimers();
     sound.playPttStart();
     setIsTalking(true);
     setScreenMode('talking');
     setLiveTranscript(phrase.toUpperCase());
 
-    setTimeout(() => {
-      stopTalking();
-    }, 1200);
+    addTimer(() => {
+      sound.playPttEnd();
+      setIsTalking(false);
+      setScreenMode('idle');
+
+      // Simulate peer acknowledgment after 1.5s
+      addTimer(() => {
+        setIsPeerSpeaking(true);
+        setScreenMode('talking');
+        setLiveTranscript(`ROGER: COPY "${phrase.toUpperCase()}".`);
+        addTimer(() => {
+          setIsPeerSpeaking(false);
+          setScreenMode('idle');
+        }, 2000);
+      }, 1400);
+    }, 2000);
   };
 
   // Connect to chosen peer
   const handleConnectDevice = (peer: PeerDevice) => {
     sound.playClick();
+    clearAllTimers();
     setIsPairing(true);
     setPairingLog(`PAIRING WITH ${peer.name}...`);
 
-    setTimeout(() => {
+    addTimer(() => {
       setPairingLog('X25519 KEY EXCHANGE: OK');
     }, 600);
 
-    setTimeout(() => {
+    addTimer(() => {
       setPairingLog(`LINK READY: ${peer.transport}`);
       sound.playConnectChirp();
     }, 1200);
 
-    setTimeout(() => {
+    addTimer(() => {
       setIsPairing(false);
       setConnectedPeer(peer);
       setScreenMode('idle'); // Mode 3: Connected & Not Talking
@@ -323,43 +330,43 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
   };
 
   // Screen Navigation handlers (Top = UP, Bottom = DOWN)
-  const SCREENS: ScreenMode[] = ['devices', 'talking', 'idle'];
-
+  // Reliably toggles between devices and idle screens without timeout interference
   const handleNavigateUp = () => {
     sound.playClick();
-    const currentIndex = SCREENS.indexOf(screenMode);
-    const nextIndex = (currentIndex - 1 + SCREENS.length) % SCREENS.length;
-    const targetMode = SCREENS[nextIndex];
-    setScreenMode(targetMode);
-    if (targetMode === 'talking') {
-      startTalking();
-    } else if (isTalking) {
-      stopTalking();
+    clearAllTimers();
+    if (screenMode === 'talking') {
+      setIsTalking(false);
+      setScreenMode('idle');
+    } else if (screenMode === 'idle') {
+      setScreenMode('devices');
+    } else {
+      setScreenMode('idle');
     }
   };
 
   const handleNavigateDown = () => {
     sound.playClick();
-    const currentIndex = SCREENS.indexOf(screenMode);
-    const nextIndex = (currentIndex + 1) % SCREENS.length;
-    const targetMode = SCREENS[nextIndex];
-    setScreenMode(targetMode);
-    if (targetMode === 'talking') {
-      startTalking();
-    } else if (isTalking) {
-      stopTalking();
+    clearAllTimers();
+    if (screenMode === 'talking') {
+      setIsTalking(false);
+      setScreenMode('idle');
+    } else if (screenMode === 'idle') {
+      setScreenMode('devices');
+    } else {
+      setScreenMode('idle');
     }
   };
 
   // Talking Screen Controls: Rewind & 2X Speed
   const handleRewind = () => {
     sound.playRewind();
+    clearAllTimers();
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
     const cleanText = liveTranscript.replace(/█/g, '');
     setLiveTranscript(`◄◄ REWIND: ${cleanText}█`);
-    setTimeout(() => {
+    addTimer(() => {
       setLiveTranscript(`${cleanText}█`);
     }, 900);
   };
@@ -370,22 +377,31 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
     sound.playSpeedToggle(nextSpeed);
   };
 
-  // Keyboard navigation support
+  // Keyboard navigation support:
+  // ArrowUp / ArrowDown navigate screens (only when not in talking screen)
+  // ArrowLeft = Rewind, ArrowRight = 2X Speed, Space = Push To Talk
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        handleNavigateUp();
+        if (screenMode !== 'talking') {
+          e.preventDefault();
+          handleNavigateUp();
+        }
       } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        handleNavigateDown();
+        if (screenMode !== 'talking') {
+          e.preventDefault();
+          handleNavigateDown();
+        }
       } else if (e.key === 'ArrowLeft' && screenMode === 'talking') {
         e.preventDefault();
         handleRewind();
       } else if (e.key === 'ArrowRight' && screenMode === 'talking') {
         e.preventDefault();
         handleToggleSpeed();
+      } else if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        handleToggleTalk();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -393,18 +409,36 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
   }, [screenMode, playbackSpeed, isTalking]);
 
   // Click Wheel Props per page based on requirements:
-  // 1) Push to talk is center button on every page, top and bottom are UP and DOWN
-  // 2) On talking screen: left is REWIND, right is 2X SPEED
-  // 3) On idle screen: remove every text from circular buttons except center
+  // 1) Push to talk is center button on every page
+  // 2) On talking screen: REMOVE UP and DOWN. Left is REWIND, right is 2X SPEED
+  // 3) On idle & devices screens: top is UP, bottom is DOWN for screen navigation
   const getWheelButtonProps = () => {
-    if (screenMode === 'idle') {
+    if (screenMode === 'talking') {
+      // Requirement: Remove UP and DOWN from talking screen!
       return {
         topText: '',
-        topAction: handleNavigateUp,
-        topTitle: 'Navigate to Talking Screen (UP)',
+        topAction: () => {},
+        topTitle: '',
         bottomText: '',
+        bottomAction: () => {},
+        bottomTitle: '',
+        leftText: '◄ REWIND',
+        leftAction: handleRewind,
+        leftTitle: 'Rewind STT transcript and audio playback',
+        rightText: playbackSpeed === 2 ? '2X [ON]' : '2X SPEED',
+        rightAction: handleToggleSpeed,
+        rightTitle: 'Toggle 2X audio speed playback',
+      };
+    }
+
+    if (screenMode === 'devices') {
+      return {
+        topText: '▲ UP',
+        topAction: handleNavigateUp,
+        topTitle: 'Navigate to Standby Screen (UP)',
+        bottomText: '▼ DOWN',
         bottomAction: handleNavigateDown,
-        bottomTitle: 'Navigate to Devices Screen (DOWN)',
+        bottomTitle: 'Navigate to Standby Screen (DOWN)',
         leftText: '',
         leftAction: () => {},
         leftTitle: '',
@@ -414,31 +448,14 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
       };
     }
 
-    if (screenMode === 'talking') {
-      return {
-        topText: '▲ UP',
-        topAction: handleNavigateUp,
-        topTitle: 'Navigate to Available Devices (UP)',
-        bottomText: '▼ DOWN',
-        bottomAction: handleNavigateDown,
-        bottomTitle: 'Navigate to Idle Standby (DOWN)',
-        leftText: '◄ REWIND',
-        leftAction: handleRewind,
-        leftTitle: 'Rewind STT transcript and playback',
-        rightText: playbackSpeed === 2 ? '2X [ON]' : '2X SPEED',
-        rightAction: handleToggleSpeed,
-        rightTitle: 'Toggle 2X audio speed playback',
-      };
-    }
-
-    // screenMode === 'devices'
+    // screenMode === 'idle'
     return {
       topText: '▲ UP',
       topAction: handleNavigateUp,
-      topTitle: 'Navigate to Idle Standby (UP)',
+      topTitle: 'Navigate to Available Devices Screen (UP)',
       bottomText: '▼ DOWN',
       bottomAction: handleNavigateDown,
-      bottomTitle: 'Navigate to Talking Screen (DOWN)',
+      bottomTitle: 'Navigate to Available Devices Screen (DOWN)',
       leftText: '',
       leftAction: () => {},
       leftTitle: '',
@@ -738,45 +755,53 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
             4) In idle page: remove every text from circular buttons except center
             ==================================================================== */}
         <div className="click-wheel-container">
-          {/* Top Label: UP on talking/devices, Empty on idle */}
-          <button
-            onClick={wheelProps.topAction}
-            className="wheel-label-btn wheel-label-top"
-            title={wheelProps.topTitle}
-            aria-label="Navigate Screen Up"
-          >
-            {wheelProps.topText}
-          </button>
+          {/* Top Label: UP on idle/devices, Removed on talking */}
+          {wheelProps.topText ? (
+            <button
+              onClick={wheelProps.topAction}
+              className="wheel-label-btn wheel-label-top"
+              title={wheelProps.topTitle}
+              aria-label="Navigate Screen Up"
+            >
+              {wheelProps.topText}
+            </button>
+          ) : null}
 
-          {/* Left Label: REWIND on talking, Empty on idle/devices */}
-          <button
-            onClick={wheelProps.leftAction}
-            className="wheel-label-btn wheel-label-left"
-            title={wheelProps.leftTitle}
-            aria-label="Rewind"
-          >
-            {wheelProps.leftText}
-          </button>
+          {/* Left Label: REWIND on talking, Removed on idle/devices */}
+          {wheelProps.leftText ? (
+            <button
+              onClick={wheelProps.leftAction}
+              className="wheel-label-btn wheel-label-left"
+              title={wheelProps.leftTitle}
+              aria-label="Rewind"
+            >
+              {wheelProps.leftText}
+            </button>
+          ) : null}
 
-          {/* Right Label: 2X SPEED on talking, Empty on idle/devices */}
-          <button
-            onClick={wheelProps.rightAction}
-            className="wheel-label-btn wheel-label-right"
-            title={wheelProps.rightTitle}
-            aria-label="Toggle 2X Speed"
-          >
-            {wheelProps.rightText}
-          </button>
+          {/* Right Label: 2X SPEED on talking, Removed on idle/devices */}
+          {wheelProps.rightText ? (
+            <button
+              onClick={wheelProps.rightAction}
+              className="wheel-label-btn wheel-label-right"
+              title={wheelProps.rightTitle}
+              aria-label="Toggle 2X Speed"
+            >
+              {wheelProps.rightText}
+            </button>
+          ) : null}
 
-          {/* Bottom Label: DOWN on talking/devices, Empty on idle */}
-          <button
-            onClick={wheelProps.bottomAction}
-            className="wheel-label-btn wheel-label-bottom"
-            title={wheelProps.bottomTitle}
-            aria-label="Navigate Screen Down"
-          >
-            {wheelProps.bottomText}
-          </button>
+          {/* Bottom Label: DOWN on idle/devices, Removed on talking */}
+          {wheelProps.bottomText ? (
+            <button
+              onClick={wheelProps.bottomAction}
+              className="wheel-label-btn wheel-label-bottom"
+              title={wheelProps.bottomTitle}
+              aria-label="Navigate Screen Down"
+            >
+              {wheelProps.bottomText}
+            </button>
+          ) : null}
 
           {/* Center Circular Tactile Button: PUSH TO TALK on EVERY page */}
           <button
