@@ -83,8 +83,8 @@ mobile/bin/
 mobile/build/
 mobile/local.properties
 mobile/app/src/main/assets/generated/
+mobile/app/src/main/assets/models/
 *.apk
-!apps/web/public/*.apk
 *.jks
 *.keystore
 *.jar
