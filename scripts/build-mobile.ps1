@@ -1,4 +1,4 @@
-param([switch]$Install, [string]$Device, [string]$JavaHome = $env:JAVA_HOME, [string]$Sdk = $env:ANDROID_HOME, [string]$Gradle)
+param([switch]$Install, [switch]$SideBySide, [string]$Device, [string]$JavaHome = $env:JAVA_HOME, [string]$Sdk = $env:ANDROID_HOME, [string]$Gradle)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $unityAndroid = 'C:\Program Files\Unity\Hub\Editor\6000.6.0f1\Editor\Data\PlaybackEngines\AndroidPlayer'
@@ -21,7 +21,9 @@ Push-Location $projectRoot
 try {
     & npm.cmd run build:mobile-ui
     if ($LASTEXITCODE -ne 0) { throw 'Mobile frontend build failed' }
-    & $Gradle -p mobile --no-daemon --console=plain :app:assembleDebug
+    $buildArgs = @('-p', 'mobile', '--no-daemon', '--console=plain', ':app:assembleDebug')
+    if ($SideBySide) { $buildArgs += '-PsideBySide=true' }
+    & $Gradle @buildArgs
     if ($LASTEXITCODE -ne 0) { throw 'Android build failed' }
     $apk = Join-Path $projectRoot 'mobile/app/build/outputs/apk/debug/app-debug.apk'
     Write-Output "APK: $apk"

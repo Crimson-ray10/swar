@@ -22,6 +22,8 @@ Speech recognition packs are separate downloads, not bundled in the APK.
 npm ci
 ./scripts/build-mobile.ps1
 ./scripts/build-mobile.ps1 -Install -Device YOUR_ADB_SERIAL
+# Preserve an existing app signed with a different key:
+./scripts/build-mobile.ps1 -SideBySide -Install -Device YOUR_ADB_SERIAL
 ```
 
 The script accepts `-JavaHome`, `-Sdk`, and `-Gradle`, or uses JAVA_HOME,
@@ -30,6 +32,8 @@ ANDROID_HOME, and the local scratch toolchain. Requirements: JDK 17+, Gradle
 This is a development-signed Android 12+ build with ARM64 speech libraries.
 Replacing a differently signed existing app requires resolving the signing
 mismatch; do not automatically uninstall it and erase its data.
+`-SideBySide` installs the same code as `in.itantra.mobile.ipod`, labelled
+**SWAR iPod**, without replacing `in.itantra.mobile`.
 
 Two existing clean-build blockers were corrected: the SDK declarations now come
 from Gradle instead of the manifest, and LocalTransport has its missing TAG
