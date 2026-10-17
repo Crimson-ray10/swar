@@ -57,6 +57,7 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 html {
@@ -66,6 +67,7 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 body {
@@ -73,16 +75,99 @@ body {
   line-height: 1.6;
   background-color: var(--cream);
   overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Warm on-brand selection highlight — replaces harsh default browser blue box */
+::selection {
+  background-color: #e5ccbf;
+  color: var(--ink);
+}
+
+::-moz-selection {
+  background-color: #e5ccbf;
+  color: var(--ink);
+}
+
+/* Remove default browser blue outline box on touch/click while maintaining keyboard accessibility */
+:focus:not(:focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+:focus-visible {
+  outline: 2px solid var(--clay) !important;
+  outline-offset: 3px !important;
+}
+
+/* Eliminate blue box, focus rings, and tap highlights on all interactive elements */
+a,
+button,
+input,
+select,
+textarea,
+[tabindex],
+[role="button"],
+.btn,
+.nav-link,
+.screen-tab,
+.phone-wrapper,
+.step-card,
+.faq-trigger,
+.side-blob,
+.shared-space-pill-btn,
+.sound-orb,
+.connect-opt-card,
+.download-card-pill,
+.mobile-menu-toggle {
+  outline: none;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-focus-ring-color: transparent !important;
+}
+
+a:focus:not(:focus-visible),
+button:focus:not(:focus-visible),
+[tabindex]:focus:not(:focus-visible),
+[role="button"]:focus:not(:focus-visible),
+.screen-tab:focus:not(:focus-visible),
+.phone-wrapper:focus:not(:focus-visible),
+.sound-orb:focus:not(:focus-visible),
+.connect-opt-card:focus:not(:focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Prevent accidental blue text selection rectangles on touch controls */
+button,
+.btn,
+.brand-logo,
+.nav-link,
+.screen-tab,
+.phone-wrapper,
+.step-card,
+.faq-trigger,
+.side-blob,
+.shared-space-pill-btn,
+.sound-orb,
+.connect-opt-card,
+.download-card-pill,
+.mobile-menu-toggle {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 img, svg {
   display: block;
   max-width: 100%;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 button {
@@ -90,6 +175,7 @@ button {
   border: none;
   background: none;
   font-family: inherit;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 /* Layout Utilities */
@@ -152,6 +238,14 @@ button {
   font-weight: 600;
   transition: all var(--transition-fast);
   white-space: nowrap;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.btn:focus {
+  outline: none;
 }
 
 .btn-pill-dark {
@@ -634,6 +728,14 @@ button {
   border: 1px solid rgba(38, 53, 43, 0.06);
   cursor: pointer;
   transition: all var(--transition-fast);
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.step-card:focus {
+  outline: none;
 }
 
 .step-card:hover, .step-card.active {
@@ -889,6 +991,12 @@ button {
   color: var(--ink);
   transition: all var(--transition-fast);
   border: 1px solid transparent;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.screen-tab:focus {
+  outline: none;
 }
 
 .screen-tab:hover {
@@ -899,6 +1007,7 @@ button {
 .screen-tab.active {
   background-color: var(--ink);
   color: var(--cream);
+  outline: none;
 }
 
 .tab-indicator {
@@ -935,6 +1044,10 @@ button {
   will-change: transform, opacity;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .phone-hardware {
@@ -1409,6 +1522,12 @@ button {
   gap: 10px;
   cursor: pointer;
   transition: all var(--transition-fast);
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.connect-opt-card:focus {
+  outline: none;
 }
 
 .connect-opt-card:hover {
@@ -1504,6 +1623,14 @@ button {
   padding: 22px 0;
   text-align: left;
   transition: color var(--transition-fast);
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.faq-trigger:focus {
+  outline: none;
 }
 
 .faq-trigger:hover {
@@ -1599,6 +1726,14 @@ button {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
   transition: all var(--transition-fast);
   min-width: 270px;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.download-card-pill:focus {
+  outline: none;
 }
 
 .download-card-pill:hover {
@@ -1770,6 +1905,14 @@ button {
   font-size: 14px;
   display: grid;
   place-items: center;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.modal-close-btn:focus {
+  outline: none;
 }
 
 .modal-desc {
