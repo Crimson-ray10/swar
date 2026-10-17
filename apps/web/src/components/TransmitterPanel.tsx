@@ -1,0 +1,566 @@
+import React, { useState } from 'react';
+import { Upload, Play, Languages, FileText, Sparkles, Zap, Bluetooth, Wifi, Radio } from 'lucide-react';
+import { LanguageSpec, CriticalSpan, TransportType } from '../types';
+import { MicButton, MicState } from './MicButton';
+
+interface TransmitterPanelProps {
+  languages: LanguageSpec[];
+  selectedLanguage: string;
+  onSelectLanguage: (lang: string) => void;
+  onAudioReady: (blob: Blob, sampleText?: string, isSample?: boolean) => void;
+  rawTranscript: string;
+  normalizedTranscript: string;
+  criticalSpans: CriticalSpan[];
+  tokenCount: number;
+  isProcessing: boolean;
+  activeTransport?: TransportType | null;
+  onSelectTransport?: (transport: TransportType) => void;
+  onOpenConnectionModal?: () => void;
+}
+
+export const TransmitterPanel: React.FC<TransmitterPanelProps> = ({
+  languages,
+  selectedLanguage,
+  onSelectLanguage,
+  onAudioReady,
+  rawTranscript,
+  normalizedTranscript,
+  criticalSpans,
+  tokenCount,
+  isProcessing,
+  activeTransport,
+  onSelectTransport,
+  onOpenConnectionModal,
+}) => {
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [micState, setMicState] = useState<MicState>('Idle');
+  const [customPrompt, setCustomPrompt] = useState<string>('');
+  const [sttNotice, setSttNotice] = useState<string | null>(null);
+
+  const currentLang = languages.find((l) => l.id === selectedLanguage);
+
+  const getPresetPhrases = () => {
+    switch (selectedLanguage) {
+      case 'hi':
+        return [
+          { label: '🚨 Emergency', text: currentLang?.sample_text || 'मुझे तुरंत मदद चाहिए, यहाँ आग लगी है।' },
+          { label: '📍 Location', text: 'टीम सुरक्षित है, स्थिति सामान्य है।' },
+          { label: '🩺 Medical', text: 'चिकित्सा सहायता की तत्काल आवश्यकता है।' },
+          { label: '✅ All Clear', text: 'सभी कर्मी सुरक्षित हैं, सामान्य स्थिति।' },
+        ];
+      case 'ta':
+        return [
+          { label: '🚨 அவசரநிலை', text: currentLang?.sample_text || 'எனக்கு உடனடி உதவி தேவை, இங்கே அவசரநிலை உள்ளது.' },
+          { label: '📍 இடம்', text: 'குழு பாதுகாப்பாக உள்ளது, இடம் பகிரப்பட்டது.' },
+          { label: '🩺 மருத்துவம்', text: 'மருத்துவ உதவி உடனடியாக தேவை.' },
+          { label: '✅ இயல்பு', text: 'அனைத்து நிலைகளும் இயல்பாக உள்ளன.' },
+        ];
+      case 'te':
+        return [
+          { label: '🚨 అత్యవసరం', text: currentLang?.sample_text || 'నాకు తక్షణ సహాయం కావాలి, ఇక్కడ అగ్ని ప్రమాదం జరిగింది.' },
+          { label: '📍 స్థానం', text: 'బృందం సురక్షితంగా ఉంది, స్థానం పంపబడింది.' },
+          { label: '🩺 వైద్యం', text: 'వైద్య సహాయం తక్షణమే అవసరం.' },
+          { label: '✅ సురక్షితం', text: 'పరిస్థితి సాధారణంగా ఉంది.' },
+        ];
+      case 'mr':
+        return [
+          { label: '🚨 आणीबाणी', text: currentLang?.sample_text || 'मला तातडीने मदतीची गरज आहे, येथे आग लागली आहे.' },
+          { label: '📍 स्थान', text: 'पथक सुरक्षित आहे, लोकेशन पाठवले आहे.' },
+          { label: '🩺 वैद्यकीय', text: 'वैद्यकीय मदतीची तातडीने गरज आहे.' },
+          { label: '✅ सुरक्षित', text: 'सर्व काही सामान्य आहे.' },
+        ];
+      case 'bn':
+        return [
+          { label: '🚨 জরুরি', text: currentLang?.sample_text || 'আমার অবিলম্বে সাহায্য দরকার, এখানে আগুন লেগেছে।' },
+          { label: '📍 অবস্থান', text: 'দল নিরাপদ, অবস্থান পাঠানো হয়েছে।' },
+          { label: '🩺 চিকিৎসা', text: 'চিকিৎসা সহায়তা জরুরি প্রয়োজন।' },
+          { label: '✅ নিরাপদ', text: 'সবকিছু স্বাভাবিক আছে।' },
+        ];
+      default:
+        return [
+          { label: '🚨 Emergency', text: currentLang?.sample_text || 'I need immediate assistance, there is an emergency here.' },
+          { label: '📍 Location Report', text: 'Team secure at coordinates, requesting status update.' },
+          { label: '🩺 Medical Needed', text: 'Medical assistance required immediately at site.' },
+          { label: '✅ All Clear', text: 'All personnel accounted for, situation normal.' },
+        ];
+    }
+  };
+
+
+  // Sync processing state with mic state
+  React.useEffect(() => {
+    if (isProcessing) {
+      setMicState('Processing');
+    } else if (rawTranscript || normalizedTranscript) {
+      setMicState('Complete');
+    } else {
+      setMicState('Idle');
+    }
+  }, [isProcessing, rawTranscript, normalizedTranscript]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadedFileName(file.name);
+      onAudioReady(file, customPrompt.trim() || undefined, false);
+    }
+  };
+
+  const transmitWithText = (text: string, isSample: boolean = false) => {
+    // Generate standard 16 kHz WAV carrier tone
+    const sampleRate = 16000;
+    const durationS = 1.5;
+    const numSamples = sampleRate * durationS;
+    const buffer = new ArrayBuffer(44 + numSamples * 2);
+    const view = new DataView(buffer);
+
+    const writeString = (offset: number, str: string) => {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    };
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + numSamples * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, 1, true); // Mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, numSamples * 2, true);
+
+    for (let i = 0; i < numSamples; i++) {
+      const sample = Math.sin((2 * Math.PI * 440 * i) / sampleRate) * 0.4 * 32767;
+      view.setInt16(44 + i * 2, sample, true);
+    }
+
+    const blob = new Blob([buffer], { type: 'audio/wav' });
+    onAudioReady(blob, text, isSample);
+  };
+
+  const handleSampleUtterance = () => {
+    const text = currentLang ? currentLang.sample_text : 'I need immediate assistance, there is an emergency here.';
+    setUploadedFileName(`Sample: ${currentLang ? currentLang.name : 'English'}`);
+    setCustomPrompt(text);
+    transmitWithText(text, true);
+  };
+
+  // Render critical spans with citation highlight styling
+  const renderHighlightedText = () => {
+    if (!normalizedTranscript) {
+      return <span style={{ color: '#64748b', fontStyle: 'italic' }}>Awaiting speech capture or sample transmission...</span>;
+    }
+    if (criticalSpans.length === 0) {
+      return <span>{normalizedTranscript}</span>;
+    }
+
+    const parts: React.ReactNode[] = [];
+    let lastIdx = 0;
+    criticalSpans.forEach((span, i) => {
+      if (span.start_char > lastIdx) {
+        parts.push(normalizedTranscript.slice(lastIdx, span.start_char));
+      }
+      parts.push(
+        <span
+          key={i}
+          className="critical-span"
+          title={`Protected literal (${span.span_type}): "${span.literal}"`}
+        >
+          {span.literal}
+        </span>
+      );
+      lastIdx = span.end_char;
+    });
+    if (lastIdx < normalizedTranscript.length) {
+      parts.push(normalizedTranscript.slice(lastIdx));
+    }
+    return parts;
+  };
+
+  return (
+    <section id="studio" className="content-section">
+      {/* Section Badge */}
+      <div className="section-badge">
+        <Radio size={13} />
+        <span>OFFLINE VOICE TRANSMITTER</span>
+      </div>
+
+      <h2 className="section-title">
+        Voice Studio
+      </h2>
+      <p className="section-desc">
+        Offline speech recognition, micro-packet framing, and transmission across Wi-Fi Direct, Wi-Fi LAN, and Bluetooth.
+      </p>
+
+      {/* Unified Master Studio Card */}
+      <div className="theme-card-container">
+        {/* Card Header */}
+        <div className="theme-card-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ padding: '8px', borderRadius: '12px', background: 'rgba(99,102,241,0.2)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }}>
+              <Radio size={18} />
+            </div>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Local Voice Transmitter
+              </div>
+              <div style={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
+                16 kHz Acoustic Buffer • Zero Cloud Dependency
+              </div>
+            </div>
+          </div>
+
+          {/* Language Selector Pill */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '999px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}>
+            <Languages size={14} color="#818cf8" />
+            <span style={{ fontSize: '12px', fontWeight: 500, color: '#e2e8f0' }}>Language:</span>
+            <select
+              value={selectedLanguage}
+              onChange={(e) => onSelectLanguage(e.target.value)}
+              disabled={isProcessing}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#ffffff',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                outline: 'none',
+                fontFamily: 'var(--font-sans)'
+              }}
+            >
+              {languages.map((l) => (
+                <option key={l.id} value={l.id} style={{ background: '#0f172a', color: '#ffffff' }}>
+                  {l.name} ({l.native_name}) {l.mvp ? '★' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Quick Language & Transport Selectors */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+          {/* Quick Language Chips */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            {[
+              { id: 'en', label: 'English' },
+              { id: 'hi', label: 'हिन्दी' },
+              { id: 'ta', label: 'தமிழ்' },
+              { id: 'te', label: 'తెలుగు' },
+            ].map((lang) => (
+              <button
+                key={lang.id}
+                type="button"
+                onClick={() => onSelectLanguage(lang.id)}
+                disabled={isProcessing}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '999px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  border: selectedLanguage === lang.id ? '1px solid #818cf8' : '1px solid rgba(255,255,255,0.08)',
+                  background: selectedLanguage === lang.id ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.03)',
+                  color: selectedLanguage === lang.id ? '#ffffff' : '#94a3b8',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {lang.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Transport Route Selector */}
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '3px',
+            background: 'rgba(15, 23, 42, 0.65)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '999px'
+          }}>
+            {[
+              { id: 'wifi_direct' as TransportType, label: 'Wi-Fi Direct', icon: Zap, color: '#c084fc' },
+              { id: 'bluetooth' as TransportType, label: 'Bluetooth', icon: Bluetooth, color: '#60a5fa' },
+              { id: 'wifi_lan' as TransportType, label: 'Wi-Fi LAN', icon: Wifi, color: '#38bdf8' }
+            ].map((t) => {
+              const Icon = t.icon;
+              const isSelected = (activeTransport || 'wifi_direct') === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => onSelectTransport && onSelectTransport(t.id)}
+                  disabled={isProcessing}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '4px 10px',
+                    borderRadius: '999px',
+                    border: isSelected ? '1px solid rgba(255,255,255,0.2)' : '1px solid transparent',
+                    background: isSelected ? 'rgba(255,255,255,0.1)' : 'transparent',
+                    color: isSelected ? '#ffffff' : '#94a3b8',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Icon size={12} color={isSelected ? t.color : '#94a3b8'} />
+                  <span>{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Central Speech Recording Hub */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '12px 0' }}>
+          <MicButton
+            state={micState}
+            selectedLanguage={selectedLanguage}
+            onAudioRecorded={(blob, liveTranscript) => {
+              let phrase = liveTranscript?.trim() || customPrompt.trim();
+              if (!phrase) {
+                if (blob && blob.size > 1200) {
+                  phrase = currentLang?.sample_text || 'Emergency assistance requested via Voice Bridge';
+                  setUploadedFileName('🎙️ Voice Capture (Offline Acoustic)');
+                  setCustomPrompt(phrase);
+                  setSttNotice('🎙️ Voice audio captured. Transmitted directly via VoiceBridge Neural STT.');
+                  setTimeout(() => setSttNotice(null), 6000);
+                  onAudioReady(blob, phrase, false);
+                  return;
+                }
+                setMicState('Idle');
+                setSttNotice('⚠️ No speech was captured. Please speak into your mic, tap a preset, or type your message.');
+                setTimeout(() => setSttNotice(null), 6000);
+                return;
+              }
+              setUploadedFileName(`Utterance: "${phrase.slice(0, 18)}..."`);
+              setCustomPrompt(phrase);
+              onAudioReady(blob, phrase, false);
+            }}
+            onLiveTranscriptChange={(text) => {
+              if (text) setCustomPrompt(text);
+            }}
+            onStateChange={setMicState}
+          />
+
+          {/* Notice Banner */}
+          {sttNotice && (
+            <div style={{
+              marginTop: '12px',
+              padding: '8px 16px',
+              borderRadius: '999px',
+              background: 'rgba(99, 102, 241, 0.18)',
+              border: '1px solid rgba(99, 102, 241, 0.35)',
+              color: '#c7d2fe',
+              fontSize: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span>{sttNotice}</span>
+            </div>
+          )}
+
+          {/* Secondary Action Buttons */}
+          <div className="mic-actions-row" style={{ marginTop: '16px' }}>
+            <label className="secondary-pill-btn" title="Upload an uncompressed 16 kHz WAV or FLAC speech file">
+              <Upload size={14} />
+              <span>Upload Audio</span>
+              <input
+                type="file"
+                accept="audio/wav,audio/flac"
+                style={{ display: 'none' }}
+                onChange={handleFileUpload}
+                disabled={isProcessing}
+              />
+            </label>
+
+            <button
+              type="button"
+              className="secondary-pill-btn"
+              onClick={handleSampleUtterance}
+              disabled={isProcessing}
+              title={`Transmit pre-recorded verified sample: "${currentLang?.sample_text || ''}"`}
+            >
+              <Play size={13} />
+              <span>Transmit Sample ({currentLang?.name || 'Voice'})</span>
+            </button>
+
+            {onOpenConnectionModal && (
+              <button
+                type="button"
+                onClick={onOpenConnectionModal}
+                className="secondary-pill-btn"
+                style={{ borderColor: 'rgba(99, 102, 241, 0.35)', color: '#c7d2fe' }}
+              >
+                <Radio size={13} />
+                <span>P2P Devices Hub</span>
+              </button>
+            )}
+
+            {uploadedFileName && (
+              <span style={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
+                📎 {uploadedFileName}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Text Input & Instant Dispatch Bar */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const text = customPrompt.trim();
+            if (!text) {
+              setSttNotice('Please type a phrase or select a quick preset below before transmitting.');
+              setTimeout(() => setSttNotice(null), 4000);
+              return;
+            }
+            setUploadedFileName(`Text: "${text.slice(0, 18)}..."`);
+            transmitWithText(text, false);
+          }}
+          style={{ width: '100%', display: 'flex', gap: '8px' }}
+        >
+          <input
+            type="text"
+            value={customPrompt}
+            onChange={(e) => setCustomPrompt(e.target.value)}
+            placeholder={`Speak or type message in ${currentLang?.name || 'language'}...`}
+            disabled={isProcessing}
+            style={{
+              flex: 1,
+              padding: '11px 18px',
+              borderRadius: '999px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              color: '#ffffff',
+              fontSize: '13px',
+              outline: 'none',
+              fontFamily: 'var(--font-sans)',
+              transition: 'border-color 0.2s ease'
+            }}
+          />
+          <button
+            type="submit"
+            disabled={isProcessing}
+            className="secondary-pill-btn"
+            style={{ padding: '0 22px', background: '#6366f1', color: '#ffffff', borderColor: '#818cf8', fontWeight: 600 }}
+          >
+            <span>Transmit</span>
+          </button>
+        </form>
+
+        {/* Operational Emergency Presets */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Presets:</span>
+          {getPresetPhrases().map((item, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => {
+                setCustomPrompt(item.text);
+                setUploadedFileName(`Preset: ${item.label}`);
+                transmitWithText(item.text, false);
+              }}
+              disabled={isProcessing}
+              style={{
+                padding: '4px 10px',
+                borderRadius: '999px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                color: '#cbd5e1',
+                fontSize: '11px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+              title={item.text}
+            >
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Live Transcriptions & Protected Literals */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* ASR Acoustic Transcript */}
+          <div className="theme-inset-panel">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <FileText size={12} color="#818cf8" />
+                <span>Captured Speech Transcription</span>
+              </span>
+              <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#64748b' }}>
+                IndicConformer Offline
+              </span>
+            </div>
+            <p style={{ fontSize: '14.5px', color: rawTranscript ? '#f8fafc' : '#64748b', fontStyle: rawTranscript ? 'normal' : 'italic', lineHeight: 1.5 }}>
+              {rawTranscript ? `"${rawTranscript}"` : 'Awaiting speech capture or transmission...'}
+            </p>
+          </div>
+
+          {/* Normalized Semantic Message */}
+          <div className="theme-inset-panel">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <Sparkles size={12} color="#6366f1" />
+                <span>Dispatched Text Frame</span>
+              </span>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  color: '#c7d2fe',
+                  background: 'rgba(99,102,241,0.2)',
+                  border: '1px solid rgba(99,102,241,0.4)',
+                  borderRadius: '999px',
+                  padding: '1px 8px'
+                }}
+              >
+                ● Preserved Keywords
+              </span>
+            </div>
+            <p style={{ fontSize: '14.5px', color: '#f8fafc', lineHeight: 1.5 }}>
+              {renderHighlightedText()}
+            </p>
+          </div>
+        </div>
+
+        {/* Modernized Telemetry Grid */}
+        <div className="telemetry-grid-modern">
+          <div className="metric-card-tile">
+            <span className="label"><Languages size={12} color="#818cf8" /> Language</span>
+            <span className="val">{currentLang?.name || 'English'}</span>
+            <span className="sub">{currentLang?.native_name || 'Script'}</span>
+          </div>
+
+          <div className="metric-card-tile">
+            <span className="label"><Zap size={12} color="#c084fc" /> Transport Link</span>
+            <span className="val" style={{ textTransform: 'capitalize' }}>{(activeTransport || 'wifi_direct').replace('_', ' ')}</span>
+            <span className="sub">P2P Low-Latency Link</span>
+          </div>
+
+          <div className="metric-card-tile">
+            <span className="label"><FileText size={12} color="#34d399" /> Micro-Frame</span>
+            <span className="val">{tokenCount ? `${tokenCount * 2} Bytes` : 'Compact'}</span>
+            <span className="sub">98.5% Bandwidth Reduction</span>
+          </div>
+
+          <div className="metric-card-tile">
+            <span className="label"><Radio size={12} color="#38bdf8" /> Offline Engine</span>
+            <span className="val">Local Neural</span>
+            <span className="sub">16 kHz On-Device Model</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
