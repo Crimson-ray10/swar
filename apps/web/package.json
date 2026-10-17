@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:mobile": "tsc && vite build --config vite.mobile.config.ts"
   },
   "dependencies": {
     "gsap": "^3.15.0",
