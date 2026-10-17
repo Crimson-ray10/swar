@@ -2,25 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Mic, ArrowLeft, Volume2, VolumeX, Smartphone, Sparkles } from 'lucide-react';
 import { sound } from '../utils/audioEffects';
 import './PixelTransceiver.css';
+import { openRadio, isNative } from '../services/transceiver';
 
 export type ScreenMode = 'devices' | 'talking' | 'idle';
 
 export interface PeerDevice {
-  id: string;
-  name: string;
-  transport: 'WIFI-DIRECT' | 'BLE-MESH' | 'WI-FI-LAN';
-  signalDbm: number;
-  batteryPct: number;
-  ip: string;
-  status: 'ONLINE' | 'STANDBY';
+  id: string; name: string; transport: string; ip: string; port?: number;
+  p2pAddress?: string; btAddress?: string; raw?: any;
 }
-
-const MOCK_PEERS: PeerDevice[] = [
-  { id: 'dev-1', name: 'PIXEL-9A-FIELD', transport: 'WIFI-DIRECT', signalDbm: -42, batteryPct: 94, ip: '192.168.49.1', status: 'ONLINE' },
-  { id: 'dev-2', name: 'MOTO-EDGE-TACTICAL', transport: 'BLE-MESH', signalDbm: -68, batteryPct: 81, ip: 'BLE:4A:2F:90', status: 'ONLINE' },
-  { id: 'dev-3', name: 'ONEPLUS-BASE-01', transport: 'WI-FI-LAN', signalDbm: -55, batteryPct: 100, ip: '10.200.1.44', status: 'ONLINE' },
-  { id: 'dev-4', name: 'COMMAND-RELAY-04', transport: 'WIFI-DIRECT', signalDbm: -74, batteryPct: 67, ip: '192.168.49.10', status: 'STANDBY' },
-];
 
 const TACTICAL_PHRASES = [
   'Route is clear, team advancing carefully.',
@@ -47,10 +36,63 @@ interface PixelTransceiverProps {
 export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain, onNavigate }) => {
   // Navigation & Screen Mode
   const [screenMode, setScreenMode] = useState<ScreenMode>('idle');
-  const [connectedPeer, setConnectedPeer] = useState<PeerDevice | null>(MOCK_PEERS[0]);
+  const [connectedPeer, setConnectedPeer] = useState<PeerDevice | null>(null);
   const [selectedDeviceIndex, setSelectedDeviceIndex] = useState<number>(0);
   const [isPairing, setIsPairing] = useState<boolean>(false);
   const [pairingLog, setPairingLog] = useState<string>('');
+
+  const [peers, setPeers] = useState<PeerDevice[]>([]);
+  const [connectionState, setConnectionState] = useState('DISCONNECTED');
+  const [notice, setNotice] = useState('Find a nearby phone to begin.');
+  const [incoming, setIncoming] = useState<any>(null);
+  const [hostInfo, setHostInfo] = useState('');
+  const [address, setAddress] = useState('');
+  const [pin, setPin] = useState('');
+  const radio = useRef<ReturnType<typeof openRadio> | null>(null);
+  const held = useRef(false);
+  const command = (action: string, data: any = {}) => radio.current?.command(action, data);
+  useEffect(() => {
+    const normalize = (d: any): PeerDevice => ({ id: d.id || d.p2pAddress || d.btAddress || d.address,
+      name: d.name || d.address || 'Nearby phone', ip: d.address || '', port: d.port,
+      transport: d.transport || (d.p2pAddress ? 'Wi-Fi Direct' : 'LAN'),
+      p2pAddress: d.p2pAddress, btAddress: d.btAddress, raw: d });
+    radio.current = openRadio((type, data) => {
+      if (type === 'peer') { const peer = normalize(data); setPeers(old => [...old.filter(p => p.id !== peer.id), peer]); }
+      if (type === 'peers') setPeers(data.peers.map(normalize));
+      if (type === 'peerLost') setPeers(old => old.filter(p => p.id !== normalize(data).id));
+      if (type === 'connection') {
+        setConnectionState(data.state); setNotice(data.state);
+        setIsPairing(['CONNECTING', 'WAITING_APPROVAL', 'HANDSHAKING'].includes(data.state));
+        setPairingLog(data.state);
+        if (data.state === 'CONNECTED') {
+          setConnectedPeer({ id: data.address || 'connected', name: data.peer || 'Connected peer', ip: data.address || '', transport: data.transport || 'LAN' });
+          setIncoming(null); setScreenMode('idle');
+        } else { setConnectedPeer(null); held.current = false; setIsTalking(false); }
+      }
+      if (type === 'connection_request') setIncoming(data);
+      if (['request_cancelled', 'request_declined'].includes(type)) { setIncoming(null); setIsPairing(false); setNotice(type.replace('_', ' ')); }
+      if (type === 'host') setHostInfo((data.addresses || []).join(' / ') + ' · PIN ' + data.pin);
+      if (['partial', 'recognized', 'sent', 'received'].includes(type) && data.text) {
+        setLiveTranscript(data.text);
+        if (type === 'received') {
+          held.current = false; setIsTalking(false);
+          recognitionRef.current?.abort();
+          setIsPeerSpeaking(true); setScreenMode('talking');
+        }
+      }
+      if (type === 'speech') {
+        setNotice(data.state);
+        if (/idle|error|released/i.test(data.state)) { held.current = false; setIsTalking(false); setIsPeerSpeaking(false); }
+      }
+      if (['notice', 'error', 'download_progress'].includes(type)) {
+        setNotice(data.message || data.state || JSON.stringify(data));
+        if (type === 'error') { held.current = false; setIsTalking(false); setIsPairing(false); }
+      }
+    });
+    command('language', { language: 'en' });
+    command('capabilities'); command('discover');
+    return () => radio.current?.close();
+  }, []);
 
   // Audio & Talking
   const [isTalking, setIsTalking] = useState<boolean>(false);
@@ -77,6 +119,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
 
   // Initialize SpeechRecognition if available in browser
   useEffect(() => {
+    if (isNative()) return;
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRec) {
       try {
@@ -91,7 +134,9 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
             interim += event.results[i][0].transcript;
           }
           if (interim.trim()) {
-            setLiveTranscript(interim.toUpperCase());
+            setLiveTranscript(interim);
+            const finalized = Array.from(event.results as ArrayLike<any>).slice(event.resultIndex).filter((r: any) => r.isFinal).map((r: any) => r[0].transcript).join(' ');
+            if (finalized.trim()) command('send', { text: finalized });
           }
         };
 
@@ -100,7 +145,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
         };
 
         rec.onend = () => {
-          if (isTalking) {
+          if (held.current) {
             try { rec.start(); } catch (_) {}
           }
         };
@@ -115,6 +160,8 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
       }
     };
   }, [currentLanguage]);
+
+  useEffect(() => { command('language', { language: currentLanguage.speechCode.split('-')[0] }); }, [currentLanguage]);
 
   // Screen 3: Phosphor Oscilloscope & Pixel Animation Canvas
   useEffect(() => {
@@ -199,7 +246,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
     };
   }, [screenMode]);
 
-  const [playbackSpeed, setPlaybackSpeed] = useState<1 | 2>(1);
+  const playbackSpeed: number = 1;
 
   // Audio Equalizer bars animation when talking
   useEffect(() => {
@@ -215,15 +262,6 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
 
   const timersRef = useRef<number[]>([]);
 
-  const addTimer = (callback: () => void, delayMs: number) => {
-    const id = window.setTimeout(() => {
-      timersRef.current = timersRef.current.filter(t => t !== id);
-      callback();
-    }, delayMs);
-    timersRef.current.push(id);
-    return id;
-  };
-
   const clearAllTimers = () => {
     timersRef.current.forEach(id => clearTimeout(id));
     timersRef.current = [];
@@ -236,97 +274,32 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
     return () => clearAllTimers();
   }, []);
 
-  // Handle Starting and Stopping Push-To-Talk (Center button for every page)
-  const handleToggleTalk = () => {
-    sound.playClick();
-    clearAllTimers();
-
-    if (!connectedPeer) {
-      setConnectedPeer(MOCK_PEERS[0]);
-    }
-
-    if (isTalking || screenMode === 'talking') {
-      stopTalking();
-    } else {
-      startTalking();
-    }
-  };
-
   const startTalking = () => {
-    clearAllTimers();
-    sound.playPttStart();
-    setIsTalking(true);
-    setScreenMode('talking');
-    setLiveTranscript('LISTENING... SPEAK NOW█');
-
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.lang = currentLanguage.speechCode;
-        recognitionRef.current.start();
-      } catch (_) {}
-    }
+    if (held.current) return;
+    if (!connectedPeer) { setNotice('Connect to a peer before speaking.'); return; }
+    if (!isNative() && !recognitionRef.current) { setNotice('Speech recognition unavailable in this browser. Use typed dispatch or Android.'); return; }
+    held.current = true; setIsTalking(true); setIsPeerSpeaking(false); setScreenMode('talking');
+    setLiveTranscript('LISTENING…');
+    if (isNative()) command('start');
+    else { try { recognitionRef.current.start(); } catch (e) { held.current = false; setIsTalking(false); setNotice(String(e)); } }
   };
-
   const stopTalking = () => {
-    sound.playPttEnd();
-    setIsTalking(false);
-    clearAllTimers();
-
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch (_) {}
-    }
-
-    setScreenMode('idle');
+    if (!held.current) return;
+    held.current = false; setIsTalking(false);
+    if (isNative()) command('release');
+    else recognitionRef.current?.stop();
   };
-
-  // Quick Dispatch phrase send
+  const handleToggleTalk = () => held.current ? stopTalking() : startTalking();
   const handleSendPhrase = (phrase: string) => {
-    clearAllTimers();
-    sound.playPttStart();
-    setIsTalking(true);
-    setScreenMode('talking');
-    setLiveTranscript(phrase.toUpperCase());
-
-    addTimer(() => {
-      sound.playPttEnd();
-      setIsTalking(false);
-      setScreenMode('idle');
-
-      // Simulate peer acknowledgment after 1.5s
-      addTimer(() => {
-        setIsPeerSpeaking(true);
-        setScreenMode('talking');
-        setLiveTranscript(`ROGER: COPY "${phrase.toUpperCase()}".`);
-        addTimer(() => {
-          setIsPeerSpeaking(false);
-          setScreenMode('idle');
-        }, 2000);
-      }, 1400);
-    }, 2000);
+    if (!connectedPeer) { setNotice('Connect to a peer before sending.'); return; }
+    command('send', { text: phrase, language: currentLanguage.speechCode.split('-')[0] });
+    setNotice('Message submitted. Delivery requires a peer acknowledgement.');
   };
-
-  // Connect to chosen peer
   const handleConnectDevice = (peer: PeerDevice) => {
-    sound.playClick();
-    clearAllTimers();
-    setIsPairing(true);
-    setPairingLog(`PAIRING WITH ${peer.name}...`);
-
-    addTimer(() => {
-      setPairingLog('X25519 KEY EXCHANGE: OK');
-    }, 600);
-
-    addTimer(() => {
-      setPairingLog(`LINK READY: ${peer.transport}`);
-      sound.playConnectChirp();
-    }, 1200);
-
-    addTimer(() => {
-      setIsPairing(false);
-      setConnectedPeer(peer);
-      setScreenMode('idle'); // Mode 3: Connected & Not Talking
-      setLiveTranscript('READY WHEN YOU ARE.');
-    }, 1800);
+    setIsPairing(true); setPairingLog('CONNECTING TO ' + peer.name);
+    if (isNative() && peer.p2pAddress) command('connectP2p', { p2pAddress: peer.p2pAddress });
+    else if (isNative() && peer.btAddress) command('connectBluetooth', { btAddress: peer.btAddress });
+    else command('connect', { address: peer.ip, port: peer.port || 8988, pin, peer: peer.raw });
   };
 
   // Screen Navigation handlers (Top = UP, Bottom = DOWN)
@@ -358,25 +331,6 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
   };
 
   // Talking Screen Controls: Rewind & 2X Speed
-  const handleRewind = () => {
-    sound.playRewind();
-    clearAllTimers();
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-    const cleanText = liveTranscript.replace(/█/g, '');
-    setLiveTranscript(`◄◄ REWIND: ${cleanText}█`);
-    addTimer(() => {
-      setLiveTranscript(`${cleanText}█`);
-    }, 900);
-  };
-
-  const handleToggleSpeed = () => {
-    const nextSpeed = playbackSpeed === 1 ? 2 : 1;
-    setPlaybackSpeed(nextSpeed);
-    sound.playSpeedToggle(nextSpeed);
-  };
-
   // Keyboard navigation support:
   // ArrowUp / ArrowDown navigate screens (only when not in talking screen)
   // ArrowLeft = Rewind, ArrowRight = 2X Speed, Space = Push To Talk
@@ -395,18 +349,18 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
         }
       } else if (e.key === 'ArrowLeft' && screenMode === 'talking') {
         e.preventDefault();
-        handleRewind();
+        command('stopPlayback');
       } else if (e.key === 'ArrowRight' && screenMode === 'talking') {
         e.preventDefault();
-        handleToggleSpeed();
+        command('stopPlayback');
       } else if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
-        handleToggleTalk();
+        if (!e.repeat) startTalking();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [screenMode, playbackSpeed, isTalking]);
+  }, [screenMode, playbackSpeed, isTalking, connectedPeer]);
 
   // Click Wheel Props per page based on requirements:
   // 1) Push to talk is center button on every page
@@ -422,11 +376,11 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
         bottomText: '',
         bottomAction: () => {},
         bottomTitle: '',
-        leftText: '◄ REWIND',
-        leftAction: handleRewind,
-        leftTitle: 'Rewind STT transcript and audio playback',
-        rightText: playbackSpeed === 2 ? '2X [ON]' : '2X SPEED',
-        rightAction: handleToggleSpeed,
+        leftText: '■ STOP',
+        leftAction: () => { command('stopPlayback'); setIsPeerSpeaking(false); },
+        leftTitle: 'Stop speech playback',
+        rightText: '',
+        rightAction: () => {},
         rightTitle: 'Toggle 2X audio speed playback',
       };
     }
@@ -521,7 +475,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
       {/* Screen Mode Quick Switcher Bar for Review & Testing */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap', justifyContent: 'center' }}>
         <button
-          onClick={() => { sound.playClick(); setScreenMode('devices'); }}
+          onClick={() => { stopTalking(); setScreenMode('devices'); command('discover'); if (isNative()) command('discoverP2p'); }}
           className="transceiver-nav-pill"
           style={{
             borderColor: screenMode === 'devices' ? 'var(--swar-phosphor)' : undefined,
@@ -533,7 +487,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
         </button>
 
         <button
-          onClick={() => { sound.playClick(); setScreenMode('talking'); setIsTalking(true); setLiveTranscript('EMERGENCY RESPONSE UNIT DISPATCHED TO NORTH GATE.█'); }}
+          onClick={() => { stopTalking(); setScreenMode('talking'); }}
           className="transceiver-nav-pill"
           style={{
             borderColor: screenMode === 'talking' ? 'var(--swar-phosphor)' : undefined,
@@ -541,11 +495,11 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
           }}
         >
           <Mic size={12} />
-          <span>2. TALKING (STT TEXT)</span>
+          <span>2. TRANSCRIPT</span>
         </button>
 
         <button
-          onClick={() => { sound.playClick(); setScreenMode('idle'); setIsTalking(false); setLiveTranscript('READY WHEN YOU ARE.'); }}
+          onClick={() => { stopTalking(); setScreenMode('idle'); }}
           className="transceiver-nav-pill"
           style={{
             borderColor: screenMode === 'idle' ? 'var(--swar-phosphor)' : undefined,
@@ -553,7 +507,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
           }}
         >
           <Sparkles size={12} />
-          <span>3. CONNECTED IDLE (ANIMATION)</span>
+          <span>3. STATUS</span>
         </button>
       </div>
 
@@ -614,7 +568,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
                 ? isPeerSpeaking
                   ? `INCOMING AUDIO FROM ${connectedPeer?.name}`
                   : isTalking
-                  ? `VOICE ACTIVITY DETECTED • ${playbackSpeed === 2 ? '3.6 KBPS (2X)' : '1.8 KBPS'}`
+                  ? 'MICROPHONE ACTIVE'
                   : `READY TO TRANSMIT • ${playbackSpeed === 2 ? 'SPEED: 2.0X' : 'SPEED: 1.0X'}`
                 : 'NO VOICE ACTIVITY'}
             </div>
@@ -624,7 +578,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
                 ========================================================== */}
             {screenMode === 'devices' && (
               <div className="screen-device-list-container">
-                {MOCK_PEERS.map((peer, idx) => {
+                {peers.map((peer, idx) => {
                   const isSelected = selectedDeviceIndex === idx;
                   const isConnected = connectedPeer?.id === peer.id;
                   return (
@@ -648,7 +602,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
 
                       <div className="device-right-action">
                         <span className="device-signal-bars">
-                          {peer.signalDbm > -50 ? '■■■■■' : peer.signalDbm > -65 ? '■■■■□' : '■■■□□'}
+                          {peer.transport === 'web_relay' ? 'RELAY' : 'PEER'}
                         </span>
                         <span className="device-action-hint">
                           {isConnected ? 'CONNECTED' : 'CONNECT'}
@@ -659,7 +613,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
                 })}
 
                 <div style={{ fontSize: '11px', textAlign: 'center', opacity: 0.65, marginTop: 'auto', padding: '4px' }}>
-                  AUTOMATIC NSD & BLE BEACONS BROADCASTING
+                  {peers.length ? 'SELECT A PEER' : 'NO PEERS FOUND · TRY SCAN'}
                 </div>
               </div>
             )}
@@ -694,8 +648,8 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
                   </div>
 
                   <div className="transcript-telemetry-meta">
-                    <span>WIRE: {playbackSpeed === 2 ? '3,700 BPS (2X)' : '1,850 BPS'}</span>
-                    <span>FEC: HAMMING(8,4) OK</span>
+                    <span>{connectionState}</span>
+                    <span>{isNative() ? "NATIVE TRANSPORT" : "BACKEND RELAY"}</span>
                     <span>SPEED: {playbackSpeed}.0X</span>
                   </div>
                 </div>
@@ -723,7 +677,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
                     LIVE TRANSCRIPT
                   </div>
                   <div className="transcript-body-text">
-                    READY WHEN YOU ARE.
+                    {liveTranscript}
                     <span className="cursor-block" />
                   </div>
                 </div>
@@ -773,7 +727,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
               onClick={wheelProps.leftAction}
               className="wheel-label-btn wheel-label-left"
               title={wheelProps.leftTitle}
-              aria-label="Rewind"
+            aria-label="Stop speech playback"
             >
               {wheelProps.leftText}
             </button>
@@ -805,7 +759,11 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
 
           {/* Center Circular Tactile Button: PUSH TO TALK on EVERY page */}
           <button
-            onClick={handleToggleTalk}
+            onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); startTalking(); }}
+            onPointerUp={stopTalking}
+            onPointerCancel={stopTalking}
+            onLostPointerCapture={stopTalking}
+            onClick={e => { if (e.detail === 0) handleToggleTalk(); }}
             className={`wheel-center-btn ${isTalking ? 'is-active' : ''}`}
             title="Push to talk / Tap to toggle voice broadcast"
             aria-label="Push To Talk"
@@ -819,10 +777,27 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = ({ onBackToMain
 
         {/* Chassis Bottom Caption (Matches reference image) */}
         <div className="chassis-bottom-caption">
-          TAP CENTER TO START / STOP
+          HOLD CENTER TO TALK · RELEASE TO SEND
         </div>
       </div>
 
+      <div className="radio-controls">
+        <p role="status">{notice}</p>
+        {incoming && <div><p>Connection request from {incoming.name || incoming.peer || 'Nearby phone'}</p>
+          <button onClick={() => command('respondConnection', { accept: true })}>Accept</button>
+          <button onClick={() => { command('respondConnection', { accept: false }); setIncoming(null); }}>Decline</button></div>}
+        <button onClick={() => { command('discover'); if (isNative()) command('discoverP2p'); setScreenMode('devices'); }}>Scan nearby</button>
+        <button onClick={() => command('disconnect')}>Disconnect</button>
+        {isNative() && <details><summary>Connection & speech settings</summary>
+          <button onClick={() => command('host')}>Host LAN session</button><p>{hostInfo}</p>
+          <label>Peer IP<input value={address} onChange={e => setAddress(e.target.value)} placeholder="192.168.1.2" /></label>
+          <label>Joining PIN<input value={pin} onChange={e => setPin(e.target.value)} inputMode="numeric" /></label>
+          <button onClick={() => command('connect', { address, pin, port: 8988 })}>Join LAN</button>
+          <button onClick={() => command('downloadSelected', { languages: [currentLanguage.speechCode] })}>Download selected speech model</button>
+          <button onClick={() => command('ttsSettings')}>Speech output settings</button>
+        </details>}
+        {!isNative() && <small>Web mode uses the existing backend relay shared by all connected clients. Browser speech recognition may require internet.</small>}
+      </div>
       {/* Quick Tactical Dispatch Buttons */}
       <div style={{ marginTop: '16px', textAlign: 'center' }}>
         <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '6px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>

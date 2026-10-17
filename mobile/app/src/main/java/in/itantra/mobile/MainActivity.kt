@@ -135,9 +135,23 @@ class MainActivity : Activity() {
 
                 override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse {
                     val reqUrl = request.url.toString()
-                    if ("https://app.swar.local/" == reqUrl || "https://app.itantra.local/" == reqUrl) {
+                    val uri = request.url
+                    if (uri.scheme == "https" && uri.host in listOf("app.swar.local", "app.itantra.local")) {
                         try {
-                            return WebResourceResponse("text/html", "UTF-8", assets.open("index.html"))
+                            val path = uri.path.orEmpty().trimStart('/')
+                            if (path.split('/').any { it == ".." }) throw IOException("Invalid asset path")
+                            val asset = if (path.isEmpty()) "mobile.html" else path
+                            val mime = when {
+                                asset.endsWith(".html") -> "text/html"
+                                asset.endsWith(".js") -> "application/javascript"
+                                asset.endsWith(".css") -> "text/css"
+                                asset.endsWith(".svg") -> "image/svg+xml"
+                                asset.endsWith(".png") -> "image/png"
+                                asset.endsWith(".woff2") -> "font/woff2"
+                                asset.endsWith(".ttf") -> "font/ttf"
+                                else -> "application/octet-stream"
+                            }
+                            return WebResourceResponse(mime, "UTF-8", assets.open("generated/$asset"))
                         } catch (ignored: IOException) {}
                     }
                     return WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream(ByteArray(0)))
@@ -166,7 +180,8 @@ class MainActivity : Activity() {
 
                                 val targetCenterX = (cssLeft + cssWidth / 2f) * density
                                 val targetCenterY = (cssTop + cssHeight / 2f) * density
-                                startSplashAnimation(targetCenterX, targetCenterY, cssHeight * density)
+                                if (cssHeight > 0) startSplashAnimation(targetCenterX, targetCenterY, cssHeight * density)
+                                else { root.removeView(splash); splash = null }
                             } else {
                                 startSplashAnimation(resources.displayMetrics.widthPixels / 2f, 300f * density, 56f * density)
                             }
@@ -375,7 +390,7 @@ class MainActivity : Activity() {
         testObserver?.accept(type, data)
         runOnUiThread {
             if (loaded && web != null) {
-                web?.evaluateJavascript("window.onNative(${JSONObject.quote(type)},$data)", null)
+                web?.evaluateJavascript("window.onNative?.(${JSONObject.quote(type)},$data)", null)
             }
         }
     }

@@ -37,6 +37,7 @@ import java.security.SecureRandom;
  * Automatically switches to Bluetooth RFCOMM if Wi-Fi link drops, keeping speech flowing seamlessly.
  */
 public final class LocalTransport {
+    private static final String TAG = "SWAR.Transport";
     public static final UUID SWAR_BT_UUID = UUID.fromString("6a4b1234-9876-4321-b1c2-123456789abc");
     public static final UUID LINC_BT_UUID = SWAR_BT_UUID;
 

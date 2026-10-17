@@ -2,6 +2,7 @@
    SWAR Pixel Transceiver Communicator - Retro-Futuristic Hardware UI
    ========================================================================== */
 
+@font-face { font-family: 'VT323'; src: url('../assets/VT323-Regular.ttf') format('truetype'); font-display: swap; }
 :root {
   --swar-phosphor: #c3f53b;
   --swar-phosphor-glow: rgba(195, 245, 59, 0.65);
@@ -12,6 +13,13 @@
   --swar-wheel: #f2f1ea;
   --swar-wheel-border: #c8c6bc;
 }
+
+.radio-controls { width: 100%; max-width: 440px; font-size: 14px; line-height: 1.5; }
+.radio-controls button { background: #eae9e1; color: #172019; border: 0; border-radius: 6px; padding: 10px 12px; margin: 4px; cursor: pointer; }
+.radio-controls label { display: block; margin: 8px 0; }
+.radio-controls input { display: block; padding: 10px; max-width: 100%; box-sizing: border-box; }
+.radio-controls summary { cursor: pointer; padding: 12px 0; }
+.wheel-center-btn { touch-action: none; }
 
 /* Outer layout wrapper */
 .transceiver-page-wrapper {
