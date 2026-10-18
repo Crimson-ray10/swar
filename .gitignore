@@ -110,3 +110,6 @@ chat_full.txt
 scratch/
 models_cache/
 *.bak
+/*.png
+/read_transcript*.py
+/sites/

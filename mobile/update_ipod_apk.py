@@ -101,18 +101,17 @@ def compile_java_and_dex():
     # 1b. Compile Kotlin sources with kotlinc
     kt_sources = [
         os.path.join(ROOT, "mobile", "app", "src", "main", "java", "in", "itantra", "mobile", "SpeechEngine.kt"),
+        os.path.join(ROOT, "mobile", "app", "src", "main", "java", "in", "itantra", "mobile", "MainActivity.kt"),
+        os.path.join(ROOT, "mobile", "app", "src", "main", "java", "in", "itantra", "mobile", "MeshService.kt"),
+        os.path.join(ROOT, "mobile", "app", "src", "main", "java", "in", "itantra", "mobile", "BootReceiver.kt"),
     ]
-    sherpa_src = os.path.join(ROOT, "mobile", "app", "src", "main", "java", "com", "k2fsa", "sherpa", "onnx")
-    if os.path.exists(sherpa_src):
-        for f in os.listdir(sherpa_src):
-            if f.endswith(".kt"):
-                kt_sources.append(os.path.join(sherpa_src, f))
 
     if os.path.exists(KOTLINC_JAR):
         print(f"Compiling {len(kt_sources)} Kotlin files with kotlinc...")
-        kt_cp = f"{ANDROID_JAR};{CLASSES_DIR}"
-        cmd_kt = [JAVA_EXE, "-cp", KOTLINC_JAR, "org.jetbrains.kotlin.cli.jvm.K2JVMCompiler", "-cp", kt_cp, "-d", CLASSES_DIR, "-jvm-target", "1.8"] + kt_sources
-        res_kt = subprocess.run(cmd_kt, env=env, capture_output=True, text=True)
+        rel_classes = os.path.relpath(CLASSES_DIR, ROOT)
+        kt_cp = f"{ANDROID_JAR};{rel_classes}"
+        cmd_kt = [JAVA_EXE, "-cp", KOTLINC_JAR, "org.jetbrains.kotlin.cli.jvm.K2JVMCompiler", "-cp", kt_cp, "-d", rel_classes, "-jvm-target", "17"] + kt_sources
+        res_kt = subprocess.run(cmd_kt, env=env, cwd=ROOT, capture_output=True, text=True)
         if res_kt.returncode != 0:
             raise RuntimeError(f"kotlinc failed:\n{res_kt.stderr}\n{res_kt.stdout}")
         print("kotlinc compilation successful!")
@@ -148,6 +147,8 @@ def repack_and_deploy():
     new_files = {}
     for root, dirs, files in os.walk(GEN_DIR):
         for f in files:
+            if f.endswith(".apk"):
+                continue
             full = os.path.join(root, f)
             rel = os.path.relpath(full, GEN_DIR).replace("\\", "/")
             zip_path = f"assets/generated/{rel}"

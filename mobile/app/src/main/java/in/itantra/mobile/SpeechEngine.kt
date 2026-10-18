@@ -105,7 +105,7 @@ class SpeechEngine(
     private var active = true
     private var closed = false
 
-    private var language = "en"
+    var language = "en"
     private var captureLanguage = "en"
     private var speechStarted = 0L
 
@@ -989,10 +989,44 @@ class SpeechEngine(
         }
         val modelFile = File(packDir, "stt/indicconformer_int8.onnx")
         val tokensFile = File(packDir, "stt/tokens.txt")
-        if (!tokensFile.exists()) {
+
+        // Auto-extract tokens.txt if missing
+        if (!tokensFile.exists() || tokensFile.length() == 0L) {
             val vocabJson = File(packDir, "stt/vocab.json")
             if (vocabJson.exists()) {
                 generateTokensFromVocab(vocabJson, tokensFile)
+            }
+            if (!tokensFile.exists() || tokensFile.length() == 0L) {
+                try {
+                    activity.assets.open("models/$tag/stt/tokens.txt").use { input ->
+                        tokensFile.parentFile?.mkdirs()
+                        tokensFile.outputStream().use { output -> input.copyTo(output) }
+                    }
+                } catch (_: Throwable) {
+                    try {
+                        activity.assets.open("models/en-IN/stt/tokens.txt").use { input ->
+                            tokensFile.parentFile?.mkdirs()
+                            tokensFile.outputStream().use { output -> input.copyTo(output) }
+                        }
+                    } catch (_: Throwable) {}
+                }
+            }
+        }
+
+        // Auto-extract model file if missing
+        if (!modelFile.exists() || modelFile.length() == 0L) {
+            try {
+                activity.assets.open("models/$tag/stt/indicconformer_int8.onnx").use { input ->
+                    modelFile.parentFile?.mkdirs()
+                    modelFile.outputStream().use { output -> input.copyTo(output) }
+                }
+            } catch (_: Throwable) {
+                try {
+                    activity.assets.open("models/en-IN/stt/indicconformer_int8.onnx").use { input ->
+                        modelFile.parentFile?.mkdirs()
+                        modelFile.outputStream().use { output -> input.copyTo(output) }
+                    }
+                } catch (_: Throwable) {}
             }
         }
 
@@ -1296,13 +1330,539 @@ class SpeechEngine(
         event("speech", "state", "Idle")
     }
 
+    /**
+     * Determines whether the translation layer should be bypassed.
+     * Core Rule:
+     * If both users have selected the same language in their app,
+     * the translator layer is BYPASSED.
+     * The translator will ONLY work if the languages of the users are different.
+     */
+    fun normalizeLang(lang: String): String {
+        val cleaned = lang.trim().lowercase(Locale.ROOT)
+        return when {
+            cleaned.startsWith("hi") || cleaned == "hin_deva" || cleaned == "hinglish" -> "hi"
+            cleaned.startsWith("ta") || cleaned == "tam_taml" -> "ta"
+            cleaned.startsWith("te") || cleaned == "tel_telu" -> "te"
+            cleaned.startsWith("mr") || cleaned == "mar_deva" -> "mr"
+            cleaned.startsWith("gu") || cleaned == "guj_gujr" -> "gu"
+            cleaned.startsWith("bn") || cleaned == "ben_beng" -> "bn"
+            cleaned.startsWith("kn") || cleaned == "kan_knda" -> "kn"
+            cleaned.startsWith("ml") || cleaned == "mal_mlym" -> "ml"
+            cleaned.startsWith("pa") || cleaned == "pan_guru" -> "pa"
+            cleaned.startsWith("ur") || cleaned == "urd_arab" -> "ur"
+            cleaned.startsWith("or") || cleaned == "ory_orya" -> "or"
+            else -> cleaned.split("-")[0].split("_")[0]
+        }
+    }
+
+    fun shouldBypassTranslation(senderLang: String, receiverLang: String): Boolean {
+        val s = normalizeLang(senderLang)
+        val r = normalizeLang(receiverLang)
+        return s == r
+    }
+
+    private fun translateOnline(text: String, src: String, tgt: String): String? {
+        val clean = text.trim()
+        if (clean.isEmpty()) return clean
+
+        // 1. Google Translate GTX Neural API (handles full sentences, conversational dialogue and questions)
+        try {
+            val encoded = java.net.URLEncoder.encode(clean, "UTF-8")
+            val urlStr = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$src&tl=$tgt&dt=t&q=$encoded"
+            val conn = URL(urlStr).openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.connectTimeout = 1200
+            conn.readTimeout = 1200
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+            if (conn.responseCode == 200) {
+                val reader = java.io.BufferedReader(java.io.InputStreamReader(conn.inputStream, "UTF-8"))
+                val sb = StringBuilder()
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    sb.append(line)
+                }
+                reader.close()
+                val raw = sb.toString()
+                val jsonArr = JSONArray(raw)
+                val parts = jsonArr.getJSONArray(0)
+                val result = StringBuilder()
+                for (i in 0 until parts.length()) {
+                    val part = parts.getJSONArray(i)
+                    result.append(part.getString(0))
+                }
+                val res = result.toString().trim()
+                if (res.isNotEmpty()) return res
+            }
+        } catch (e: Throwable) {
+            Log.d(TAG, "Google Translate offline/error: ${e.message}")
+        }
+
+        // 2. MyMemory Translation API fallback
+        try {
+            val encoded = java.net.URLEncoder.encode(clean, "UTF-8")
+            val urlStr = "https://api.mymemory.translated.net/get?q=$encoded&langpair=$src|$tgt"
+            val conn = URL(urlStr).openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.connectTimeout = 1200
+            conn.readTimeout = 1200
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+            if (conn.responseCode == 200) {
+                val reader = java.io.BufferedReader(java.io.InputStreamReader(conn.inputStream, "UTF-8"))
+                val sb = StringBuilder()
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    sb.append(line)
+                }
+                reader.close()
+                val json = JSONObject(sb.toString())
+                val respData = json.optJSONObject("responseData")
+                val tr = respData?.optString("translatedText")
+                if (!tr.isNullOrBlank() && !tr.equals(clean, ignoreCase = true)) {
+                    return tr.trim()
+                }
+            }
+        } catch (e: Throwable) {
+            Log.d(TAG, "MyMemory offline/error: ${e.message}")
+        }
+
+        return null
+    }
+
+    private val latnToDevaPhonetics = listOf(
+        "sh" to "श", "ch" to "च", "th" to "थ", "dh" to "ध", "kh" to "ख", "gh" to "घ",
+        "ph" to "फ", "bh" to "भ", "zh" to "झ", "aa" to "ा", "ee" to "ी", "oo" to "ू",
+        "ai" to "ै", "au" to "ौ", "k" to "क", "g" to "ग", "c" to "क", "j" to "ज",
+        "t" to "ट", "d" to "ड", "n" to "न", "p" to "प", "b" to "ब", "m" to "म",
+        "y" to "य", "r" to "र", "l" to "ल", "v" to "व", "w" to "व", "s" to "स",
+        "h" to "ह", "z" to "ज़", "f" to "फ़", "x" to "क्स", "q" to "क",
+        "a" to "ा", "e" to "े", "i" to "ि", "o" to "ो", "u" to "ु"
+    )
+
+    private fun transliterateEnToHi(word: String): String {
+        val w = word.lowercase(Locale.ROOT)
+        val sb = StringBuilder()
+        var i = 0
+        while (i < w.length) {
+            var matched = false
+            for ((pat, deva) in latnToDevaPhonetics) {
+                if (w.startsWith(pat, i)) {
+                    sb.append(deva)
+                    i += pat.length
+                    matched = true
+                    break
+                }
+            }
+            if (!matched) {
+                sb.append(w[i])
+                i++
+            }
+        }
+        return sb.toString()
+    }
+
+    private val devaToLatnMap = mapOf(
+        'अ' to "a", 'आ' to "aa", 'इ' to "i", 'ई' to "ee", 'उ' to "u", 'ऊ' to "oo",
+        'ए' to "e", 'ऐ' to "ai", 'ओ' to "o", 'औ' to "au", 'क' to "k", 'ख' to "kh",
+        'ग' to "g", 'घ' to "gh", 'च' to "ch", 'छ' to "chh", 'ज' to "j", 'झ' to "jh",
+        'ट' to "t", 'ठ' to "th", 'ड' to "d", 'ढ' to "dh", 'ण' to "n", 'त' to "t",
+        'थ' to "th", 'द' to "d", 'ध' to "dh", 'न' to "n", 'प' to "p", 'फ' to "ph",
+        'ब' to "b", 'भ' to "bh", 'म' to "m", 'य' to "y", 'र' to "r", 'ल' to "l",
+        'व' to "v", 'श' to "sh", 'ष' to "sh", 'स' to "s", 'ह' to "h", 'ा' to "a",
+        'ि' to "i", 'ी' to "ee", 'ु' to "u", 'ू' to "oo", 'े' to "e", 'ै' to "ai",
+        'ो' to "o", 'ौ' to "au", '्' to "", 'ं' to "n", 'ः' to "h"
+    )
+
+    private fun transliterateHiToEn(word: String): String {
+        val sb = StringBuilder()
+        for (ch in word) {
+            sb.append(devaToLatnMap[ch] ?: ch.toString())
+        }
+        val res = sb.toString()
+        return if (res.isNotEmpty()) res.replaceFirstChar { it.uppercase() } else res
+    }
+
+    private val phrasesEnToHi = mapOf(
+        "hello" to "नमस्ते", "hi" to "नमस्ते", "hey" to "अरे सुनो",
+        "how are you" to "आप कैसे हैं?", "how are you doing" to "आप कैसे हैं?",
+        "what is up" to "क्या चल रहा है?", "i am fine" to "मैं ठीक हूँ",
+        "i am good" to "मैं ठीक हूँ", "i am okay" to "मैं ठीक हूँ",
+        "what is your name" to "आपका नाम क्या है?", "my name is" to "मेरा नाम है",
+        "where are you" to "आप कहाँ हैं?", "where are you going" to "आप कहाँ जा रहे हैं?",
+        "what are you doing" to "आप क्या कर रहे हैं?", "what happened" to "क्या हुआ?",
+        "what is this" to "यह क्या है?", "what is that" to "वह क्या है?",
+        "what did you say" to "आपने क्या कहा?", "who are you" to "आप कौन हैं?",
+        "can you hear me" to "क्या आप मुझे सुन सकते हैं?", "are you listening" to "क्या आप सुन रहे हैं?",
+        "are you ready" to "क्या आप तैयार हैं?", "i am ready" to "मैं तैयार हूँ",
+        "i am on my way" to "मैं रास्ते में हूँ", "i am coming" to "मैं आ रहा हूँ",
+        "i have reached" to "मैं पहुँच गया हूँ", "i am waiting" to "मैं इंतज़ार कर रहा हूँ",
+        "i need help" to "मुझे मदद चाहिए", "help me" to "मेरी मदद करो",
+        "please help me" to "कृपया मेरी मदद करें", "i need water" to "मुझे पानी चाहिए",
+        "i need food" to "मुझे खाना चाहिए", "i need medicine" to "मुझे दवा चाहिए",
+        "call a doctor" to "डॉक्टर को बुलाओ", "call the police" to "पुलिस को बुलाओ",
+        "call an ambulance" to "एम्बुलेंस को बुलाओ", "thank you" to "धन्यवाद",
+        "thank you very much" to "बहुत-बहुत धन्यवाद", "thanks" to "धन्यवाद",
+        "you are welcome" to "आपका स्वागत है", "good morning" to "शुभ प्रभात",
+        "good afternoon" to "शुभ दोपहर", "good evening" to "शुभ संध्या",
+        "good night" to "शुभ रात्रि", "welcome" to "स्वागत है",
+        "see you later" to "फिर मिलेंगे", "see you soon" to "जल्द मिलेंगे",
+        "take care" to "अपना ख्याल रखना", "have a nice day" to "आपका दिन शुभ हो",
+        "come here" to "यहाँ आओ", "go there" to "वहाँ जाओ", "come quickly" to "जल्दी आओ",
+        "stop here" to "यहाँ रुको", "wait here" to "यहाँ इंतज़ार करो",
+        "wait a minute" to "एक मिनट रुको", "wait for me" to "मेरा इंतज़ार करो",
+        "stand by" to "प्रतीक्षा करें", "all clear" to "सब साफ़ है",
+        "loud and clear" to "साफ़ और स्पष्ट", "message received" to "संदेश प्राप्त हुआ",
+        "over and out" to "समाप्त", "battery low" to "बैटरी कम है",
+        "signal weak" to "सिग्नल कमज़ोर है", "connection lost" to "कनेक्शन टूट गया",
+        "connected" to "जुड़ गया", "be careful" to "सावधान रहो",
+        "danger ahead" to "आगे खतरा है", "stay safe" to "सुरक्षित रहें",
+        "understood" to "समझ गया", "i understand" to "मैं समझता हूँ",
+        "i do not understand" to "मुझे समझ नहीं आया", "hurry up" to "जल्दी करो",
+        "do not worry" to "चिंता मत करो", "no problem" to "कोई बात नहीं",
+        "listen to me" to "मेरी बात सुनो", "speak slowly" to "धीरे बोलो",
+        "repeat please" to "कृपया दोहराएं", "tell me" to "मुझे बताओ",
+        "where should we meet" to "हम कहाँ मिलें?", "where is the station" to "स्टेशन कहाँ है?",
+        "where is the hospital" to "अस्पताल कहाँ है?", "is everything okay" to "क्या सब ठीक है?",
+        "let us go" to "चलो चलें", "emergency" to "आपातकालीन स्थिति",
+        "please respond" to "कृपया उत्तर दें"
+    )
+
+    private val wordsEnToHi = mapOf(
+        "i" to "मैं", "me" to "मुझे", "my" to "मेरा", "mine" to "मेरा", "myself" to "खुद",
+        "you" to "आप", "your" to "आपका", "yours" to "आपका", "yourself" to "खुद",
+        "he" to "वह", "him" to "उसे", "his" to "उसका", "she" to "वह", "her" to "उसकी",
+        "we" to "हम", "us" to "हमें", "our" to "हमारा", "ours" to "हमारा",
+        "they" to "वे", "them" to "उन्हें", "their" to "उनका", "it" to "यह",
+        "this" to "यह", "that" to "वह", "these" to "ये", "those" to "वे",
+        "what" to "क्या", "who" to "कौन", "where" to "कहाँ", "when" to "कब",
+        "why" to "क्यों", "how" to "कैसे", "which" to "कौन सा", "whose" to "किसका",
+        "is" to "है", "am" to "हूँ", "are" to "हैं", "was" to "था", "were" to "थे",
+        "be" to "हो", "been" to "रहा", "being" to "होते हुए",
+        "have" to "पास है", "has" to "पास है", "had" to "पास था",
+        "do" to "करो", "does" to "करता", "did" to "किया", "doing" to "कर रहा", "done" to "हो गया",
+        "can" to "कर सकते", "could" to "कर सकते थे", "will" to "होगा", "would" to "होगा",
+        "shall" to "होगा", "should" to "चाहिए", "must" to "ज़रूर", "may" to "सकते",
+        "go" to "जाओ", "going" to "जा रहा", "gone" to "गया", "went" to "गया",
+        "come" to "आओ", "coming" to "आ रहा", "came" to "आया",
+        "see" to "देखो", "seeing" to "देख रहा", "saw" to "देखा", "look" to "देखो", "looking" to "देख रहा",
+        "hear" to "सुनो", "hearing" to "सुन रहा", "heard" to "सुना",
+        "listen" to "सुनो", "listening" to "सुन रहा",
+        "say" to "कहो", "saying" to "कह रहा", "said" to "कहा",
+        "speak" to "बोलो", "speaking" to "बोल रहा", "spoke" to "बोला",
+        "talk" to "बात करो", "talking" to "बात कर रहा", "talked" to "बात की",
+        "tell" to "बताओ", "telling" to "बता रहा", "told" to "बताया",
+        "ask" to "पूछो", "asking" to "पूछ रहा", "asked" to "पूछा",
+        "help" to "मदद", "helping" to "मदद कर रहा", "helped" to "मदद की",
+        "need" to "ज़रूरत", "want" to "चाहते", "wanted" to "चाहता था",
+        "call" to "बुलाओ", "calling" to "बुला रहा", "called" to "बुलाया",
+        "send" to "भेजो", "sending" to "भेज रहा", "sent" to "भेजा",
+        "receive" to "प्राप्त करो", "receiving" to "प्राप्त कर रहा", "received" to "मिला",
+        "wait" to "इंतज़ार करो", "waiting" to "इंतज़ार कर रहा", "waited" to "इंतज़ार किया",
+        "stop" to "रुको", "stopping" to "रुक रहा", "stopped" to "रुका",
+        "start" to "शुरू करो", "starting" to "शुरू कर रहा", "started" to "शुरू किया",
+        "finish" to "ख़त्म करो", "reach" to "पहुँचो", "reaching" to "पहुँच रहा", "reached" to "पहुँचा",
+        "meet" to "मिलो", "meeting" to "मिल रहा", "met" to "मिला",
+        "understand" to "समझो", "understood" to "समझ गया",
+        "know" to "जानो", "knowing" to "जान रहा", "knew" to "जानता था",
+        "think" to "सोचो", "thinking" to "सोच रहा", "thought" to "सोचा",
+        "eat" to "खाओ", "eating" to "खा रहा", "ate" to "खाया",
+        "drink" to "पियो", "drinking" to "पी रहा", "drank" to "पिया",
+        "sleep" to "सो जाओ", "sleeping" to "सो रहा", "slept" to "सोया",
+        "work" to "काम करो", "working" to "काम कर रहा", "worked" to "काम किया",
+        "bring" to "लाओ", "bringing" to "ला रहा", "brought" to "लाया",
+        "buy" to "खरीदो", "buying" to "खरीद रहा", "bought" to "खरीदा",
+        "give" to "दो", "giving" to "दे रहा", "gave" to "दिया",
+        "take" to "लो", "taking" to "ले रहा", "took" to "लिया",
+        "make" to "बनाओ", "making" to "बना रहा", "made" to "बनाया",
+        "run" to "दौड़ो", "running" to "दौड़ रहा", "ran" to "दौड़ा",
+        "walk" to "चलो", "walking" to "चल रहा", "walked" to "चला",
+        "stand" to "खड़े रहो", "standing" to "खड़ा", "sit" to "बैठो", "sitting" to "बैठा",
+        "yes" to "हाँ", "no" to "नहीं", "okay" to "ठीक है", "ok" to "ठीक है",
+        "sure" to "ज़रूर", "maybe" to "शायद", "never" to "कभी नहीं", "always" to "हमेशा",
+        "please" to "कृपया", "sorry" to "माफ़ कीजिए", "fine" to "ठीक",
+        "good" to "अच्छा", "bad" to "बुरा", "big" to "बड़ा", "small" to "छोटा",
+        "hot" to "गर्म", "cold" to "ठंडा", "new" to "नया", "old" to "पुराना",
+        "right" to "सही", "wrong" to "गलत", "true" to "सच", "false" to "झूठ",
+        "safe" to "सुरक्षित", "danger" to "ख़तरा", "dangerous" to "ख़तरनाक",
+        "clear" to "साफ़", "ready" to "तैयार", "urgent" to "ज़रूरी",
+        "fast" to "तेज़", "slow" to "धीमा", "early" to "जल्दी", "late" to "देर",
+        "very" to "बहुत", "really" to "सच में", "too" to "भी", "also" to "भी",
+        "already" to "पहले से", "again" to "फिर से", "together" to "साथ में",
+        "here" to "यहाँ", "there" to "वहाँ", "everywhere" to "हर जगह", "nowhere" to "कहीं नहीं",
+        "inside" to "अंदर", "outside" to "बाहर", "up" to "ऊपर", "down" to "नीचे",
+        "near" to "पास", "far" to "दूर", "front" to "सामने", "back" to "पीछे",
+        "water" to "पानी", "food" to "खाना", "tea" to "चाय", "coffee" to "कॉफ़ी", "milk" to "दूध",
+        "medicine" to "दवा", "doctor" to "डॉक्टर", "hospital" to "अस्पताल", "clinic" to "क्लिनिक",
+        "police" to "पुलिस", "ambulance" to "एम्बुलेंस",
+        "home" to "घर", "house" to "मकान", "room" to "कमरा", "hotel" to "होटल",
+        "shop" to "दुकान", "market" to "बाज़ार", "station" to "स्टेशन", "airport" to "हवाई अड्डा",
+        "road" to "सड़क", "street" to "गली", "city" to "शहर", "village" to "गाँव",
+        "office" to "दफ़्तर", "school" to "स्कूल", "college" to "कॉलेज",
+        "car" to "गाड़ी", "bus" to "बस", "train" to "ट्रेन", "metro" to "मेट्रो", "bike" to "बाइक",
+        "ticket" to "टिकट", "phone" to "फ़ोन", "mobile" to "मोबाइल", "message" to "संदेश",
+        "radio" to "रेडियो", "battery" to "बैटरी", "signal" to "सिग्नल", "money" to "पैसे",
+        "time" to "समय", "hour" to "घंटा", "minute" to "मिनट", "second" to "सेकंड",
+        "day" to "दिन", "night" to "रात", "morning" to "सुबह", "afternoon" to "दोपहर", "evening" to "शाम",
+        "today" to "आज", "tomorrow" to "कल", "yesterday" to "कल", "now" to "अभी", "later" to "बाद में", "soon" to "जल्दी",
+        "friend" to "दोस्त", "brother" to "भाई", "sister" to "बहन", "mother" to "माँ", "father" to "पिता",
+        "family" to "परिवार", "people" to "लोग", "person" to "व्यक्ति", "man" to "आदमी", "woman" to "महिला", "child" to "बच्चा",
+        "problem" to "समस्या", "question" to "सवाल", "answer" to "जवाब", "name" to "नाम",
+        "place" to "जगह", "thing" to "चीज़", "work" to "काम", "meeting" to "मीटिंग",
+        "weather" to "मौसम", "rain" to "बारिश", "sun" to "धूप",
+        "one" to "एक", "two" to "दो", "three" to "तीन", "four" to "चार", "five" to "पाँच",
+        "six" to "छह", "seven" to "सात", "eight" to "आठ", "nine" to "नौ", "ten" to "दस",
+        "and" to "और", "or" to "या", "but" to "लेकिन", "because" to "क्योंकि", "so" to "इसलिए",
+        "if" to "अगर", "then" to "तो", "with" to "साथ", "without" to "बिना", "for" to "के लिए",
+        "about" to "बारे में", "in" to "में", "on" to "पर", "at" to "पर", "to" to "को", "from" to "से", "of" to "का"
+    )
+
+    private val phrasesHiToEn = mapOf(
+        "नमस्ते" to "Hello", "प्रणाम" to "Hello", "namaste" to "Hello", "pranam" to "Hello",
+        "आप कैसे हैं" to "How are you?", "क्या हाल है" to "How are you?", "कैसे हो" to "How are you?",
+        "kaise ho" to "How are you?", "kya haal hai" to "How are you?",
+        "मैं ठीक हूँ" to "I am fine", "सब ठीक है" to "All good", "main theek hoon" to "I am fine",
+        "आपका नाम क्या है" to "What is your name?", "तुम्हारा नाम क्या है" to "What is your name?",
+        "aapka naam kya hai" to "What is your name?",
+        "मेरा नाम" to "My name is", "mera naam" to "My name is",
+        "आप कहाँ हैं" to "Where are you?", "कहाँ हो" to "Where are you?", "aap kahan ho" to "Where are you?",
+        "आप कहाँ जा रहे हैं" to "Where are you going?", "kahan ja rahe ho" to "Where are you going?",
+        "आप क्या कर रहे हैं" to "What are you doing?", "क्या कर रहे हो" to "What are you doing?",
+        "क्या हुआ" to "What happened?", "kya hua" to "What happened?",
+        "यह क्या है" to "What is this?", "yeh kya hai" to "What is this?",
+        "वह क्या है" to "What is that?", "woh kya hai" to "What is that?",
+        "क्या आप मुझे सुन सकते हैं" to "Can you hear me?", "सुन रहे हो" to "Can you hear me?", "sun rahe ho" to "Can you hear me?",
+        "मुझे मदद चाहिए" to "I need help", "मेरी मदद करो" to "Help me", "मदद करो" to "Help me",
+        "madad karo" to "Help me", "madad chahiye" to "I need help",
+        "कृपया मदद करें" to "Please help", "kripya madad karein" to "Please help",
+        "मुझे पानी चाहिए" to "I need water", "पानी चाहिए" to "I need water",
+        "मुझे खाना चाहिए" to "I need food", "खाना चाहिए" to "I need food",
+        "मुझे दवा चाहिए" to "I need medicine", "दवा चाहिए" to "I need medicine",
+        "डॉक्टर को बुलाओ" to "Call a doctor", "पुलिस को बुलाओ" to "Call the police",
+        "धन्यवाद" to "Thank you", "शुक्रिया" to "Thank you", "बहुत धन्यवाद" to "Thank you very much",
+        "dhanyawad" to "Thank you", "dhanyavad" to "Thank you", "shukriya" to "Thank you",
+        "शुभ प्रभात" to "Good morning", "सुप्रभात" to "Good morning",
+        "शुभ संध्या" to "Good evening", "शुभ रात्रि" to "Good night",
+        "स्वागत है" to "Welcome", "फिर मिलेंगे" to "See you later", "जल्द मिलेंगे" to "See you soon",
+        "अपना ख्याल रखना" to "Take care",
+        "यहाँ आओ" to "Come here", "इधर आओ" to "Come here", "yahan aao" to "Come here",
+        "वहाँ जाओ" to "Go there", "उधर जाओ" to "Go there",
+        "जल्दी आओ" to "Come quickly", "यहाँ रुको" to "Stop here",
+        "एक मिनट रुको" to "Wait a minute", "इंतज़ार करो" to "Please wait",
+        "मेरा इंतज़ार करो" to "Wait for me",
+        "सब साफ़ है" to "All clear", "साफ़ और स्पष्ट" to "Loud and clear",
+        "संदेश प्राप्त हुआ" to "Message received", "बैटरी कम है" to "Battery low",
+        "सिग्नल कमज़ोर है" to "Signal weak", "सावधान रहो" to "Be careful",
+        "आगे खतरा है" to "Danger ahead", "खतरा है" to "Danger",
+        "समझ गया" to "Understood", "मुझे समझ नहीं आया" to "I do not understand",
+        "जल्दी करो" to "Hurry up", "चिंता मत करो" to "Do not worry",
+        "कोई बात नहीं" to "No problem", "मेरी बात सुनो" to "Listen to me",
+        "धीरे बोलो" to "Speak slowly", "कृपया दोहराएं" to "Repeat please",
+        "चलो चलें" to "Let us go", "क्या तैयार हो" to "Are you ready?", "तैयार हो" to "Are you ready?",
+        "मैं तैयार हूँ" to "I am ready", "आपातकालीन स्थिति" to "Emergency",
+        "कृपया उत्तर दें" to "Please respond"
+    )
+
+    private val wordsHiToEn = mapOf(
+        "हाँ" to "yes", "haan" to "yes", "ha" to "yes", "नहीं" to "no", "nahi" to "no", "na" to "no",
+        "मैं" to "I", "main" to "I", "मुझे" to "me", "mujhe" to "me", "मेरा" to "my", "mera" to "my", "मेरी" to "my", "meri" to "my",
+        "आप" to "you", "aap" to "you", "तुम" to "you", "tum" to "you", "आपका" to "your", "aapka" to "your", "आपकी" to "your", "aapki" to "your",
+        "तुम्हारा" to "your", "tumhara" to "your", "तुम्हारी" to "your",
+        "वह" to "he/she/that", "woh" to "that", "यह" to "this", "yeh" to "this",
+        "वे" to "they", "ये" to "these", "हम" to "we", "hum" to "we", "हमें" to "us", "humein" to "us",
+        "हमारा" to "our", "hamara" to "our", "उनका" to "their", "unka" to "their", "उसका" to "his/her", "uska" to "his",
+        "क्या" to "what", "kya" to "what", "कौन" to "who", "kaun" to "who",
+        "कहाँ" to "where", "kahan" to "where", "कब" to "when", "kab" to "when",
+        "क्यों" to "why", "kyun" to "why", "कैसे" to "how", "kaise" to "how",
+        "है" to "is", "hai" to "is", "हूँ" to "am", "hoon" to "am", "हैं" to "are", "hain" to "are",
+        "था" to "was", "tha" to "was", "थे" to "were", "the" to "were", "थी" to "was", "thi" to "was",
+        "होगा" to "will be", "hoga" to "will be", "सकते" to "can", "sakte" to "can", "चाहिए" to "should/need", "chahiye" to "need",
+        "पानी" to "water", "paani" to "water", "pani" to "water", "खाना" to "food", "khana" to "food",
+        "दवा" to "medicine", "dawa" to "medicine", "डॉक्टर" to "doctor", "doctor" to "doctor",
+        "अस्पताल" to "hospital", "hospital" to "hospital", "पुलिस" to "police", "police" to "police",
+        "खतरा" to "danger", "khatra" to "danger", "सुरक्षित" to "safe", "surakshit" to "safe",
+        "रुको" to "stop", "ruko" to "stop", "जाओ" to "go", "jao" to "go", "आओ" to "come", "aao" to "come",
+        "सुनो" to "listen", "suno" to "listen", "बोलो" to "speak", "bolo" to "speak",
+        "कहो" to "say", "kaho" to "say", "बताओ" to "tell", "batao" to "tell", "देखो" to "look", "dekho" to "look",
+        "जल्दी" to "hurry", "jaldi" to "hurry", "तेज़" to "fast", "tez" to "fast", "धीमा" to "slow",
+        "अच्छा" to "good", "achha" to "good", "acha" to "good", "बुरा" to "bad", "bura" to "bad",
+        "बड़ा" to "big", "bada" to "big", "छोटा" to "small", "chhota" to "small",
+        "गर्म" to "hot", "garm" to "hot", "ठंडा" to "cold", "thanda" to "cold",
+        "नया" to "new", "naya" to "new", "पुराना" to "old", "purana" to "old",
+        "घर" to "home", "ghar" to "home", "मकान" to "house", "सड़क" to "road", "sadak" to "road", "गाड़ी" to "car", "gaadi" to "car",
+        "शहर" to "city", "shahar" to "city", "गाँव" to "village", "gaon" to "village",
+        "दुकान" to "shop", "बाज़ार" to "market", "bazaar" to "market", "स्टेशन" to "station",
+        "होटल" to "hotel", "कमरा" to "room", "कार" to "car", "बस" to "bus", "ट्रेन" to "train",
+        "दोस्त" to "friend", "dost" to "friend", "भाई" to "brother", "bhai" to "brother",
+        "बहन" to "sister", "behen" to "sister", "माँ" to "mother", "maa" to "mother",
+        "पिता" to "father", "pita" to "father", "परिवार" to "family", "लोग" to "people", "log" to "people",
+        "आज" to "today", "aaj" to "today", "कल" to "tomorrow", "kal" to "tomorrow", "अब" to "now", "ab" to "now", "अभी" to "right now", "abhi" to "right now",
+        "यहाँ" to "here", "yahan" to "here", "वहाँ" to "there", "wahan" to "there",
+        "समय" to "time", "samay" to "time", "दिन" to "day", "रात" to "night", "सुबह" to "morning", "शाम" to "evening",
+        "एक" to "one", "ek" to "one", "दो" to "two", "do" to "two", "तीन" to "three", "teen" to "three",
+        "चार" to "four", "char" to "four", "पाँच" to "five", "paanch" to "five",
+        "छह" to "six", "सात" to "seven", "आठ" to "eight", "नौ" to "nine", "दस" to "ten",
+        "और" to "and", "aur" to "and", "या" to "or", "ya" to "or", "लेकिन" to "but", "lekin" to "but",
+        "भी" to "also", "बहुत" to "very", "bahut" to "very", "सच" to "true", "साथ" to "with", "saath" to "with",
+        "में" to "in", "mein" to "in", "पर" to "on", "par" to "on", "से" to "from", "se" to "from", "को" to "to", "ko" to "to"
+    )
+
+    private val fastConversationalCorpus = mapOf(
+        "hello" to mapOf("hi" to "नमस्ते", "ta" to "வணக்கம்", "te" to "నమస్కారం", "mr" to "नमस्कार", "gu" to "નમસ્તે", "bn" to "নমস্কার", "kn" to "ನಮಸ್ಕಾರ", "ml" to "നമസ്കാരം"),
+        "how are you" to mapOf("hi" to "आप कैसे हैं?", "ta" to "நீங்கள் எப்படி இருக்கிறீர்கள்?", "te" to "మీరు ఎలా ఉన్నారు?", "mr" to "तुम्ही कसे आहात?", "gu" to "તમે કેમ છો?"),
+        "i need help" to mapOf("hi" to "मुझे मदद चाहिए", "ta" to "எனக்கு உதவி வேண்டும்", "te" to "నాకు సహాయం కావాలి", "mr" to "मला मदत हवी आहे", "gu" to "મને મદદની જરૂર છે"),
+        "emergency" to mapOf("hi" to "आपातकालीन स्थिति", "ta" to "அவசரநிலை", "te" to "அత్యవసర పరిస్థితి", "mr" to "आणीबाणी"),
+        "yes" to mapOf("hi" to "हाँ", "ta" to "ஆம்", "te" to "అవును", "mr" to "होय", "gu" to "હા", "bn" to "হ্যাঁ"),
+        "no" to mapOf("hi" to "नहीं", "ta" to "இல்லை", "te" to "కాదు", "mr" to "नाही", "gu" to "ના", "bn" to "না"),
+        "good morning" to mapOf("hi" to "शुभ प्रभात", "ta" to "காலை வணக்கம்", "te" to "శుభோదయం", "mr" to "शुभ सकाळ")
+    )
+
+    private fun normalizeKey(s: String): String {
+        return s.replace(Regex("[?!.,:;\\-\"'()\\[\\]{}\\u0964\\u0965]+"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .lowercase(Locale.ROOT)
+    }
+
+    fun translateOfflineFull(text: String, srcLang: String, tgtLang: String): String {
+        val s = normalizeLang(srcLang)
+        val t = normalizeLang(tgtLang)
+        if (s == t) return text
+
+        val clean = normalizeKey(text)
+
+        // 1. Direct whole phrase match
+        if (s == "en" && t == "hi") {
+            phrasesEnToHi[clean]?.let { return it }
+            wordsEnToHi[clean]?.let { return it }
+        } else if (s == "hi" && t == "en") {
+            phrasesHiToEn[clean]?.let { return it }
+            wordsHiToEn[clean]?.let { return it }
+        } else if (s == "en") {
+            fastConversationalCorpus[clean]?.get(t)?.let { return it }
+        }
+
+        // 2. Greedy sliding window matching across words (window size 6 down to 1)
+        val words = text.trim().split(Regex("\\s+"))
+        if (words.isEmpty()) return text
+
+        val out = ArrayList<String>()
+        var i = 0
+        while (i < words.size) {
+            var matched = false
+            val maxLen = minOf(6, words.size - i)
+            for (len in maxLen downTo 2) {
+                val phrase = words.subList(i, i + len).joinToString(" ")
+                val normPhrase = normalizeKey(phrase)
+                if (s == "en" && t == "hi" && phrasesEnToHi.containsKey(normPhrase)) {
+                    out.add(phrasesEnToHi[normPhrase]!!)
+                    i += len
+                    matched = true
+                    break
+                } else if (s == "hi" && t == "en" && phrasesHiToEn.containsKey(normPhrase)) {
+                    out.add(phrasesHiToEn[normPhrase]!!)
+                    i += len
+                    matched = true
+                    break
+                }
+            }
+            if (!matched) {
+                val w = words[i]
+                val normWord = normalizeKey(w)
+                if (s == "en" && t == "hi") {
+                    val tr = wordsEnToHi[normWord] ?: phrasesEnToHi[normWord]
+                    if (tr != null) {
+                        out.add(tr)
+                    } else {
+                        // Word not in dictionary: phonetically transliterate to Devanagari so TTS can speak it!
+                        out.add(transliterateEnToHi(w))
+                    }
+                } else if (s == "hi" && t == "en") {
+                    val tr = wordsHiToEn[normWord] ?: phrasesHiToEn[normWord]
+                    if (tr != null) {
+                        out.add(tr)
+                    } else {
+                        // Hindi word not in dictionary: phonetically transliterate to Latin
+                        out.add(transliterateHiToEn(w))
+                    }
+                } else if (s == "en" && fastConversationalCorpus.containsKey(normWord)) {
+                    out.add(fastConversationalCorpus[normWord]?.get(t) ?: w)
+                } else {
+                    out.add(w)
+                }
+                i++
+            }
+        }
+        return out.joinToString(" ")
+    }
+
+    /**
+     * Translates conversational text with online neural translation and extensive offline fallback.
+     * Translates ALL words in the user's speech, preserving full dialogue context.
+     */
+    fun translateTextFull(text: String, srcLang: String, tgtLang: String): String {
+        val s = normalizeLang(srcLang)
+        val t = normalizeLang(tgtLang)
+        if (s == t || text.isBlank()) return text
+
+        try {
+            val online = translateOnline(text, s, t)
+            if (!online.isNullOrBlank()) {
+                Log.i(TAG, "Neural online translation: '$text' -> '$online'")
+                return online
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "Online neural translation notice: ${e.message}")
+        }
+
+        return translateOfflineFull(text, s, t)
+    }
+
+    fun translateTextFast(text: String, srcLang: String, tgtLang: String): String {
+        return translateTextFull(text, srcLang, tgtLang)
+    }
+
     fun receive(message: ItpPacket.Decoded) {
         if (playback.size >= 20) {
             event("error", "message", "Playback queue full. Read received text.")
             return
         }
-        playback.add(message)
-        playNext()
+
+        val senderLang = message.language()
+        val receiverLang = this.language
+        val isBypassed = shouldBypassTranslation(senderLang, receiverLang)
+
+        if (isBypassed) {
+            Log.i(TAG, "Both users selected same language ('$senderLang'). Translation layer BYPASSED.")
+            event("translation_status", "bypassed", true, "source", senderLang, "target", receiverLang, "translated", message.text(), "original", message.text())
+            playback.add(message)
+            playNext()
+        } else {
+            Log.i(TAG, "Languages differ (sender='$senderLang', receiver='$receiverLang'). Invoking full conversational translation layer.")
+            asyncPool.execute {
+                val translatedText = translateTextFull(message.text(), senderLang, receiverLang)
+                Log.i(TAG, "Full translation finished: '${message.text()}' -> '$translatedText'")
+                activity.runOnUiThread {
+                    event("translation_status", "bypassed", false, "source", senderLang, "target", receiverLang, "translated", translatedText, "original", message.text())
+                    event("received_translated", LocalTransport.json(
+                        "text", translatedText,
+                        "originalText", message.text(),
+                        "language", receiverLang,
+                        "sourceLanguage", senderLang
+                    ))
+                    val translatedPacket = ItpPacket.Decoded(
+                        message.session(),
+                        message.sequence(),
+                        receiverLang,
+                        translatedText,
+                        message.emergency(),
+                        message.correctedCodewords(),
+                        message.sourceBytes(),
+                        message.payloadBytes()
+                    )
+                    playback.add(translatedPacket)
+                    playNext()
+                }
+            }
+        }
     }
 
     /**
@@ -1317,7 +1877,19 @@ class SpeechEngine(
         Log.i(TAG, "🚨 EMERGENCY received: '${message.text()}'")
         event("emergency_received", "text", message.text(), "language", message.language())
 
+        val senderLang = message.language()
+        val receiverLang = this.language
+        val isBypassed = shouldBypassTranslation(senderLang, receiverLang)
+
         asyncPool.execute {
+            val textToSpeak = if (isBypassed) {
+                Log.i(TAG, "Emergency received: same language ('$senderLang'). Translation BYPASSED.")
+                message.text()
+            } else {
+                Log.i(TAG, "Emergency received: languages differ ($senderLang -> $receiverLang). Translating full conversation...")
+                translateTextFull(message.text(), senderLang, receiverLang)
+            }
+
             val am = activity.getSystemService(android.content.Context.AUDIO_SERVICE) as? AudioManager
             val vibrator = if (android.os.Build.VERSION.SDK_INT >= 31) {
                 val vm = activity.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager
@@ -1355,7 +1927,7 @@ class SpeechEngine(
                 playSiren()
 
                 // 4. Play the actual message TTS on alarm stream
-                playEmergencyTts(message.text(), message.language())
+                playEmergencyTts(textToSpeak, if (isBypassed) message.language() else receiverLang)
 
             } catch (t: Throwable) {
                 Log.e(TAG, "Emergency playback error", t)
@@ -1448,6 +2020,7 @@ class SpeechEngine(
 
         if (ttsReady && tts != null) {
             val targetLocale = when {
+                lang.startsWith("hi", ignoreCase = true) -> java.util.Locale("hi", "IN")
                 lang.startsWith("en", ignoreCase = true) -> java.util.Locale("en", "IN")
                 lang.startsWith("mr", ignoreCase = true) -> java.util.Locale("mr", "IN")
                 lang.startsWith("gu", ignoreCase = true) -> java.util.Locale("gu", "IN")
@@ -1539,6 +2112,7 @@ class SpeechEngine(
 
         if (ttsReady && tts != null) {
             val targetLocale = when {
+                lang.startsWith("hi", ignoreCase = true) -> Locale("hi", "IN")
                 lang.startsWith("en", ignoreCase = true) -> Locale("en", "IN")
                 lang.startsWith("mr", ignoreCase = true) -> Locale("mr", "IN")
                 lang.startsWith("gu", ignoreCase = true) -> Locale("gu", "IN")

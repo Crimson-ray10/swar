@@ -120,7 +120,7 @@ class MainActivity : Activity() {
             settings.domStorageEnabled = true
             settings.allowFileAccess = false
             settings.allowContentAccess = false
-            settings.blockNetworkLoads = true
+            settings.blockNetworkLoads = false
             addJavascriptInterface(Bridge(), "SWAR")
             addJavascriptInterface(Bridge(), "iTantra")
             addJavascriptInterface(Bridge(), "LinC")
@@ -133,7 +133,7 @@ class MainActivity : Activity() {
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = true
 
-                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse {
+                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                     val reqUrl = request.url.toString()
                     val uri = request.url
                     if (uri.scheme == "https" && uri.host in listOf("app.swar.local", "app.itantra.local")) {
@@ -153,6 +153,9 @@ class MainActivity : Activity() {
                             }
                             return WebResourceResponse(mime, "UTF-8", assets.open("generated/$asset"))
                         } catch (ignored: IOException) {}
+                    }
+                    if (uri.scheme == "https" && (uri.host == "translate.googleapis.com" || uri.host == "api.mymemory.translated.net")) {
+                        return null
                     }
                     return WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream(ByteArray(0)))
                 }
@@ -396,6 +399,11 @@ class MainActivity : Activity() {
     }
 
     inner class Bridge {
+        @JavascriptInterface
+        fun translateText(text: String, src: String, tgt: String): String {
+            return speech.translateTextFull(text, src, tgt)
+        }
+
         @JavascriptInterface
         fun command(action: String, encoded: String) {
             runOnUiThread {

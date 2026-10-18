@@ -3,6 +3,7 @@ import { Volume2, VolumeX, RefreshCw, Unlink, Radio, Zap } from 'lucide-react';
 import { sound } from '../utils/audioEffects';
 import './PixelTransceiver.css';
 import { openRadio, isNative } from '../services/transceiver';
+import { translateText, shouldBypassTranslation, normalizeLanguage, TranslationResult } from '../services/translator';
 import swanLogo from '../assets/swan-logo.png';
 
 export type ScreenMode = 'devices' | 'transceiver' | 'idle' | 'languages';
@@ -18,25 +19,38 @@ export interface PeerDevice {
   raw?: any;
 }
 
-// Strict filter: Available Devices screen ONLY shows Wi-Fi Direct connections!
+// Peer filter: ONLY accept Wi-Fi Direct (P2P) and Local Wi-Fi Mesh candidates.
+// Requirement 3: Strictly do NOT show Bluetooth devices on the list.
+// Bluetooth is reserved exclusively as an automatic background fallback when Wi-Fi drops!
 export const isWifiDirectPeer = (d: any): boolean => {
   if (!d) return false;
-  const ip = String(d.ip || d.address || d.raw?.address || '').trim();
+
+  const transport = String(d.transport || '').toLowerCase();
   const source = String(d.source || d.raw?.source || '').toLowerCase();
-  const transport = String(d.transport || d.raw?.transport || '').toLowerCase();
   const p2pAddr = String(d.p2pAddress || d.raw?.p2pAddress || '').trim();
+  const btAddr = String(d.btAddress || d.raw?.btAddress || '').trim();
+  const ip = String(d.ip || d.address || d.raw?.address || '').trim();
 
-  // If already on Android Wi-Fi Direct P2P subnet (192.168.49.x), always accept as Wi-Fi Direct!
-  if (ip.startsWith('192.168.49.')) return true;
+  // 1. REQ 3: DO NOT SHOW BLUETOOTH DEVICES ON THE LIST
+  if (transport.includes('bluetooth') || source === 'bluetooth') {
+    return false;
+  }
+  if (btAddr.length > 0 && p2pAddr.length === 0 && (ip.length === 0 || ip === '0.0.0.0' || ip === '127.0.0.1')) {
+    return false;
+  }
 
-  // Explicitly remove/filter out regular LAN, mDNS, relay and pure Bluetooth
-  if (source === 'mdns' || source === 'lan' || source === 'bluetooth') return false;
-  if (transport.includes('lan') || transport.includes('mdns') || transport.includes('bluetooth') || transport.includes('relay')) return false;
+  const name = String(d.name || d.raw?.name || d.model || '').toLowerCase();
+  // Filter out non-phone noise (smart TVs, desktop PCs, printers)
+  if (name.includes('printer') || name.includes('desktop') || name.includes('smart tv') || name.includes('bravia')) {
+    return false;
+  }
 
-  // Accept Wi-Fi Direct (P2P address, source: p2p, or transport: Wi-Fi Direct / P2P)
-  if (p2pAddr.length > 0) return true;
-  if (source === 'p2p') return true;
-  if (transport.includes('wifi direct') || transport.includes('wi-fi direct') || transport.includes('p2p')) return true;
+  // 2. Wi-Fi Direct (P2P)
+  if (p2pAddr.length > 0 || source === 'p2p' || ip.startsWith('192.168.49.')) return true;
+
+  // 3. Local Wi-Fi Mesh UDP Beacon / Direct IP
+  if (source === 'beacon' || source === 'lan' || source === 'mdns') return true;
+  if (ip.length > 0 && ip !== '0.0.0.0' && ip !== '127.0.0.1') return true;
 
   return false;
 };
@@ -122,6 +136,13 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
   const lastSpokenTextRef = useRef<string>('');
   const hasDispatchedRef = useRef<boolean>(false);
 
+  const [translationMeta, setTranslationMeta] = useState<TranslationResult | null>(null);
+  const activeModelTagRef = useRef<string>(activeModelTag);
+
+  useEffect(() => {
+    activeModelTagRef.current = activeModelTag;
+  }, [activeModelTag]);
+
   const currentLanguage = LANGUAGES[languageIdx];
   const currentHFModel = HF_CATALOGUE.find(m => activeModelTag.toLowerCase().startsWith(m.tag.split('-')[0].toLowerCase())) || HF_CATALOGUE[0];
 
@@ -154,16 +175,37 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
 
   // 2. Open Radio & Listen for Events
   useEffect(() => {
-    const normalize = (d: any): PeerDevice => ({
-      id: d.id || d.p2pAddress || d.btAddress || d.address || String(Math.random()),
-      name: d.name || d.address || 'Nearby phone',
-      ip: d.address || '',
-      port: d.port,
-      transport: (d.p2pAddress || d.source === 'p2p') ? 'Wi-Fi Direct' : (d.transport || 'P2P'),
-      p2pAddress: d.p2pAddress,
-      btAddress: d.btAddress,
-      raw: d,
-    });
+    const normalize = (d: any): PeerDevice => {
+      const p2p = d.p2pAddress || d.raw?.p2pAddress;
+      const bt = d.btAddress || d.raw?.btAddress;
+      const ip = d.address || d.ip || d.raw?.address || '';
+      const source = String(d.source || d.raw?.source || '').toLowerCase();
+
+      let transport = 'Direct';
+      if (p2p || source === 'p2p' || ip.startsWith('192.168.49.')) {
+        transport = 'Wi-Fi Direct';
+      } else if (bt || source === 'bluetooth') {
+        transport = 'Bluetooth';
+      } else if (source === 'beacon' || source === 'lan' || source === 'mdns' || ip) {
+        transport = 'Mesh Direct';
+      } else if (d.transport) {
+        transport = d.transport;
+      }
+
+      const id = p2p || bt || (ip && ip.length > 3 ? ip : null) || d.id || String(d.name || Math.random());
+      const name = d.name || d.model || (bt ? `Phone [${bt.slice(-5)}]` : (ip ? `Node [${ip}]` : 'Nearby Phone'));
+
+      return {
+        id,
+        name,
+        ip,
+        port: d.port || 8988,
+        transport,
+        p2pAddress: p2p,
+        btAddress: bt,
+        raw: d,
+      };
+    };
 
     radio.current = openRadio((type, data) => {
       if (type === 'peer') {
@@ -269,7 +311,51 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
           // Automatically switch to Transceiver page on incoming voice!
           setScreenMode('transceiver');
           clearSilenceTimer();
+
+          // AI4Bharat IndicTrans2 + CTranslate2 Translation Layer
+          const senderLang = data.language || 'en';
+          const myLang = activeModelTagRef.current || 'en';
+          const isBypassed = shouldBypassTranslation(senderLang, myLang);
+
+          if (isBypassed) {
+            console.log(`[Translation] Both users selected same language (${normalizeLanguage(senderLang)}). Translator layer BYPASSED.`);
+            setTranslationMeta({
+              originalText: data.text,
+              translatedText: data.text,
+              sourceLang: senderLang,
+              targetLang: myLang,
+              bypassed: true,
+              reason: `Same language (${normalizeLanguage(senderLang).toUpperCase()})`,
+              latencyMs: 0
+            });
+            setNotice(`BYPASSED · SAME LANG (${normalizeLanguage(senderLang).toUpperCase()})`);
+          } else {
+            console.log(`[Translation] Languages differ (${senderLang} -> ${myLang}). Translating via IndicTrans2 CTranslate2...`);
+            setNotice(`TRANSLATING (${normalizeLanguage(senderLang).toUpperCase()} → ${normalizeLanguage(myLang).toUpperCase()})…`);
+            translateText(data.originalText || data.text, senderLang, myLang).then(res => {
+              setTranslationMeta(res);
+              setIncoming(res.translatedText);
+              setLiveTranscript(res.translatedText);
+              setNotice(`TRANSLATED (${res.latencyMs}ms · INDICTRANS2)`);
+              if (!isNative() && 'speechSynthesis' in window) {
+                const speech = new SpeechSynthesisUtterance(res.translatedText);
+                speech.lang = myLang;
+                window.speechSynthesis.speak(speech);
+              }
+            });
+          }
         }
+      }
+
+      if (type === 'translation_status' && data.translated) {
+        setIncoming(data.translated);
+        setLiveTranscript(data.translated);
+        setNotice(`TRANSLATED (${normalizeLanguage(data.source || 'en').toUpperCase()} → ${normalizeLanguage(data.target || 'hi').toUpperCase()})`);
+      }
+
+      if (type === 'received_translated' && data.text) {
+        setIncoming(data.text);
+        setLiveTranscript(data.text);
       }
 
       if (type === 'speech') {
@@ -291,6 +377,19 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
           setPairingPeerId(null);
         }
       }
+
+      // Requirement 3: Automatic fallback to Bluetooth and automatic recovery to Wi-Fi Direct
+      if (type === 'metrics' && data.transport) {
+        const transName = data.transport === 'bluetooth' ? 'Bluetooth Fallback' : 'Wi-Fi Direct';
+        setConnectedPeer(prev => {
+          if (!prev) return null;
+          if (prev.transport !== transName) {
+            setNotice(`TRANSPORT: ${transName.toUpperCase()}`);
+            return { ...prev, transport: transName };
+          }
+          return prev;
+        });
+      }
     });
 
     command('language', { language: 'en' });
@@ -303,6 +402,15 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
       if (pairingTimeoutRef.current) clearTimeout(pairingTimeoutRef.current);
     };
   }, [clearSilenceTimer, startSilenceTimer, triggerDiscovery]);
+
+  // Periodic discovery refresh while on devices screen and not connected
+  useEffect(() => {
+    if (screenMode !== 'devices' || connectedPeer) return;
+    const interval = setInterval(() => {
+      triggerDiscovery();
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [screenMode, connectedPeer, triggerDiscovery]);
 
   // Requirement: Global inactivity detector (switches to Idle Animation if app is not interacted with for 1m 30s)
   useEffect(() => {
@@ -625,8 +733,9 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
         setTimeout(() => {
           if (!hasDispatchedRef.current && pendingSpoken) {
             hasDispatchedRef.current = true;
-            console.log('Dispatching safety fallback for STT spoken transcript:', pendingSpoken);
-            command('send', { text: pendingSpoken, language: 'en' });
+            const currentLang = activeModelTagRef.current?.split('-')[0] || 'en';
+            console.log('Dispatching safety fallback for STT spoken transcript:', pendingSpoken, 'lang:', currentLang);
+            command('send', { text: pendingSpoken, language: currentLang });
           }
         }, 1200);
       }
@@ -670,7 +779,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
     }
   };
 
-  // Connection handler (strictly prioritizing Wi-Fi Direct / P2P)
+  // Connection handler (supports Wi-Fi Direct, Direct Mesh IP, and Bluetooth)
   const handleConnectDevice = (peer: PeerDevice) => {
     if (isPairing && pairingPeerId === peer.id) return;
     sound.playClick();
@@ -684,14 +793,16 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
       setIsPairing(false);
       setPairingPeerId(null);
       setNotice('PAIRING TIMEOUT · TAP TO RETRY');
-    }, 12000);
+    }, 15000);
 
     if (peer.ip && peer.ip.startsWith('192.168.49.')) {
       command('connect', { address: peer.ip, port: peer.port || 8988, pin, peer: peer.raw, peerName: peer.name });
     } else if (isNative() && peer.p2pAddress && peer.p2pAddress.length >= 17) {
       command('connectP2p', { p2pAddress: peer.p2pAddress, peerName: peer.name });
-    } else if (peer.ip && peer.ip.includes('.')) {
+    } else if (peer.ip && peer.ip.includes('.') && peer.ip !== '0.0.0.0') {
       command('connect', { address: peer.ip, port: peer.port || 8988, pin, peer: peer.raw, peerName: peer.name });
+    } else if (peer.btAddress) {
+      command('connectBluetooth', { btAddress: peer.btAddress, peerName: peer.name });
     } else {
       command('connectP2p', { p2pAddress: peer.p2pAddress || peer.id, peerName: peer.name });
     }
@@ -1261,17 +1372,17 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
                   <div className="screen-radar-search-box">
                     <div className="radar-spinner" />
                     <div style={{ fontSize: '13px', letterSpacing: '0.08em', fontWeight: 700 }}>
-                      WI-FI DIRECT RADAR ACTIVE
+                      DEVICE RADAR ACTIVE
                     </div>
                     <div style={{ fontSize: '11px', opacity: 0.6, letterSpacing: '0.04em' }}>
-                      SEARCHING FOR NEARBY WI-FI DIRECT UNITS…
+                      SCANNING FOR NEARBY PHONES (WI-FI & BLUETOOTH)…
                     </div>
                     <button
                       onClick={handleManualScan}
                       className="screen-action-btn-mini"
                       style={{ marginTop: '6px', padding: '3px 10px', fontSize: '12px' }}
                     >
-                      [ RE-SCAN WI-FI DIRECT ]
+                      [ RE-SCAN RADAR ]
                     </button>
                   </div>
                 ) : (
@@ -1299,7 +1410,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
                             {peer.name}
                           </span>
                           <span className="device-transport-tag">
-                            [WI-FI DIRECT] {peer.p2pAddress ? `• ${peer.p2pAddress}` : (peer.ip ? `• ${peer.ip}` : '')}
+                            [{peer.transport.toUpperCase()}] {peer.p2pAddress ? `• ${peer.p2pAddress}` : (peer.ip ? `• ${peer.ip}` : (peer.btAddress ? `• ${peer.btAddress}` : ''))}
                           </span>
                         </div>
 
@@ -1357,17 +1468,29 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
                   <div>
                     <div className="transcript-label-mini">
                       LIVE TRANSCRIPTION STREAM • {isPeerSpeaking ? 'REMOTE RECEIVE' : isTalking ? 'LOCAL TRANSMIT' : 'READY'}
+                      {translationMeta && (
+                        <span className={`translation-badge ${translationMeta.bypassed ? 'bypassed' : 'active'}`}>
+                          {translationMeta.bypassed
+                            ? `⚡ BYPASS [${normalizeLanguage(translationMeta.sourceLang).toUpperCase()}]`
+                            : `🌐 ${normalizeLanguage(translationMeta.sourceLang).toUpperCase()} → ${normalizeLanguage(translationMeta.targetLang).toUpperCase()} (${translationMeta.latencyMs}ms)`}
+                        </span>
+                      )}
                     </div>
                     <div className="transcript-body-text">
                       {liveTranscript}
                       <span className="cursor-block" />
                     </div>
+                    {translationMeta && !translationMeta.bypassed && translationMeta.originalText && translationMeta.originalText !== liveTranscript && (
+                      <div className="transcript-original-sub">
+                        ORIGINAL ({normalizeLanguage(translationMeta.sourceLang).toUpperCase()}): "{translationMeta.originalText}"
+                      </div>
+                    )}
                   </div>
 
                   <div className="transcript-telemetry-meta">
                     <span>{connectedPeer ? `PEER: ${connectedPeer.name}` : connectionState}</span>
                     <span>{isNative() ? 'NATIVE ITP' : 'RELAY'}</span>
-                    <span>AUDIO: OPUS 16kHz</span>
+                    <span>{translationMeta && !translationMeta.bypassed ? 'INDICTRANS2 CT2' : 'DIRECT ZERO-LATENCY'}</span>
                   </div>
                 </div>
               </>
