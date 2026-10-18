@@ -471,11 +471,19 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 10. APK DIRECT DOWNLOAD & CONFIRMATION MODAL
+  const allApkBtns = document.querySelectorAll('a[href*="swar.apk"], a[download="swar.apk"]');
+  allApkBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const freshUrl = `/swar.apk?v=0.3.1&t=${Date.now()}`;
+      btn.setAttribute('href', freshUrl);
+    });
+  });
+
   apkDownloadLinks.forEach((link) => {
     link.addEventListener('click', (e) => {
-      // Trigger native download of latest build
+      // Trigger native download of newest build
       const dlLink = document.createElement('a');
-      dlLink.href = '/swar.apk';
+      dlLink.href = `/swar.apk?v=0.3.1&t=${Date.now()}`;
       dlLink.download = 'swar.apk';
       document.body.appendChild(dlLink);
       dlLink.click();
@@ -501,6 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const realDownloadBtn = document.getElementById('real-download-btn');
   if (realDownloadBtn) {
     realDownloadBtn.addEventListener('click', () => {
+      realDownloadBtn.href = `/swar.apk?v=0.3.1&t=${Date.now()}`;
       playHarmonicTone(659.25, 'sine', 0.4);
     });
   }
