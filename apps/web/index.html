@@ -351,24 +351,24 @@
 
                 <div class="phone-subhead">
                   <span class="micro-label">LIVE TRANSLATION</span>
-                  <div class="lang-pill-row">
-                    <span class="lang-name">English</span>
+                  <div class="lang-pill-row" id="live-trans-lang-toggle" role="button" tabindex="0" title="Tap to toggle Hindi ⇄ English translation direction" style="cursor: pointer;">
+                    <span class="lang-name" id="trans-lang-src">Hindi</span>
                     <svg class="lang-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                    <span class="lang-name">Hindi</span>
+                    <span class="lang-name" id="trans-lang-tgt">English</span>
                   </div>
                 </div>
 
-                <div class="translation-source-card">
-                  <span class="speaker-tag">SPEAKER</span>
-                  <div class="audio-waveform-mini">
+                <div class="translation-source-card" id="trans-source-card" style="cursor: pointer;" title="Tap to cycle conversational phrase">
+                  <span class="speaker-tag" id="trans-speaker-tag">SPEAKER (HINDI)</span>
+                  <div class="audio-waveform-mini" id="trans-waveform">
                     <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
                   </div>
-                  <p class="source-phrase">“Where should we meet?”</p>
+                  <p class="source-phrase" id="trans-source-phrase">“हम कहाँ मिलें?”</p>
                 </div>
 
-                <div class="translation-result-card">
-                  <p class="hindi-phrase">हम कहाँ मिलें?</p>
-                  <button class="mini-speak-btn" aria-label="Pronounce translation">
+                <div class="translation-result-card" id="trans-result-card">
+                  <p class="hindi-phrase" id="trans-result-phrase">“Where should we meet?”</p>
+                  <button class="mini-speak-btn" id="trans-speak-btn" aria-label="Pronounce translation" title="Speak translation">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
                   </button>
                 </div>

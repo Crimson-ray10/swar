@@ -3,7 +3,7 @@ import { Volume2, VolumeX, RefreshCw, Unlink, Radio, Zap } from 'lucide-react';
 import { sound } from '../utils/audioEffects';
 import './PixelTransceiver.css';
 import { openRadio, isNative } from '../services/transceiver';
-import { translateText, shouldBypassTranslation, normalizeLanguage, TranslationResult } from '../services/translator';
+import { translateText, shouldBypassTranslation, normalizeLanguage, detectScriptLanguage, TranslationResult } from '../services/translator';
 import swanLogo from '../assets/swan-logo.png';
 
 export type ScreenMode = 'devices' | 'transceiver' | 'idle' | 'languages';
@@ -313,15 +313,19 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
           clearSilenceTimer();
 
           // AI4Bharat IndicTrans2 + CTranslate2 Translation Layer
-          const senderLang = data.language || 'en';
-          const myLang = activeModelTagRef.current || 'en';
-          const isBypassed = shouldBypassTranslation(senderLang, myLang);
+          const textContent = (data.originalText || data.text || '').trim();
+          const detectedScript = detectScriptLanguage(textContent);
+          const senderLang = (detectedScript !== 'unknown' && detectedScript !== 'en')
+            ? detectedScript
+            : (data.language || (detectedScript === 'en' ? 'en' : 'en'));
+          const myLang = (activeModelTagRef.current || 'en').split('-')[0];
+          const isBypassed = shouldBypassTranslation(senderLang, myLang, textContent);
 
           if (isBypassed) {
             console.log(`[Translation] Both users selected same language (${normalizeLanguage(senderLang)}). Translator layer BYPASSED.`);
             setTranslationMeta({
-              originalText: data.text,
-              translatedText: data.text,
+              originalText: textContent,
+              translatedText: textContent,
               sourceLang: senderLang,
               targetLang: myLang,
               bypassed: true,
@@ -330,16 +334,16 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
             });
             setNotice(`BYPASSED · SAME LANG (${normalizeLanguage(senderLang).toUpperCase()})`);
           } else {
-            console.log(`[Translation] Languages differ (${senderLang} -> ${myLang}). Translating via IndicTrans2 CTranslate2...`);
+            console.log(`[Translation] Languages differ (${senderLang} -> ${myLang}). Translating via IndicTrans2...`);
             setNotice(`TRANSLATING (${normalizeLanguage(senderLang).toUpperCase()} → ${normalizeLanguage(myLang).toUpperCase()})…`);
-            translateText(data.originalText || data.text, senderLang, myLang).then(res => {
+            translateText(textContent, senderLang, myLang).then(res => {
               setTranslationMeta(res);
               setIncoming(res.translatedText);
               setLiveTranscript(res.translatedText);
               setNotice(`TRANSLATED (${res.latencyMs}ms · INDICTRANS2)`);
               if (!isNative() && 'speechSynthesis' in window) {
                 const speech = new SpeechSynthesisUtterance(res.translatedText);
-                speech.lang = myLang;
+                speech.lang = myLang === 'hi' ? 'hi-IN' : 'en-US';
                 window.speechSynthesis.speak(speech);
               }
             });
@@ -462,7 +466,7 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
         const rec = new SpeechRec();
         rec.continuous = true;
         rec.interimResults = true;
-        rec.lang = currentLanguage.speechCode;
+        rec.lang = activeModelTag || currentLanguage?.speechCode || 'en-IN';
 
         rec.onresult = (event: any) => {
           let interim = '';
@@ -476,7 +480,10 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
               .filter((r: any) => r.isFinal)
               .map((r: any) => r[0].transcript)
               .join(' ');
-            if (finalized.trim()) command('send', { text: finalized });
+            if (finalized.trim()) {
+              const currentLang = (activeModelTagRef.current || 'en-IN').split('-')[0];
+              command('send', { text: finalized, language: currentLang });
+            }
           }
         };
 
@@ -501,11 +508,12 @@ export const PixelTransceiver: React.FC<PixelTransceiverProps> = () => {
         try { recognitionRef.current.stop(); } catch (_) {}
       }
     };
-  }, [currentLanguage, startSilenceTimer]);
+  }, [activeModelTag, currentLanguage, startSilenceTimer]);
 
   useEffect(() => {
-    command('language', { language: currentLanguage.speechCode.split('-')[0] });
-  }, [currentLanguage]);
+    const langCode = (activeModelTag || currentLanguage?.speechCode || 'en-IN').split('-')[0];
+    command('language', { language: langCode });
+  }, [activeModelTag, currentLanguage]);
 
   // =========================================================================
   // PAGE 3: Hypnotic Idle Carrier Oscilloscope Animation

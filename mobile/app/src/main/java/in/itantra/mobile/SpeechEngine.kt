@@ -1355,9 +1355,22 @@ class SpeechEngine(
         }
     }
 
-    fun shouldBypassTranslation(senderLang: String, receiverLang: String): Boolean {
+    private fun decodeHtml(str: String): String {
+        return str.replace("&#39;", "'")
+            .replace("&quot;", "\"")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+    }
+
+    fun shouldBypassTranslation(senderLang: String, receiverLang: String, text: String = ""): Boolean {
         val s = normalizeLang(senderLang)
         val r = normalizeLang(receiverLang)
+        if (text.isNotBlank()) {
+            val hasDevanagari = text.any { it in '\u0900'..'\u097F' }
+            if (hasDevanagari && r == "en") return false
+            if (!hasDevanagari && text.matches(Regex("^[a-zA-Z0-9\\s.,?!'\"\\-]+$")) && r == "hi") return false
+        }
         return s == r
     }
 
@@ -1371,8 +1384,8 @@ class SpeechEngine(
             val urlStr = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$src&tl=$tgt&dt=t&q=$encoded"
             val conn = URL(urlStr).openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
-            conn.connectTimeout = 1200
-            conn.readTimeout = 1200
+            conn.connectTimeout = 3500
+            conn.readTimeout = 3500
             conn.setRequestProperty("User-Agent", "Mozilla/5.0")
             if (conn.responseCode == 200) {
                 val reader = java.io.BufferedReader(java.io.InputStreamReader(conn.inputStream, "UTF-8"))
@@ -1391,7 +1404,7 @@ class SpeechEngine(
                     result.append(part.getString(0))
                 }
                 val res = result.toString().trim()
-                if (res.isNotEmpty()) return res
+                if (res.isNotEmpty()) return decodeHtml(res)
             }
         } catch (e: Throwable) {
             Log.d(TAG, "Google Translate offline/error: ${e.message}")
@@ -1403,8 +1416,8 @@ class SpeechEngine(
             val urlStr = "https://api.mymemory.translated.net/get?q=$encoded&langpair=$src|$tgt"
             val conn = URL(urlStr).openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
-            conn.connectTimeout = 1200
-            conn.readTimeout = 1200
+            conn.connectTimeout = 3500
+            conn.readTimeout = 3500
             conn.setRequestProperty("User-Agent", "Mozilla/5.0")
             if (conn.responseCode == 200) {
                 val reader = java.io.BufferedReader(java.io.InputStreamReader(conn.inputStream, "UTF-8"))
@@ -1418,7 +1431,7 @@ class SpeechEngine(
                 val respData = json.optJSONObject("responseData")
                 val tr = respData?.optString("translatedText")
                 if (!tr.isNullOrBlank() && !tr.equals(clean, ignoreCase = true)) {
-                    return tr.trim()
+                    return decodeHtml(tr.trim())
                 }
             }
         } catch (e: Throwable) {
@@ -1623,6 +1636,16 @@ class SpeechEngine(
         "आपका नाम क्या है" to "What is your name?", "तुम्हारा नाम क्या है" to "What is your name?",
         "aapka naam kya hai" to "What is your name?",
         "मेरा नाम" to "My name is", "mera naam" to "My name is",
+        "हम कहाँ मिलें" to "Where should we meet?", "हम कहाँ मिलेंगे" to "Where should we meet?",
+        "hum kahan mile" to "Where should we meet?", "hum kahan milenge" to "Where should we meet?",
+        "कहाँ जाना है" to "Where to go?", "kahan jana hai" to "Where to go?",
+        "गाड़ी कहाँ खड़ी है" to "Where is the car parked?", "गाड़ी कहाँ खड़ी है" to "Where is the car parked?", "गाड़ी कहाँ है" to "Where is the car?",
+        "रास्ता कहाँ है" to "Where is the route?", "सड़क कहाँ है" to "Where is the road?",
+        "मैं रास्ते में हूँ" to "I am on my way", "मैं पहुँच गया" to "I have arrived", "मैं आ रहा हूँ" to "I am coming",
+        "कितना समय लगेगा" to "How much time will it take?", "कितने बजे हैं" to "What time is it?", "क्या समय हुआ है" to "What time is it?",
+        "मुझे भूख लगी है" to "I am hungry", "मुझे प्यास लगी है" to "I am thirsty",
+        "मुझे जाने दो" to "Let me go", "मुझे नहीं पता" to "I do not know", "मुझे मालूम नहीं" to "I do not know",
+        "क्या बात है" to "What is the matter?", "आप कौन हैं" to "Who are you?", "तुम कौन हो" to "Who are you?",
         "आप कहाँ हैं" to "Where are you?", "कहाँ हो" to "Where are you?", "aap kahan ho" to "Where are you?",
         "आप कहाँ जा रहे हैं" to "Where are you going?", "kahan ja rahe ho" to "Where are you going?",
         "आप क्या कर रहे हैं" to "What are you doing?", "क्या कर रहे हो" to "What are you doing?",
@@ -1663,6 +1686,13 @@ class SpeechEngine(
 
     private val wordsHiToEn = mapOf(
         "हाँ" to "yes", "haan" to "yes", "ha" to "yes", "नहीं" to "no", "nahi" to "no", "na" to "no",
+        "मिलें" to "meet", "मिलेंगे" to "will meet", "मिलना" to "meet", "मिल" to "meet",
+        "जाना" to "to go", "जा" to "go", "आ" to "come", "आना" to "to come",
+        "कर" to "do", "रहे" to "being", "रहा" to "being", "रही" to "being", "करो" to "do", "किया" to "did",
+        "हो" to "are", "खड़ी" to "parked", "खड़ा" to "standing", "खड़े" to "standing",
+        "बोल" to "speak", "बोलो" to "speak", "बोलना" to "to speak", "कहा" to "said",
+        "बात" to "matter", "काम" to "work", "किधर" to "where",
+        "कितना" to "how much", "कितने" to "how many", "कितनी" to "how much",
         "मैं" to "I", "main" to "I", "मुझे" to "me", "mujhe" to "me", "मेरा" to "my", "mera" to "my", "मेरी" to "my", "meri" to "my",
         "आप" to "you", "aap" to "you", "तुम" to "you", "tum" to "you", "आपका" to "your", "aapka" to "your", "आपकी" to "your", "aapki" to "your",
         "तुम्हारा" to "your", "tumhara" to "your", "तुम्हारी" to "your",
@@ -1799,8 +1829,11 @@ class SpeechEngine(
      * Translates ALL words in the user's speech, preserving full dialogue context.
      */
     fun translateTextFull(text: String, srcLang: String, tgtLang: String): String {
-        val s = normalizeLang(srcLang)
+        var s = normalizeLang(srcLang)
         val t = normalizeLang(tgtLang)
+        if (text.any { it in '\u0900'..'\u097F' } && s != "hi" && s != "mr") {
+            s = "hi"
+        }
         if (s == t || text.isBlank()) return text
 
         try {
@@ -1828,7 +1861,7 @@ class SpeechEngine(
 
         val senderLang = message.language()
         val receiverLang = this.language
-        val isBypassed = shouldBypassTranslation(senderLang, receiverLang)
+        val isBypassed = shouldBypassTranslation(senderLang, receiverLang, message.text())
 
         if (isBypassed) {
             Log.i(TAG, "Both users selected same language ('$senderLang'). Translation layer BYPASSED.")

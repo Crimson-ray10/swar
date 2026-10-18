@@ -253,6 +253,77 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // 5B. LIVE TRANSLATION SCREEN INTERACTIVITY (PHONE 1)
+  const transLangToggle = document.getElementById('live-trans-lang-toggle');
+  const transLangSrc = document.getElementById('trans-lang-src');
+  const transLangTgt = document.getElementById('trans-lang-tgt');
+  const transSpeakerTag = document.getElementById('trans-speaker-tag');
+  const transSourcePhrase = document.getElementById('trans-source-phrase');
+  const transResultPhrase = document.getElementById('trans-result-phrase');
+  const transSpeakBtn = document.getElementById('trans-speak-btn');
+  const transSourceCard = document.getElementById('trans-source-card');
+
+  const hindiToEnglishPairs = [
+    { src: '“हम कहाँ मिलें?”', tgt: '“Where should we meet?”', srcLang: 'Hindi', tgtLang: 'English' },
+    { src: '“नमस्ते, आप कैसे हैं?”', tgt: '“Hello, how are you?”', srcLang: 'Hindi', tgtLang: 'English' },
+    { src: '“गाड़ी कहाँ खड़ी है?”', tgt: '“Where is the car parked?”', srcLang: 'Hindi', tgtLang: 'English' },
+    { src: '“मुझे पानी चाहिए।”', tgt: '“I need water.”', srcLang: 'Hindi', tgtLang: 'English' },
+    { src: '“मैं रास्ते में हूँ।”', tgt: '“I am on my way.”', srcLang: 'Hindi', tgtLang: 'English' },
+    { src: '“Where should we meet?”', tgt: '“हम कहाँ मिलें?”', srcLang: 'English', tgtLang: 'Hindi' },
+    { src: '“Your bus will arrive in five minutes.”', tgt: '“आपकी बस 5 मिनट में पहुंचेगी।”', srcLang: 'English', tgtLang: 'Hindi' }
+  ];
+  let transPairIdx = 0;
+
+  function pronounceCurrentTranslation() {
+    const pair = hindiToEnglishPairs[transPairIdx];
+    const textToSpeak = pair.tgt.replace(/[“”"']/g, '');
+    const langCode = pair.tgtLang === 'Hindi' ? 'hi-IN' : 'en-US';
+
+    playHarmonicTone(587.33, 'sine', 0.25);
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      utterance.lang = langCode;
+      utterance.rate = 0.95;
+      window.speechSynthesis.speak(utterance);
+    }
+  }
+
+  function advanceTranslationPair() {
+    transPairIdx = (transPairIdx + 1) % hindiToEnglishPairs.length;
+    const pair = hindiToEnglishPairs[transPairIdx];
+
+    if (transLangSrc) transLangSrc.textContent = pair.srcLang;
+    if (transLangTgt) transLangTgt.textContent = pair.tgtLang;
+    if (transSpeakerTag) transSpeakerTag.textContent = `SPEAKER (${pair.srcLang.toUpperCase()})`;
+    if (transSourcePhrase) transSourcePhrase.textContent = pair.src;
+    if (transResultPhrase) transResultPhrase.textContent = pair.tgt;
+
+    playHarmonicTone(493.88, 'triangle', 0.2);
+  }
+
+  if (transLangToggle) {
+    transLangToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      advanceTranslationPair();
+    });
+  }
+
+  if (transSourceCard) {
+    transSourceCard.addEventListener('click', (e) => {
+      e.stopPropagation();
+      advanceTranslationPair();
+    });
+  }
+
+  if (transSpeakBtn) {
+    transSpeakBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      pronounceCurrentTranslation();
+    });
+  }
+
   // 6. PHONE SCREEN SELECTOR TABS
   const phoneLeft = document.getElementById('phone-1');
   const phoneCenter = document.getElementById('phone-2');
